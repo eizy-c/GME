@@ -71,9 +71,11 @@ class GameRulesData {
         'Si no coincide con ninguna, la carta se queda en la mesa disponible para el rival.',
       ],
       specialRules: [
-        '¡Caída!: Si juegas exactamente la misma carta que el rival anterior acaba de tirar a la mesa, cantas "¡Caída!" y sumas puntos extra.',
-        '¡Limpia!: Si al capturar dejas la mesa completamente vacía sin ninguna carta, sumas puntos por mesa limpia.',
-        '¡Ronda!: Si al recibir tus 3 cartas tienes un par del mismo número en mano, cantas "¡Ronda!" antes de jugar.',
+        '¡Cantos Tradicionales!: Al recibir 3 cartas puedes cantar: Trivilín (+24 pts, 3 iguales), Registro (+12 pts, As, Caballo y Rey [1, 11, 12]), Vigía (+8 pts, par + consecutiva), Patrulla (+4 pts, 3 en escalera) o Ronda (+2..+5 pts, par según figura). En conflicto solo cobra el bando con el canto superior.',
+        '¡Canto de Mesa!: Al abrir la partida, el repartidor canta de 1 a 4 (ascendente o descendente); aciertos suman puntos, repetidas o sin aciertos dan +1 pt al rival.',
+        '¡Caída!: Si juegas el mismo número de la carta que acaba de tirar el jugador anterior, cantas ¡Caída! (+1 pt cartas 1-7, +2 Sota, +3 Caballo, +4 Rey).',
+        '¡Mesa Limpia!: Si levantas todas las cartas de la mesa sumas +4 pts (con mazo activo) o +2 pts (en la última mano).',
+        'Bono por Volumen: Al finalizar el mazo, quien supere 20 cartas físicas recogidas suma (Cartas - 20) puntos extra.',
       ],
       proTips: [
         'Memoriza las cartas que tu rival ha tirado para anticipar qué valores no podrá caerte.',

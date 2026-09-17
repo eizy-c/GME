@@ -47,33 +47,56 @@ class CapturedPileView extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Icono representativo de cartas apiladas
-          Stack(
-            children: [
-              Container(
-                width: 14,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: hasCards ? const Color(0xFF991B1B) : Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                  border: Border.all(color: Colors.white38, width: 0.5),
-                ),
-              ),
-              if (hasCards)
-                Positioned(
-                  top: 2,
-                  left: 2,
-                  child: Container(
-                    width: 14,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFB91C1C),
-                      borderRadius: BorderRadius.circular(2),
-                      border: Border.all(color: const Color(0xFFFDE047), width: 0.5),
-                    ),
+          // Icono representativo de cartas apiladas con el reverso oficial
+          SizedBox(
+            width: 18,
+            height: 22,
+            child: Stack(
+              children: [
+                Container(
+                  width: 15,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: hasCards ? const Color(0xFF1E3A8A) : Colors.white24,
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(color: Colors.white38, width: 0.5),
                   ),
                 ),
-            ],
+                if (hasCards)
+                  Positioned(
+                    top: 2,
+                    left: 2,
+                    child: Container(
+                      width: 15,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E3A8A),
+                        borderRadius: BorderRadius.circular(3),
+                        border: Border.all(color: const Color(0xFFFDE047), width: 0.8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            blurRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: Image.asset(
+                          'assets/cards/REV-CARD.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            color: const Color(0xFF1E3A8A),
+                            child: const Center(
+                              child: Icon(Icons.style_rounded, size: 8, color: Color(0xFFFDE047)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(width: 6),
           Column(

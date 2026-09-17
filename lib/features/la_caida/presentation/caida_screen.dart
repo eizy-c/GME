@@ -969,7 +969,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                     SizedBox(height: 6),
                     Text(
                       '• Canto de Mesa: Acierto nominal suma puntos; repetidas dan +1 pt a rivales; sin aciertos +1 pt a rivales.\n'
-                      '• Cantos: Trivilín (+5), Vigía (+3), Registro (+3), Patrulla (+2), Ronda (+1..+4). En conflicto solo cobra el bando superior.\n'
+                      '• Cantos: Trivilín (+24), Registro (+12), Vigía (+8), Patrulla (+4), Ronda (+2..+5). En conflicto solo cobra el bando superior.\n'
                       '• Jugadas: Caída (+1..+4), Arrastre en seguidilla (1..7, 10..12), Mesa Limpia (+4/+2).\n'
                       '• Volumen: Quien supere 20 cartas físicas suma (Cartas - 20) puntos.\n'
                       '• Meta: 24 puntos para ganar la partida.',

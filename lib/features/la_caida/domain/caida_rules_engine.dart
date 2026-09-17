@@ -27,17 +27,21 @@ class CaidaRulesEngine {
   /// 1 al 7: +1 punto
   /// 10 (Sota): +2 puntos
   /// 11 (Caballo): +3 puntos
-  /// 12 (Rey): +4 puntos
+  /// Puntos otorgados por una Ronda según el valor del naipe:
+  /// 1 al 7: +2 puntos base
+  /// 10 (Sota): +3 puntos
+  /// 11 (Caballo): +4 puntos
+  /// 12 (Rey): +5 puntos
   static int getCardRondaPoints(int number) {
     switch (number) {
       case 10:
-        return 2;
-      case 11:
         return 3;
-      case 12:
+      case 11:
         return 4;
+      case 12:
+        return 5;
       default:
-        return 1;
+        return 2;
     }
   }
 
@@ -149,12 +153,12 @@ class CaidaRulesEngine {
   /// Evalúa la mano de 3 cartas de un jugador y retorna el canto de mayor jerarquía disponible,
   /// o null si no posee ningún canto.
   ///
-  /// Jerarquía:
-  /// 1. Trivilín (3 cartas del mismo número): +5 puntos (Prioridad 5)
-  /// 2. Vigía (2 cartas iguales + 1 consecutiva): +3 puntos (Prioridad 4)
-  /// 3. Registro (As, Caballo y Rey: [1, 11, 12]): +3 puntos (Prioridad 3)
-  /// 4. Patrulla (3 cartas consecutivas): +2 puntos (Prioridad 2)
-  /// 5. Ronda (2 cartas del mismo número no consecutivas): +1 a +4 puntos (Prioridad 1)
+  /// Jerarquía oficial y puntos tradicionales:
+  /// 1. Trivilín (3 cartas del mismo número): +24 puntos (Prioridad 5)
+  /// 2. Vigía (2 cartas iguales + 1 consecutiva): +8 puntos (Prioridad 4)
+  /// 3. Registro (As, Caballo y Rey: [1, 11, 12]): +12 puntos (Prioridad 3)
+  /// 4. Patrulla (3 cartas consecutivas): +4 puntos (Prioridad 2)
+  /// 5. Ronda (2 cartas del mismo número no consecutivas): +2 a +5 puntos (Prioridad 1)
   static Canto? evaluateCantos(List<SpanishCard> hand) {
     if (hand.length != 3) return null;
 
@@ -162,21 +166,15 @@ class CaidaRulesEngine {
     final n2 = hand[1].number;
     final n3 = hand[2].number;
 
-    // 1. Trivilín (3 cartas iguales)
+    // 1. Trivilín (3 cartas iguales): +24 pts
     if (n1 == n2 && n2 == n3) {
-      return Canto(
-        type: CantoType.trivilin,
-        points: 5,
-        priority: 5,
-        tieBreakerValue: n1,
-        name: '¡Trivilín!',
-        description: 'Tres cartas del mismo número ($n1)',
+      return TrivilinCanto(
         cards: List.unmodifiable(hand),
+        nominalNumber: n1,
       );
     }
 
-    // 2. Vigía (2 cartas iguales + 1 consecutiva según la secuencia)
-    // Permutación de par y tercera carta
+    // 2. Vigía (2 cartas iguales + 1 consecutiva según la secuencia): +8 pts
     int? pairNum;
     int? thirdNum;
 
@@ -192,33 +190,22 @@ class CaidaRulesEngine {
     }
 
     if (pairNum != null && thirdNum != null && areConsecutive(pairNum, thirdNum)) {
-      return Canto(
-        type: CantoType.vigia,
-        points: 3,
-        priority: 4,
-        // En desempate de vigía, prevalece el par más alto
-        tieBreakerValue: pairNum * 100 + thirdNum,
-        name: '¡Vigía!',
-        description: 'Par de $pairNum y consecutiva $thirdNum',
+      return VigiaCanto(
         cards: List.unmodifiable(hand),
+        pairNumber: pairNum,
+        consecutiveNumber: thirdNum,
       );
     }
 
-    // 3. Registro (Exactamente As, Caballo y Rey: [1, 11, 12])
+    // 3. Registro (Exactamente As, Caballo y Rey: [1, 11, 12]): +12 pts
     final numbersSet = {n1, n2, n3};
     if (numbersSet.contains(1) && numbersSet.contains(11) && numbersSet.contains(12)) {
-      return Canto(
-        type: CantoType.registro,
-        points: 3,
-        priority: 3,
-        tieBreakerValue: 12,
-        name: '¡Registro!',
-        description: 'As, Caballo y Rey [1, 11, 12]',
+      return RegistroCanto(
         cards: List.unmodifiable(hand),
       );
     }
 
-    // 4. Patrulla (3 cartas consecutivas en la secuencia tradicional)
+    // 4. Patrulla (3 cartas consecutivas en la secuencia tradicional): +4 pts
     final sortedIndices = [
       sequence.indexOf(n1),
       sequence.indexOf(n2),
@@ -229,28 +216,19 @@ class CaidaRulesEngine {
         sortedIndices[0] + 1 == sortedIndices[1] &&
         sortedIndices[1] + 1 == sortedIndices[2]) {
       final highestNum = sequence[sortedIndices[2]];
-      return Canto(
-        type: CantoType.patrulla,
-        points: 2,
-        priority: 2,
-        tieBreakerValue: highestNum,
-        name: 'Patrulla',
-        description: 'Tres cartas en escalera hasta $highestNum',
+      return PatrullaCanto(
         cards: List.unmodifiable(hand),
+        highestNumber: highestNum,
       );
     }
 
-    // 5. Ronda (2 cartas del mismo número no consecutivas con la tercera)
+    // 5. Ronda (2 cartas del mismo número no consecutivas con la tercera): +2..+5 pts
     if (pairNum != null) {
       final pts = getCardRondaPoints(pairNum);
-      return Canto(
-        type: CantoType.ronda,
-        points: pts,
-        priority: 1,
-        tieBreakerValue: pairNum,
-        name: 'Ronda',
-        description: 'Par de $pairNum (+$pts pts)',
+      return RondaCanto(
         cards: List.unmodifiable(hand),
+        pairNumber: pairNum,
+        nominalPoints: pts,
       );
     }
 
@@ -281,34 +259,13 @@ class CaidaRulesEngine {
       return playerCantos;
     }
 
-    // Determinar el canto ganador comparando bando vs bando
-    // Buscar la mayor prioridad presente
-    int maxPriority = -1;
-    for (final c in activeCantos.values) {
-      if (c.priority > maxPriority) {
-        maxPriority = c.priority;
-      }
-    }
+    // Determinar el canto ganador comparando bando vs bando con compareTo polimórfico
+    final winningEntry = activeCantos.entries.reduce((best, current) {
+      final comparison = current.value.compareTo(best.value);
+      if (comparison > 0) return current;
+      if (comparison < 0) return best;
 
-    // Filtrar los que tienen la máxima prioridad
-    final topPriorityEntries = activeCantos.entries
-        .where((e) => e.value.priority == maxPriority)
-        .toList();
-
-    // Desempatar por tieBreakerValue
-    int maxTieBreaker = -1;
-    for (final e in topPriorityEntries) {
-      if (e.value.tieBreakerValue > maxTieBreaker) {
-        maxTieBreaker = e.value.tieBreakerValue;
-      }
-    }
-
-    final topTieBreakerEntries = topPriorityEntries
-        .where((e) => e.value.tieBreakerValue == maxTieBreaker)
-        .toList();
-
-    // Si aún hay empate entre rivales de distintos bandos, prevalece quien esté más cerca de la Mano
-    final winningEntry = topTieBreakerEntries.reduce((best, current) {
+      // En empate de jerarquía y valor nominal, prevalece quien esté más cerca de la Mano
       final bestIdx = playerIdsOrder.indexOf(best.key);
       final currentIdx = playerIdsOrder.indexOf(current.key);
       if (bestIdx == -1 || currentIdx == -1) return best;

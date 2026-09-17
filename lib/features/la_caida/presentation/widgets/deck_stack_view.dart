@@ -115,35 +115,47 @@ class DeckStackView extends StatelessWidget {
       width: 52,
       height: 74,
       decoration: BoxDecoration(
-        color: const Color(0xFF881337), // Rojo carmesí tradicional de reverso
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFF1E3A8A), // Azul marino de fondo
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: isTop ? const Color(0xFFFDE047) : const Color(0xFF4C0519),
-          width: isTop ? 1.2 : 0.8,
+          color: isTop ? const Color(0xFFFDE047) : const Color(0xFF1E293B),
+          width: isTop ? 1.4 : 0.8,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
+            color: Colors.black.withValues(alpha: 0.6),
             blurRadius: 4,
             offset: const Offset(1, 2),
           ),
         ],
       ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(5),
+        child: Image.asset(
+          'assets/cards/REV-CARD.png',
+          width: 52,
+          height: 74,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _buildFallbackVectorBack(isTop),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFallbackVectorBack(bool isTop) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E3A8A),
+        border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+      ),
       child: Center(
         child: Container(
-          width: 44,
-          height: 66,
+          margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: const Color(0xFF9F1239),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: const Color(0xFFFB7185).withValues(alpha: 0.5), width: 0.8),
+            border: Border.all(color: const Color(0xFFFDE047), width: 1),
           ),
-          child: Center(
-            child: Icon(
-              Icons.all_inclusive_rounded,
-              size: 16,
-              color: const Color(0xFFFDE047).withValues(alpha: 0.8),
-            ),
+          child: const Center(
+            child: Icon(Icons.style_rounded, size: 18, color: Color(0xFFFDE047)),
           ),
         ),
       ),
