@@ -956,9 +956,9 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.emoji_events_rounded, color: Color(0xFFFDE047), size: 16),
-                        const SizedBox(width: 6),
-                        const Expanded(
+                        Icon(Icons.emoji_events_rounded, color: Color(0xFFFDE047), size: 16),
+                        SizedBox(width: 6),
+                        Expanded(
                           child: Text(
                             'Reglas Oficiales Tradicionales:',
                             style: TextStyle(color: Color(0xFFFDE047), fontSize: 12, fontWeight: FontWeight.bold),
