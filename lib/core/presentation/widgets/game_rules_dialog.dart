@@ -83,12 +83,14 @@ class GameRulesDialog extends StatelessWidget {
                             children: [
                               const Icon(Icons.people_alt_rounded, size: 14, color: Color(0xFF38BDF8)),
                               const SizedBox(width: 6),
-                              Text(
-                                rules.playersCount,
-                                style: const TextStyle(
-                                  color: Color(0xFF38BDF8),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                              Flexible(
+                                child: Text(
+                                  rules.playersCount,
+                                  style: const TextStyle(
+                                    color: Color(0xFF38BDF8),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ],
@@ -271,12 +273,14 @@ class GameRulesDialog extends StatelessWidget {
             children: [
               Icon(icon, color: iconColor, size: 18),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  color: iconColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: iconColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ],

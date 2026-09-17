@@ -1,10 +1,7 @@
 /// Identificadores de los juegos disponibles en el compendio.
 enum GameType {
-  laVieja('La Vieja (Tres en Raya)'),
-  laCaida('La Caída'),
-  cinquillo('Cinquillo'),
-  truco('Truco Venezolano'),
-  domino('Dominó');
+  domino('Dominó'),
+  laCaida('La Caída');
 
   final String title;
   const GameType(this.title);

@@ -5,17 +5,13 @@ import '../../core/presentation/widgets/domino_tile_view.dart';
 import '../../core/presentation/widgets/game_rules_dialog.dart';
 import '../../core/stats/game_stats.dart';
 import '../../core/stats/stats_repository.dart';
-import '../cinquillo/presentation/cinquillo_screen.dart';
-import '../deck_showcase/deck_showcase_screen.dart';
 import '../domino/presentation/domino_screen.dart';
 import '../la_caida/presentation/caida_screen.dart';
-import '../la_vieja/presentation/vieja_screen.dart';
-import '../truco/presentation/truco_screen.dart';
 
 enum GameCategoryFilter { all, board, cards }
 
 /// Pantalla principal y menú categorizado del compendio de juegos tradicionales.
-/// Todos los juegos están activos y cuentan con botón de guía de reglas "¿Cómo jugar?".
+/// Configurado exclusivamente para Dominó y La Caída.
 class HomeScreen extends StatefulWidget {
   final StatsRepository statsRepository;
 
@@ -26,7 +22,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  GameStats _viejaStats = const GameStats(gameType: GameType.laVieja);
+  GameStats _dominoStats = const GameStats(gameType: GameType.domino);
+  GameStats _caidaStats = const GameStats(gameType: GameType.laCaida);
   GameCategoryFilter _selectedCategory = GameCategoryFilter.all;
 
   @override
@@ -36,8 +33,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refreshStats() async {
-    final s = await widget.statsRepository.getStats(GameType.laVieja);
-    if (mounted) setState(() => _viejaStats = s);
+    final d = await widget.statsRepository.getStats(GameType.domino);
+    final c = await widget.statsRepository.getStats(GameType.laCaida);
+    if (mounted) {
+      setState(() {
+        _dominoStats = d;
+        _caidaStats = c;
+      });
+    }
   }
 
   @override
@@ -76,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.menu_book_rounded, color: Color(0xFFFDE047)),
             tooltip: 'Guía de Reglas',
-            onPressed: () => GameRulesDialog.show(context, 'la_vieja'),
+            onPressed: () => GameRulesDialog.show(context, 'domino'),
           ),
           Container(
             margin: const EdgeInsets.only(right: 16),
@@ -224,19 +227,19 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             children: [
               _buildCategoryChip(
-                label: 'Todos (6)',
+                label: 'Todos (2)',
                 filter: GameCategoryFilter.all,
                 icon: Icons.grid_view_rounded,
               ),
               const SizedBox(width: 8),
               _buildCategoryChip(
-                label: 'Juegos de Mesa (2)',
+                label: 'Dominó (Mesa)',
                 filter: GameCategoryFilter.board,
                 icon: Icons.casino_rounded,
               ),
               const SizedBox(width: 8),
               _buildCategoryChip(
-                label: 'Juegos de Cartas (4)',
+                label: 'La Caída (Cartas)',
                 filter: GameCategoryFilter.cards,
                 icon: Icons.style_rounded,
               ),
@@ -301,89 +304,23 @@ class _HomeScreenState extends State<HomeScreen> {
   int _getFilteredCount() {
     switch (_selectedCategory) {
       case GameCategoryFilter.all:
-        return 6;
-      case GameCategoryFilter.board:
         return 2;
+      case GameCategoryFilter.board:
+        return 1;
       case GameCategoryFilter.cards:
-        return 4;
+        return 1;
     }
   }
 
   List<Widget> _buildFilteredGameCards() {
     final cards = <Widget>[];
 
-    final showLaVieja = _selectedCategory == GameCategoryFilter.all ||
-        _selectedCategory == GameCategoryFilter.board;
-    final showBaraja = _selectedCategory == GameCategoryFilter.all ||
-        _selectedCategory == GameCategoryFilter.cards;
     final showDomino = _selectedCategory == GameCategoryFilter.all ||
         _selectedCategory == GameCategoryFilter.board;
     final showCaida = _selectedCategory == GameCategoryFilter.all ||
         _selectedCategory == GameCategoryFilter.cards;
-    final showTruco = _selectedCategory == GameCategoryFilter.all ||
-        _selectedCategory == GameCategoryFilter.cards;
-    final showCinquillo = _selectedCategory == GameCategoryFilter.all ||
-        _selectedCategory == GameCategoryFilter.cards;
 
-    // 1. La Vieja
-    if (showLaVieja) {
-      cards.add(
-        _buildGameCard(
-          title: 'La Vieja (Tres en Raya)',
-          subtitle: 'Tablero 3x3 contra Bot Heurístico o 2 Jugadores locales',
-          badgeText: 'JUGABLE AHORA',
-          badgeColor: const Color(0xFF10B981),
-          playersText: '1 - 2 JUG',
-          categoryText: 'MESA / ARCADE',
-          rulesGameId: 'la_vieja',
-          icon: Icons.grid_3x3_rounded,
-          gradientColors: [const Color(0xFF064E3B), const Color(0xFF0F1E2E)],
-          accentColor: const Color(0xFF10B981),
-          statInfo:
-              'Historial: ${_viejaStats.wins}V - ${_viejaStats.losses}D (${_viejaStats.winRate.toStringAsFixed(0)}% efectividad)',
-          onTap: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    ViejaScreen(statsRepository: widget.statsRepository),
-              ),
-            );
-            _refreshStats();
-          },
-        ),
-      );
-      cards.add(const SizedBox(height: 12));
-    }
-
-    // 2. Baraja Española
-    if (showBaraja) {
-      cards.add(
-        _buildGameCard(
-          title: 'Baraja Española: Motor & Simulador',
-          subtitle: '40 naipes de alta fidelidad, barajado Fisher-Yates y reparto',
-          badgeText: 'MOTOR LISTO',
-          badgeColor: const Color(0xFF38BDF8),
-          playersText: '1 - 2 JUG',
-          categoryText: 'CARTAS / MESA',
-          rulesGameId: 'baraja_espanola',
-          icon: Icons.style_rounded,
-          gradientColors: [const Color(0xFF1E3A8A), const Color(0xFF0F1E2E)],
-          accentColor: const Color(0xFF38BDF8),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const DeckShowcaseScreen(),
-              ),
-            );
-          },
-        ),
-      );
-      cards.add(const SizedBox(height: 12));
-    }
-
-    // 3. Dominó Doble 6 (¡ACTIVO!)
+    // 1. Dominó Doble 6 (¡ACTIVO!)
     if (showDomino) {
       cards.add(
         _buildGameCard(
@@ -397,6 +334,9 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.blur_linear_rounded,
           gradientColors: [const Color(0xFF33200D), const Color(0xFF141A24)],
           accentColor: const Color(0xFFF59E0B),
+          statInfo: _dominoStats.totalGames > 0
+              ? 'Historial: ${_dominoStats.wins}V - ${_dominoStats.losses}D (${_dominoStats.winRate.toStringAsFixed(0)}% efectividad)'
+              : null,
           previewWidget: Transform.scale(
             scale: 0.65,
             child: const DominoTileView(
@@ -404,25 +344,26 @@ class _HomeScreenState extends State<HomeScreen> {
               size: 40,
             ),
           ),
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => const DominoScreen(),
               ),
             );
+            _refreshStats();
           },
         ),
       );
       cards.add(const SizedBox(height: 12));
     }
 
-    // 4. La Caída (¡ACTIVO!)
+    // 2. La Caída Tradicional (¡ACTIVO!)
     if (showCaida) {
       cards.add(
         _buildGameCard(
           title: 'La Caída Tradicional',
-          subtitle: 'Mesa de madera, cantos de Ronda, Patrulla, Trivilín y Limpia',
+          subtitle: 'Mesa tradicional, cantos de Ronda, Patrulla, Trivilín, Limpia y niveles',
           badgeText: 'JUGABLE AHORA',
           badgeColor: const Color(0xFF10B981),
           playersText: '1 - 4 JUGADORES',
@@ -431,67 +372,17 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.layers_rounded,
           gradientColors: [const Color(0xFF063E2D), const Color(0xFF0F1E2E)],
           accentColor: const Color(0xFF10B981),
-          onTap: () {
-            Navigator.push(
+          statInfo: _caidaStats.totalGames > 0
+              ? 'Historial: ${_caidaStats.wins}V - ${_caidaStats.losses}D (${_caidaStats.winRate.toStringAsFixed(0)}% efectividad)'
+              : null,
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => const CaidaScreen(),
               ),
             );
-          },
-        ),
-      );
-      cards.add(const SizedBox(height: 12));
-    }
-
-    // 5. Truco Venezolano (¡ACTIVO!)
-    if (showTruco) {
-      cards.add(
-        _buildGameCard(
-          title: 'Truco Venezolano',
-          subtitle: 'Con Vira, Perico, Perica, cantos de Envido, Flor, Truco y Parejas',
-          badgeText: 'JUGABLE AHORA',
-          badgeColor: const Color(0xFF10B981),
-          playersText: '1 - 4 JUGADORES',
-          categoryText: 'CARTAS / FAROL',
-          rulesGameId: 'truco',
-          icon: Icons.local_fire_department_rounded,
-          gradientColors: [const Color(0xFF4A1F0D), const Color(0xFF1A130E)],
-          accentColor: const Color(0xFFF97316),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const TrucoScreen(),
-              ),
-            );
-          },
-        ),
-      );
-      cards.add(const SizedBox(height: 12));
-    }
-
-    // 6. Cinquillo (¡ACTIVO!)
-    if (showCinquillo) {
-      cards.add(
-        _buildGameCard(
-          title: 'Cinquillo',
-          subtitle: 'Apertura con 5 de Oros y escaleras de naipes por palos',
-          badgeText: 'JUGABLE AHORA',
-          badgeColor: const Color(0xFF10B981),
-          playersText: '1 - 4 JUGADORES',
-          categoryText: 'CARTAS / ORDEN',
-          rulesGameId: 'cinquillo',
-          icon: Icons.view_week_rounded,
-          gradientColors: [const Color(0xFF1E293B), const Color(0xFF0F172A)],
-          accentColor: const Color(0xFF38BDF8),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const CinquilloScreen(),
-              ),
-            );
+            _refreshStats();
           },
         ),
       );

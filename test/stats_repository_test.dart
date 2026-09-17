@@ -5,7 +5,7 @@ import 'package:gme/core/stats/stats_repository.dart';
 void main() {
   group('StatsRepository & GameStats Tests', () {
     test('Calcula correctamente winRate y totales de partidas', () {
-      var stats = const GameStats(gameType: GameType.laVieja);
+      var stats = const GameStats(gameType: GameType.domino);
       expect(stats.totalGames, equals(0));
       expect(stats.winRate, equals(0.0));
 
@@ -24,7 +24,7 @@ void main() {
 
     test('Serialización y deserialización JSON adecuada', () {
       final original = const GameStats(
-        gameType: GameType.truco,
+        gameType: GameType.laCaida,
         wins: 5,
         losses: 2,
         draws: 1,
@@ -33,7 +33,7 @@ void main() {
       final json = original.toJson();
       final restored = GameStats.fromJson(json);
 
-      expect(restored.gameType, equals(GameType.truco));
+      expect(restored.gameType, equals(GameType.laCaida));
       expect(restored.wins, equals(5));
       expect(restored.losses, equals(2));
       expect(restored.draws, equals(1));
@@ -41,15 +41,15 @@ void main() {
 
     test('InMemoryStatsRepository almacena, recupera y reinicia estadísticas', () async {
       final repo = InMemoryStatsRepository();
-      final initial = await repo.getStats(GameType.laVieja);
+      final initial = await repo.getStats(GameType.domino);
       expect(initial.wins, equals(0));
 
       await repo.saveStats(initial.recordWin());
-      final updated = await repo.getStats(GameType.laVieja);
+      final updated = await repo.getStats(GameType.domino);
       expect(updated.wins, equals(1));
 
-      await repo.resetStats(GameType.laVieja);
-      final reset = await repo.getStats(GameType.laVieja);
+      await repo.resetStats(GameType.domino);
+      final reset = await repo.getStats(GameType.domino);
       expect(reset.wins, equals(0));
     });
   });

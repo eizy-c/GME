@@ -6,10 +6,8 @@ import 'package:gme/core/presentation/widgets/match_setup_dialog.dart';
 import 'package:gme/core/presentation/widgets/speech_bubble.dart';
 import 'package:gme/core/presentation/widgets/table_player_badge.dart';
 import 'package:gme/core/presentation/widgets/wood_table_background.dart';
-import 'package:gme/features/cinquillo/presentation/cinquillo_screen.dart';
 import 'package:gme/features/domino/presentation/domino_screen.dart';
 import 'package:gme/features/la_caida/presentation/caida_screen.dart';
-import 'package:gme/features/truco/presentation/truco_screen.dart';
 
 void main() {
   group('Componentes Visuales de Mesa de Juego Tradicional', () {
@@ -201,36 +199,6 @@ void main() {
       expect(find.text('Player 2'), findsOneWidget);
     });
 
-    testWidgets('Cinquillo carga con 4 jugadores y apertura de 5 de Oros', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: CinquilloScreen(initialPlayers: 4),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('Cinquillo Tradicional'), findsOneWidget);
-      expect(find.text('4 Jug.'), findsOneWidget);
-      expect(find.text('Tú'), findsOneWidget);
-      expect(find.text('Player 1'), findsOneWidget);
-    });
-
-    testWidgets('Truco Venezolano carga con Vira y 4 jugadores', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: TrucoScreen(initialPlayers: 4),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('Truco Venezolano'), findsOneWidget);
-      expect(find.text('LA VIRA'), findsOneWidget);
-      expect(find.text('Envido'), findsOneWidget);
-      expect(find.text('Flor'), findsOneWidget);
-      expect(find.text('Truco'), findsOneWidget);
-    });
 
     testWidgets('Dominó carga con 4 jugadores en cruz', (tester) async {
       await tester.pumpWidget(

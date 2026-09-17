@@ -8,24 +8,15 @@ import 'package:gme/core/stats/stats_repository.dart';
 import 'package:gme/main.dart';
 
 void main() {
-  testWidgets('Carga inicial del compendio y navegación a La Vieja', (WidgetTester tester) async {
+  testWidgets('Carga inicial del compendio con Dominó y La Caída', (WidgetTester tester) async {
     final statsRepo = InMemoryStatsRepository();
     await tester.pumpWidget(CompendioJuegosApp(statsRepository: statsRepo));
 
     // Comprobar título del compendio y badge offline
     expect(find.text('Compendio de Juegos'), findsOneWidget);
     expect(find.text('100% OFFLINE'), findsOneWidget);
-    expect(find.text('La Vieja (Tres en Raya)'), findsOneWidget);
-    expect(find.text('Baraja Española: Motor & Simulador'), findsOneWidget);
-
-    // Navegar a La Vieja
-    await tester.tap(find.text('La Vieja (Tres en Raya)'));
-    await tester.pumpAndSettle();
-
-    // Comprobar que la pantalla de La Vieja cargó con su tablero de 9 casillas
-    expect(find.text('Contra Bot'), findsOneWidget);
-    expect(find.text('2 Jugadores'), findsOneWidget);
-    expect(find.byType(GridView), findsOneWidget);
+    expect(find.text('Dominó (Doble 6)'), findsOneWidget);
+    expect(find.text('La Caída Tradicional'), findsOneWidget);
   });
 
   testWidgets('Apertura del diálogo de reglas "¿Cómo jugar?"', (WidgetTester tester) async {
@@ -56,8 +47,8 @@ void main() {
     final statsRepo = InMemoryStatsRepository();
     await tester.pumpWidget(CompendioJuegosApp(statsRepository: statsRepo));
 
-    // Filtrar por Juegos de Mesa
-    await tester.tap(find.text('Juegos de Mesa (2)'));
+    // Filtrar por Dominó (Mesa)
+    await tester.tap(find.text('Dominó (Mesa)'));
     await tester.pumpAndSettle();
 
     // Tocar tarjeta de Dominó
