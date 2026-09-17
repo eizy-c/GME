@@ -10,6 +10,11 @@ import '../../../core/presentation/widgets/game_table_header.dart';
 import '../../../core/presentation/widgets/spanish_card_view.dart';
 import '../../../core/presentation/widgets/table_player_badge.dart';
 import '../../../core/presentation/widgets/wood_table_background.dart';
+import '../domain/caida_models.dart';
+import '../domain/caida_rules_engine.dart';
+import 'widgets/captured_pile_view.dart';
+import 'widgets/deck_stack_view.dart';
+import 'widgets/table_canto_dialog.dart';
 
 class _PlayerState {
   final String id;
@@ -96,9 +101,14 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   // Selección individual de cartas en la mano del usuario
   SpanishCard? _selectedCard;
 
-  // Seguimiento de caída
+  // Seguimiento de caída, arrastre y última captura
   SpanishCard? _lastPlayedCard;
   int? _lastPlayedPlayerIndex;
+  int? _lastCapturingPlayerIndex;
+
+  // Canto de Mesa del repartidor
+  DealDirection _cantoDirection = DealDirection.ascending;
+  String? _pointEventBanner;
 
   // Temporizadores y animaciones
   late AnimationController _timerController;
@@ -170,6 +180,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _tableCards.clear();
     _lastPlayedCard = null;
     _lastPlayedPlayerIndex = null;
+    _lastCapturingPlayerIndex = null;
+    _pointEventBanner = null;
     _isGameOver = false;
     _selectedCard = null;
     _manoIndex = 0; // En la primera ronda inicia el usuario (Tú)
@@ -233,9 +245,29 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
     if (isFirstRound) {
       _tableCards.clear();
-      for (int i = 0; i < 4; i++) {
-        final c = _deck.draw();
-        if (c != null) _tableCards.add(c);
+      _lastCapturingPlayerIndex = null;
+      _lastPlayedCard = null;
+      _lastPlayedPlayerIndex = null;
+
+      final dealer = _players[_manoIndex];
+      final opponent = _players[(_manoIndex + 1) % _players.length];
+
+      final dealResult = CaidaRulesEngine.dealInitialTable(
+        direction: _cantoDirection,
+        deck: _deck,
+        dealerId: dealer.id,
+        opponentId: opponent.id,
+      );
+
+      _tableCards.addAll(dealResult.tableCards);
+
+      if (dealResult.dealerPoints > 0) {
+        dealer.score += dealResult.dealerPoints;
+        _triggerCallout(dealer, 'Canto de Mesa (+${dealResult.dealerPoints} pts)');
+      }
+      if (dealResult.opponentPoints > 0) {
+        opponent.score += dealResult.opponentPoints;
+        _triggerCallout(opponent, '+${dealResult.opponentPoints} pt (Mesa)');
       }
     }
 
@@ -257,7 +289,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     final manoPlayer = _players[_manoIndex];
     setState(() {
       _statusBanner = isFirstRound
-          ? 'Colocando mesa y repartiendo cartas (${manoPlayer.name} es Mano)...'
+          ? 'Colocando mesa y repartiendo (${manoPlayer.name} es Mano • ${_cantoDirection.label})...'
           : 'Repartiendo cartas (${manoPlayer.name} es Mano)...';
     });
 
@@ -268,10 +300,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   void _onDealingCompleted() {
     _isDealing = false;
 
-    // Comprobar cantos de mano para cada jugador
-    for (final p in _players) {
-      _checkHandCantos(p);
-    }
+    // Comprobar cantos y resolver conflicto con CaidaRulesEngine
+    _evaluateAllCantos();
 
     _currentTurnIndex = _manoIndex;
     _selectedCard = null;
@@ -303,6 +333,35 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   void _onRoundFinished() {
     // Si ya no quedan suficientes cartas para otra mano de 3 por jugador
     if (_deck.remainingCount < _players.length * 3) {
+      final playerStates = _players.map((p) => CaidaPlayerState(
+        id: p.id,
+        name: p.name,
+        teamId: p.teamId,
+        initialScore: p.score,
+        initialCardsWon: p.cardsWon,
+      )).toList();
+
+      final lastCapturingId = _lastCapturingPlayerIndex != null
+          ? _players[_lastCapturingPlayerIndex!].id
+          : null;
+
+      final res = CaidaRulesEngine.resolveHandEnd(
+        players: playerStates,
+        remainingTable: _tableCards,
+        lastCapturingPlayerId: lastCapturingId,
+        isTeams: _isTeams,
+      );
+
+      for (final p in _players) {
+        p.cardsWon = res.totalCardsWon[p.id] ?? p.cardsWon;
+        p.score = res.updatedScores[p.id] ?? p.score;
+        final vol = res.volumeBonusPoints[p.id] ?? 0;
+        if (vol > 0) {
+          _triggerCallout(p, 'Volumen (+$vol pts)');
+        }
+      }
+      _tableCards.clear();
+
       if (_players.any((p) => p.score >= 24)) {
         _finishGame();
         return;
@@ -316,6 +375,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       _tableCards.clear();
       _lastPlayedCard = null;
       _lastPlayedPlayerIndex = null;
+      _lastCapturingPlayerIndex = null;
       _startDeal(isFirstRound: true, animate: widget.animateDealing && !widget.autoStart);
       return;
     }
@@ -331,83 +391,39 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
   bool _allHandsEmpty() => _players.every((p) => p.hand.isEmpty);
 
-  /// Regla de puntuación de Ronda según especificación:
-  /// Del 1 al 7: +1 punto
-  /// 10 (Sota): +2 puntos
-  /// 11 (Caballo): +3 puntos
-  /// 12 (Rey): +4 puntos
-  int _getRondaPoints(int cardNumber) {
-    switch (cardNumber) {
-      case 10:
-        return 2;
-      case 11:
-        return 3;
-      case 12:
-        return 4;
-      default:
-        return 1;
-    }
-  }
-
-  /// Regla de puntuación de Caída según especificación:
-  /// Del 1 al 7: +1 punto
-  /// 10 (Sota): +2 puntos
-  /// 11 (Caballo): +3 puntos
-  /// 12 (Rey): +4 puntos
-  int _getCaidaPoints(int cardNumber) {
-    switch (cardNumber) {
-      case 10:
-        return 2;
-      case 11:
-        return 3;
-      case 12:
-        return 4;
-      default:
-        return 1;
-    }
-  }
-
-  void _checkHandCantos(_PlayerState player) {
-    if (player.hand.length < 3) return;
-    final n1 = player.hand[0].number;
-    final n2 = player.hand[1].number;
-    final n3 = player.hand[2].number;
-
-    // 1. Trivilín (3 cartas iguales)
-    if (n1 == n2 && n2 == n3) {
-      player.score += 5;
-      _triggerCallout(player, '¡Trivilín! (+5)');
-      return;
+  void _evaluateAllCantos() {
+    final cantosMap = <String, Canto?>{};
+    final teamsMap = <String, int>{};
+    for (final p in _players) {
+      cantosMap[p.id] = CaidaRulesEngine.evaluateCantos(p.hand);
+      teamsMap[p.id] = p.teamId;
     }
 
-    // 2. Patrulla (3 números consecutivos)
-    final sorted = [n1, n2, n3]..sort();
-    if (sorted[0] + 1 == sorted[1] && sorted[1] + 1 == sorted[2]) {
-      player.score += 3;
-      _triggerCallout(player, 'Patrulla (+3)');
-      return;
-    }
+    final resolved = CaidaRulesEngine.resolveCantosConflict(
+      playerCantos: cantosMap,
+      playerTeams: teamsMap,
+      manoIndex: _manoIndex,
+      playerIdsOrder: _players.map((p) => p.id).toList(),
+    );
 
-    // 3. Ronda (2 cartas iguales)
-    int? pairNumber;
-    if (n1 == n2) {
-      pairNumber = n1;
-    } else if (n2 == n3) {
-      pairNumber = n2;
-    } else if (n1 == n3) {
-      pairNumber = n1;
-    }
-
-    if (pairNumber != null) {
-      final pts = _getRondaPoints(pairNumber);
-      player.score += pts;
-      _triggerCallout(player, 'Ronda (+$pts)');
+    for (final p in _players) {
+      final canto = resolved[p.id];
+      if (canto != null) {
+        p.score += canto.points;
+        _triggerCallout(p, '${canto.name} (+${canto.points})');
+      } else if (cantosMap[p.id] != null) {
+        final defeated = cantosMap[p.id]!;
+        _triggerCallout(p, '${defeated.name} (Derrotada)');
+      }
     }
   }
 
   void _triggerCallout(_PlayerState player, String text) {
     player.calloutTimer?.cancel();
-    setState(() => player.currentCallout = text);
+    setState(() {
+      player.currentCallout = text;
+      _pointEventBanner = '${player.name}: $text';
+    });
     player.calloutTimer = Timer(const Duration(milliseconds: 2400), () {
       if (mounted) {
         setState(() => player.currentCallout = null);
@@ -450,37 +466,36 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       _selectedCard = null;
     });
 
-    // 1. ¿Es Caída sobre la carta del jugador anterior?
-    if (_lastPlayedCard != null &&
-        _lastPlayedPlayerIndex != null &&
-        _lastPlayedPlayerIndex != _currentTurnIndex &&
-        _lastPlayedCard!.number == card.number) {
-      final caidaPts = _getCaidaPoints(card.number);
-      player.score += caidaPts;
-      _triggerCallout(player, '¡Caída! (+$caidaPts)');
+    final previousCard = (_lastPlayedPlayerIndex != null && _lastPlayedPlayerIndex != _currentTurnIndex)
+        ? _lastPlayedCard
+        : null;
+
+    final eval = CaidaRulesEngine.evaluatePlay(
+      playedCard: card,
+      tableCards: _tableCards,
+      previousCard: previousCard,
+      isDeckEmpty: _deck.isEmpty,
+    );
+
+    setState(() {
+      _tableCards.clear();
+      _tableCards.addAll(eval.newTableCards);
+    });
+
+    if (eval.didCapture) {
+      player.cardsWon += eval.capturedCards.length;
+      _lastCapturingPlayerIndex = _currentTurnIndex;
+    }
+
+    if (eval.totalPoints > 0) {
+      player.score += eval.totalPoints;
+      _triggerCallout(player, eval.breakdownMessage);
+    } else if (eval.didCapture && eval.capturedCards.length > 2) {
+      _triggerCallout(player, eval.breakdownMessage);
     }
 
     _lastPlayedCard = card;
     _lastPlayedPlayerIndex = _currentTurnIndex;
-
-    // 2. Captura en mesa
-    final captures = _tableCards.where((c) => c.number == card.number).toList();
-    if (captures.isNotEmpty) {
-      _tableCards.removeWhere((c) => c.number == card.number);
-      player.cardsWon += captures.length + 1;
-      player.score += 1;
-
-      // 3. Mesa Limpia:
-      // Si aún hay cartas en el mazo/manojo vale +4; si ya no hay cartas en el manojo +2
-      if (_tableCards.isEmpty) {
-        final hasCardsInDeck = _deck.remainingCount > 0;
-        final limpiaPts = hasCardsInDeck ? 4 : 2;
-        player.score += limpiaPts;
-        _triggerCallout(player, '¡Mesa Limpia! (+$limpiaPts)');
-      }
-    } else {
-      _tableCards.add(card);
-    }
 
     // Comprobar si alguien llegó a 24 puntos
     if (_players.any((p) => p.score >= 24)) {
@@ -638,6 +653,18 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                 ),
               ),
               const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.record_voice_over_rounded, color: Color(0xFF38BDF8)),
+                title: Text('Canto de Mesa: ${_cantoDirection == DealDirection.ascending ? "Ascendente (1..4)" : "Descendente (4..1)"}', style: const TextStyle(color: Colors.white)),
+                subtitle: const Text('Cambiar dirección del conteo inicial del repartidor', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final dir = await TableCantoDialog.show(context);
+                  if (dir != null) {
+                    setState(() => _cantoDirection = dir);
+                  }
+                },
+              ),
               ListTile(
                 leading: const Icon(Icons.refresh_rounded, color: Color(0xFF38BDF8)),
                 title: const Text('Reiniciar mano actual', style: TextStyle(color: Colors.white)),
@@ -885,9 +912,38 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                 ),
               ],
 
+              // 4. Dirección del Canto de Mesa inicial
+              const SizedBox(height: 16),
+              const Text(
+                'Canto de Mesa inicial del Repartidor:',
+                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildCountOption(
+                      label: 'Ascendente',
+                      sublabel: '1 → 2 → 3 → 4',
+                      isSelected: _cantoDirection == DealDirection.ascending,
+                      onTap: () => setState(() => _cantoDirection = DealDirection.ascending),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildCountOption(
+                      label: 'Descendente',
+                      sublabel: '4 → 3 → 2 → 1',
+                      isSelected: _cantoDirection == DealDirection.descending,
+                      onTap: () => setState(() => _cantoDirection = DealDirection.descending),
+                    ),
+                  ),
+                ],
+              ),
+
               const SizedBox(height: 18),
 
-              // 4. Tarjeta resumen de reglas de puntos activas en esta mesa
+              // 5. Tarjeta resumen de reglas de puntos activas en esta mesa
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
@@ -900,20 +956,23 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.emoji_events_rounded, color: Color(0xFFFDE047), size: 16),
-                        SizedBox(width: 6),
-                        Text(
-                          'Puntuación Tradicional:',
-                          style: TextStyle(color: Color(0xFFFDE047), fontSize: 12, fontWeight: FontWeight.bold),
+                        const Icon(Icons.emoji_events_rounded, color: Color(0xFFFDE047), size: 16),
+                        const SizedBox(width: 6),
+                        const Expanded(
+                          child: Text(
+                            'Reglas Oficiales Tradicionales:',
+                            style: TextStyle(color: Color(0xFFFDE047), fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ],
                     ),
                     SizedBox(height: 6),
                     Text(
-                      '• Ronda: 1 al 7 (+1), 10 (+2), 11 (+3), 12 (+4)\n'
-                      '• Caída: 1 al 7 (+1), 10 (+2), 11 (+3), 12 (+4)\n'
-                      '• Mesa Limpia: +4 (con cartas en mazo) / +2 (manojo vacío)\n'
-                      '• Meta: 24 puntos para ganar',
+                      '• Canto de Mesa: Acierto nominal suma puntos; repetidas dan +1 pt a rivales; sin aciertos +1 pt a rivales.\n'
+                      '• Cantos: Trivilín (+5), Vigía (+3), Registro (+3), Patrulla (+2), Ronda (+1..+4). En conflicto solo cobra el bando superior.\n'
+                      '• Jugadas: Caída (+1..+4), Arrastre en seguidilla (1..7, 10..12), Mesa Limpia (+4/+2).\n'
+                      '• Volumen: Quien supere 20 cartas físicas suma (Cartas - 20) puntos.\n'
+                      '• Meta: 24 puntos para ganar la partida.',
                       style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.35),
                     ),
                   ],
@@ -1154,18 +1213,29 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       final rival = _players[1];
       widgets.add(
         Positioned(
-          top: 16,
-          child: TablePlayerBadge(
-            name: rival.name,
-            scoreOrCards: rival.cardsWon,
-            isBot: rival.isBot,
-            isCurrentTurn: _currentTurnIndex == 1,
-            turnProgress: 1.0 - _timerController.value,
-            position: PlayerPositionOnTable.top,
-            calloutMessage: rival.currentCallout,
-            cardsInHandCount: rival.hand.length,
-            avatarColor: rival.color,
-            isMano: _manoIndex == 1,
+          top: 14,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TablePlayerBadge(
+                name: rival.name,
+                scoreOrCards: rival.cardsWon,
+                isBot: rival.isBot,
+                isCurrentTurn: _currentTurnIndex == 1,
+                turnProgress: 1.0 - _timerController.value,
+                position: PlayerPositionOnTable.top,
+                calloutMessage: rival.currentCallout,
+                cardsInHandCount: rival.hand.length,
+                avatarColor: rival.color,
+                isMano: _manoIndex == 1,
+              ),
+              const SizedBox(height: 4),
+              CapturedPileView(
+                playerName: rival.name,
+                cardsCount: rival.cardsWon,
+                accentColor: rival.color,
+              ),
+            ],
           ),
         ),
       );
@@ -1175,38 +1245,60 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
       widgets.add(
         Positioned(
-          left: 16,
-          top: 60,
-          child: TablePlayerBadge(
-            name: rival1.name,
-            scoreOrCards: rival1.cardsWon,
-            isBot: rival1.isBot,
-            isCurrentTurn: _currentTurnIndex == 1,
-            turnProgress: 1.0 - _timerController.value,
-            position: PlayerPositionOnTable.left,
-            calloutMessage: rival1.currentCallout,
-            cardsInHandCount: rival1.hand.length,
-            avatarColor: rival1.color,
-            isMano: _manoIndex == 1,
+          left: 14,
+          top: 50,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TablePlayerBadge(
+                name: rival1.name,
+                scoreOrCards: rival1.cardsWon,
+                isBot: rival1.isBot,
+                isCurrentTurn: _currentTurnIndex == 1,
+                turnProgress: 1.0 - _timerController.value,
+                position: PlayerPositionOnTable.left,
+                calloutMessage: rival1.currentCallout,
+                cardsInHandCount: rival1.hand.length,
+                avatarColor: rival1.color,
+                isMano: _manoIndex == 1,
+              ),
+              const SizedBox(height: 4),
+              CapturedPileView(
+                playerName: rival1.name,
+                cardsCount: rival1.cardsWon,
+                accentColor: rival1.color,
+              ),
+            ],
           ),
         ),
       );
 
       widgets.add(
         Positioned(
-          right: 16,
-          top: 60,
-          child: TablePlayerBadge(
-            name: rival2.name,
-            scoreOrCards: rival2.cardsWon,
-            isBot: rival2.isBot,
-            isCurrentTurn: _currentTurnIndex == 2,
-            turnProgress: 1.0 - _timerController.value,
-            position: PlayerPositionOnTable.right,
-            calloutMessage: rival2.currentCallout,
-            cardsInHandCount: rival2.hand.length,
-            avatarColor: rival2.color,
-            isMano: _manoIndex == 2,
+          right: 14,
+          top: 50,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TablePlayerBadge(
+                name: rival2.name,
+                scoreOrCards: rival2.cardsWon,
+                isBot: rival2.isBot,
+                isCurrentTurn: _currentTurnIndex == 2,
+                turnProgress: 1.0 - _timerController.value,
+                position: PlayerPositionOnTable.right,
+                calloutMessage: rival2.currentCallout,
+                cardsInHandCount: rival2.hand.length,
+                avatarColor: rival2.color,
+                isMano: _manoIndex == 2,
+              ),
+              const SizedBox(height: 4),
+              CapturedPileView(
+                playerName: rival2.name,
+                cardsCount: rival2.cardsWon,
+                accentColor: rival2.color,
+              ),
+            ],
           ),
         ),
       );
@@ -1217,56 +1309,89 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
       widgets.add(
         Positioned(
-          left: 14,
-          top: 80,
-          child: TablePlayerBadge(
-            name: rival1.name,
-            scoreOrCards: rival1.cardsWon,
-            isBot: rival1.isBot,
-            isCurrentTurn: _currentTurnIndex == 1,
-            turnProgress: 1.0 - _timerController.value,
-            position: PlayerPositionOnTable.left,
-            calloutMessage: rival1.currentCallout,
-            cardsInHandCount: rival1.hand.length,
-            avatarColor: rival1.color,
-            isMano: _manoIndex == 1,
+          left: 12,
+          top: 70,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TablePlayerBadge(
+                name: rival1.name,
+                scoreOrCards: rival1.cardsWon,
+                isBot: rival1.isBot,
+                isCurrentTurn: _currentTurnIndex == 1,
+                turnProgress: 1.0 - _timerController.value,
+                position: PlayerPositionOnTable.left,
+                calloutMessage: rival1.currentCallout,
+                cardsInHandCount: rival1.hand.length,
+                avatarColor: rival1.color,
+                isMano: _manoIndex == 1,
+              ),
+              const SizedBox(height: 4),
+              CapturedPileView(
+                playerName: rival1.name,
+                cardsCount: rival1.cardsWon,
+                accentColor: rival1.color,
+              ),
+            ],
           ),
         ),
       );
 
       widgets.add(
         Positioned(
-          top: 14,
-          child: TablePlayerBadge(
-            name: rival2.name,
-            scoreOrCards: rival2.cardsWon,
-            isBot: rival2.isBot,
-            isCurrentTurn: _currentTurnIndex == 2,
-            turnProgress: 1.0 - _timerController.value,
-            position: PlayerPositionOnTable.top,
-            calloutMessage: rival2.currentCallout,
-            cardsInHandCount: rival2.hand.length,
-            avatarColor: rival2.color,
-            isMano: _manoIndex == 2,
+          top: 12,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TablePlayerBadge(
+                name: rival2.name,
+                scoreOrCards: rival2.cardsWon,
+                isBot: rival2.isBot,
+                isCurrentTurn: _currentTurnIndex == 2,
+                turnProgress: 1.0 - _timerController.value,
+                position: PlayerPositionOnTable.top,
+                calloutMessage: rival2.currentCallout,
+                cardsInHandCount: rival2.hand.length,
+                avatarColor: rival2.color,
+                isMano: _manoIndex == 2,
+              ),
+              const SizedBox(height: 4),
+              CapturedPileView(
+                playerName: rival2.name,
+                cardsCount: rival2.cardsWon,
+                accentColor: rival2.color,
+              ),
+            ],
           ),
         ),
       );
 
       widgets.add(
         Positioned(
-          right: 14,
-          top: 80,
-          child: TablePlayerBadge(
-            name: rival3.name,
-            scoreOrCards: rival3.cardsWon,
-            isBot: rival3.isBot,
-            isCurrentTurn: _currentTurnIndex == 3,
-            turnProgress: 1.0 - _timerController.value,
-            position: PlayerPositionOnTable.right,
-            calloutMessage: rival3.currentCallout,
-            cardsInHandCount: rival3.hand.length,
-            avatarColor: rival3.color,
-            isMano: _manoIndex == 3,
+          right: 12,
+          top: 70,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TablePlayerBadge(
+                name: rival3.name,
+                scoreOrCards: rival3.cardsWon,
+                isBot: rival3.isBot,
+                isCurrentTurn: _currentTurnIndex == 3,
+                turnProgress: 1.0 - _timerController.value,
+                position: PlayerPositionOnTable.right,
+                calloutMessage: rival3.currentCallout,
+                cardsInHandCount: rival3.hand.length,
+                avatarColor: rival3.color,
+                isMano: _manoIndex == 3,
+              ),
+              const SizedBox(height: 4),
+              CapturedPileView(
+                playerName: rival3.name,
+                cardsCount: rival3.cardsWon,
+                accentColor: rival3.color,
+              ),
+            ],
           ),
         ),
       );
@@ -1277,7 +1402,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
   Widget _buildUserBottomArea(_PlayerState user) {
     return Positioned(
-      left: 16,
+      left: 14,
       bottom: 6,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -1295,65 +1420,84 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             isMano: _manoIndex == 0,
           ),
           const SizedBox(width: 8),
-          // Indicador de Puntos en la mano actual
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFFBBF24).withValues(alpha: 0.6), width: 1),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFBBF24)),
-                const SizedBox(width: 4),
-                Text(
-                  '${user.score} pts',
-                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Pozo de cartas recogidas del usuario
+                  CapturedPileView(
+                    playerName: 'Tú',
+                    cardsCount: user.cardsWon,
+                    accentColor: user.color,
+                    isUser: true,
+                  ),
+                  const SizedBox(width: 6),
+                  // Indicador de Puntos en la mano actual
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFBBF24).withValues(alpha: 0.6), width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star_rounded, size: 13, color: Color(0xFFFBBF24)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${user.score} pts',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              // Indicador de Nivel y progreso de XP
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF2DD4BF).withValues(alpha: 0.7), width: 1),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          // Indicador de Nivel y progreso de XP
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F172A).withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF2DD4BF).withValues(alpha: 0.7), width: 1),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.shield_rounded, size: 11, color: Color(0xFF2DD4BF)),
-                    const SizedBox(width: 3),
-                    Text(
-                      'Nv. $_userLevel',
-                      style: const TextStyle(color: Color(0xFF2DD4BF), fontSize: 10, fontWeight: FontWeight.w900),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.shield_rounded, size: 11, color: Color(0xFF2DD4BF)),
+                        const SizedBox(width: 3),
+                        Text(
+                          'Nv. $_userLevel',
+                          style: const TextStyle(color: Color(0xFF2DD4BF), fontSize: 10, fontWeight: FontWeight.w900),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    SizedBox(
+                      width: 46,
+                      height: 3,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: LinearProgressIndicator(
+                          value: (_userXp / _xpToNextLevel).clamp(0.0, 1.0),
+                          backgroundColor: Colors.white24,
+                          valueColor: const AlwaysStoppedAnimation(Color(0xFF2DD4BF)),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                SizedBox(
-                  width: 46,
-                  height: 3,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      value: (_userXp / _xpToNextLevel).clamp(0.0, 1.0),
-                      backgroundColor: Colors.white24,
-                      valueColor: const AlwaysStoppedAnimation(Color(0xFF2DD4BF)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1361,54 +1505,94 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   }
 
   Widget _buildTableCenterCards() {
-    if (_tableCards.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.25),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white12, width: 1),
-        ),
-        child: Text(
-          _isDealing ? 'Repartiendo cartas...' : 'Mesa Limpia\n(Juega para abrir captura)',
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
-        ),
-      );
-    }
-
     final cardsToShow = (_isDealing && _isFirstRoundDealing)
         ? _tableCards.take(((_dealingController.value) * 6).clamp(1, 4).toInt()).toList()
         : _tableCards;
 
     return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 260, maxHeight: 220),
-        child: Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 10,
-          runSpacing: 10,
-          children: cardsToShow.map((card) {
-            final angle = (card.number % 3 - 1) * 0.05;
-            return TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 250),
-              tween: Tween<double>(begin: 0.4, end: 1.0),
-              builder: (context, scale, child) {
-                return Transform.scale(
-                  scale: scale,
-                  child: child,
-                );
-              },
-              child: Transform.rotate(
-                angle: angle,
-                child: SpanishCardView(
-                  card: card,
-                  width: 60,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Mazo físico en mesa con contador en tiempo real
+              DeckStackView(
+                remainingCards: _deck.remainingCount,
+              ),
+              const SizedBox(width: 12),
+              // Cartas en tapete central
+              Container(
+                constraints: const BoxConstraints(maxWidth: 240, minHeight: 90),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white12, width: 1),
+                ),
+                child: _tableCards.isEmpty
+                    ? Center(
+                        child: Text(
+                          _isDealing ? 'Repartiendo cartas...' : 'Mesa Limpia\n(Juega para abrir captura)',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      )
+                    : Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: cardsToShow.map((card) {
+                          final angle = (card.number % 3 - 1) * 0.05;
+                          return TweenAnimationBuilder<double>(
+                            duration: const Duration(milliseconds: 250),
+                            tween: Tween<double>(begin: 0.4, end: 1.0),
+                            builder: (context, scale, child) {
+                              return Transform.scale(
+                                scale: scale,
+                                child: child,
+                              );
+                            },
+                            child: Transform.rotate(
+                              angle: angle,
+                              child: SpanishCardView(
+                                card: card,
+                                width: 56,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+              ),
+            ],
+          ),
+          if (_pointEventBanner != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFDE047), width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFEAB308).withValues(alpha: 0.35),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: Text(
+                _pointEventBanner!,
+                style: const TextStyle(
+                  color: Color(0xFFFDE047),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            );
-          }).toList(),
-        ),
+            ),
+          ],
+        ],
       ),
     );
   }

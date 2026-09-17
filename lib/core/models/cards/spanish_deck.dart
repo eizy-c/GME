@@ -23,6 +23,13 @@ class SpanishDeck {
     reset(ruleMapper: ruleMapper);
   }
 
+  /// Crea un mazo a partir de una lista específica de cartas (útil para pruebas y escenarios controlados).
+  SpanishDeck.fromCards(List<SpanishCard> cards) {
+    _cards.clear();
+    _discardPile.clear();
+    _cards.addAll(cards);
+  }
+
   /// Reinicia el mazo con las 40 cartas completas y vacía el descarte.
   void reset({SpanishCard Function(SpanishCard)? ruleMapper}) {
     _cards.clear();
