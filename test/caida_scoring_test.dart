@@ -85,5 +85,79 @@ void main() {
       // La carta fue jugada (se resetea la selección)
       expect(find.textContaining('JUGAR '), findsNothing);
     });
+
+    testWidgets('Tocar individualmente cada una de las 3 cartas permite alternar la selección sin conflicto', (tester) async {
+      tester.view.physicalSize = const Size(412 * 2.6, 915 * 2.6);
+      tester.view.devicePixelRatio = 2.6;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: CaidaScreen(initialPlayers: 2, autoStart: true),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Verificar que las 3 cartas del usuario están presentes
+      final card0 = find.byKey(const ValueKey('user_card_0'));
+      final card1 = find.byKey(const ValueKey('user_card_1'));
+      final card2 = find.byKey(const ValueKey('user_card_2'));
+
+      expect(card0, findsOneWidget);
+      expect(card1, findsOneWidget);
+      expect(card2, findsOneWidget);
+
+      // Tocar carta 0
+      await tester.tap(card0);
+      await tester.pump();
+      expect(find.textContaining('JUGAR '), findsOneWidget);
+
+      // Tocar carta 1 directamente (debe alternar a carta 1)
+      await tester.tap(card1);
+      await tester.pump();
+      expect(find.textContaining('JUGAR '), findsOneWidget);
+
+      // Tocar carta 2 directamente (debe alternar a carta 2)
+      await tester.tap(card2);
+      await tester.pump();
+      expect(find.textContaining('JUGAR '), findsOneWidget);
+
+      // Jugar la carta 2
+      await tester.tap(find.textContaining('JUGAR '));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Ahora quedan 2 cartas en la mano
+      expect(find.byKey(const ValueKey('user_card_0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('user_card_1')), findsOneWidget);
+      expect(find.byKey(const ValueKey('user_card_2')), findsNothing);
+    });
+
+    testWidgets('Indicador de Mano y Nivel se muestran correctamente en mesa y cabecera', (tester) async {
+      tester.view.physicalSize = const Size(412 * 2.6, 915 * 2.6);
+      tester.view.devicePixelRatio = 2.6;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: CaidaScreen(initialPlayers: 2, autoStart: true),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // En la cabecera y en el badge se muestra el nivel
+      expect(find.textContaining('Nv. 1'), findsWidgets);
+
+      // El badge de MANO aparece en pantalla
+      expect(find.text('MANO'), findsOneWidget);
+    });
   });
 }

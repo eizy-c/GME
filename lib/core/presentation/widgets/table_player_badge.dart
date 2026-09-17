@@ -16,6 +16,7 @@ class TablePlayerBadge extends StatelessWidget {
   final String? calloutMessage;
   final int cardsInHandCount;
   final Color avatarColor;
+  final bool isMano;
   final VoidCallback? onTap;
 
   const TablePlayerBadge({
@@ -29,6 +30,7 @@ class TablePlayerBadge extends StatelessWidget {
     this.calloutMessage,
     this.cardsInHandCount = 3,
     this.avatarColor = const Color(0xFF6366F1),
+    this.isMano = false,
     this.onTap,
   });
 
@@ -99,6 +101,46 @@ class TablePlayerBadge extends StatelessWidget {
                       ),
                     ),
                   ),
+
+                  // Insignia dorada de Mano (jugador con prioridad en la mano/ronda)
+                  if (isMano)
+                    Positioned(
+                      top: -7,
+                      left: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.white, width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFEAB308).withValues(alpha: 0.7),
+                              blurRadius: 5,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.pan_tool_alt_rounded, size: 9, color: Color(0xFF713F12)),
+                            SizedBox(width: 2),
+                            Text(
+                              'MANO',
+                              style: TextStyle(
+                                color: Color(0xFF713F12),
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                   // Indicador de Bot (+🤖 verde menta) en la esquina superior derecha
                   if (isBot)

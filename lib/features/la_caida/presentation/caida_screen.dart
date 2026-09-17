@@ -21,6 +21,7 @@ class _PlayerState {
   int score = 0;
   int cardsWon = 0;
   String? currentCallout;
+  Timer? calloutTimer;
 
   _PlayerState({
     required this.id,
@@ -34,7 +35,11 @@ class _PlayerState {
 /// Pantalla de La Caída Tradicional venezolana.
 /// Soporta:
 /// - Menú previo de selección: Bot vs Multijugador, 1 a 3 bots, Parejas vs Individual.
-/// - Selección individual de naipes (solo la carta tocada se eleva y resplandece).
+/// - Selección individual de naipes limpia, sin solapamiento obstructivo.
+/// - Animación secuencial de reparto (4 cartas a la mesa y 3 a los jugadores).
+/// - Indicador de "Mano" con rotación en el sentido de las manecillas del reloj.
+/// - Sistema de progresión de nivel y experiencia (XP).
+/// - Desaparición automática e independiente de bocadillos de cantos.
 /// - Reglas tradicionales de puntuación venezolana:
 ///     • Ronda: 1-7 (+1), 10 (+2), 11 (+3), 12 (+4)
 ///     • Caída: 1-7 (+1), 10 (+2), 11 (+3), 12 (+4)
@@ -44,11 +49,13 @@ class _PlayerState {
 class CaidaScreen extends StatefulWidget {
   final int initialPlayers;
   final bool autoStart;
+  final bool animateDealing;
 
   const CaidaScreen({
     super.key,
     this.initialPlayers = 2,
     this.autoStart = false,
+    this.animateDealing = true,
   });
 
   @override
@@ -70,6 +77,19 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   bool _isGameOver = false;
   String _statusBanner = 'Bienvenido a La Caída Tradicional';
 
+  // Mano actual y ronda
+  int _manoIndex = 0; // Índice del jugador que es Mano (juega primero)
+  int _roundNumber = 1; // Contador de rondas de la partida
+
+  // Sistema de Nivel y Experiencia (XP)
+  int _userLevel = 1;
+  int _userXp = 250;
+  int _xpToNextLevel = 600;
+
+  // Estado de reparto animado
+  bool _isDealing = false;
+  bool _isFirstRoundDealing = true;
+
   // Acumulación persistente de trofeos de la sesión
   int _sessionTrophies = 7500;
 
@@ -82,7 +102,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
   // Temporizadores y animaciones
   late AnimationController _timerController;
-  Timer? _calloutTimer;
+  late AnimationController _dealingController;
   Timer? _botTimer;
   Timer? _finishTimer;
 
@@ -102,6 +122,17 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         }
       });
 
+    _dealingController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..addListener(() {
+        if (mounted) setState(() {});
+      })..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _onDealingCompleted();
+        }
+      });
+
     // Inicializar jugadores mínimos para evitar excepciones de índice antes de iniciar
     _setupPlayers(
       totalPlayers: _playerCount,
@@ -110,20 +141,29 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     );
 
     if (_hasGameStarted) {
-      _initMatch(_playerCount, _isTeams, 'Tú');
+      _initMatch(_playerCount, _isTeams, 'Tú', animate: !widget.autoStart && widget.animateDealing);
     }
   }
 
   @override
   void dispose() {
     _timerController.dispose();
-    _calloutTimer?.cancel();
+    _dealingController.dispose();
     _botTimer?.cancel();
     _finishTimer?.cancel();
+    _clearAllCallouts();
     super.dispose();
   }
 
-  void _initMatch(int count, bool teams, String userName) {
+  void _clearAllCallouts() {
+    for (final p in _players) {
+      p.calloutTimer?.cancel();
+      p.calloutTimer = null;
+      p.currentCallout = null;
+    }
+  }
+
+  void _initMatch(int count, bool teams, String userName, {bool? animate}) {
     _playerCount = count;
     _isTeams = teams;
     _deck = SpanishDeck()..shuffle();
@@ -132,6 +172,9 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _lastPlayedPlayerIndex = null;
     _isGameOver = false;
     _selectedCard = null;
+    _manoIndex = 0; // En la primera ronda inicia el usuario (Tú)
+    _roundNumber = 1;
+    _clearAllCallouts();
 
     _setupPlayers(
       totalPlayers: count,
@@ -139,13 +182,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       teams: teams,
     );
 
-    // 4 cartas iniciales a la mesa
-    for (int i = 0; i < 4; i++) {
-      final c = _deck.draw();
-      if (c != null) _tableCards.add(c);
-    }
-
-    _dealNewRound();
+    final shouldAnimate = animate ?? (widget.animateDealing && !widget.autoStart);
+    _startDeal(isFirstRound: true, animate: shouldAnimate);
   }
 
   void _setupPlayers({
@@ -188,28 +226,107 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     }
   }
 
-  void _dealNewRound() {
-    if (_deck.remainingCount < _players.length * 3 && _allHandsEmpty()) {
-      _finishGame();
-      return;
+  void _startDeal({required bool isFirstRound, required bool animate}) {
+    _clearAllCallouts();
+    _timerController.stop();
+    _isFirstRoundDealing = isFirstRound;
+
+    if (isFirstRound) {
+      _tableCards.clear();
+      for (int i = 0; i < 4; i++) {
+        final c = _deck.draw();
+        if (c != null) _tableCards.add(c);
+      }
     }
 
-    // Repartir 3 cartas a cada jugador
     for (final p in _players) {
       p.hand.clear();
       for (int i = 0; i < 3; i++) {
         final c = _deck.draw();
         if (c != null) p.hand.add(c);
       }
+    }
+
+    if (!animate) {
+      _isDealing = false;
+      _onDealingCompleted();
+      return;
+    }
+
+    _isDealing = true;
+    final manoPlayer = _players[_manoIndex];
+    setState(() {
+      _statusBanner = isFirstRound
+          ? 'Colocando mesa y repartiendo cartas (${manoPlayer.name} es Mano)...'
+          : 'Repartiendo cartas (${manoPlayer.name} es Mano)...';
+    });
+
+    _dealingController.reset();
+    _dealingController.forward();
+  }
+
+  void _onDealingCompleted() {
+    _isDealing = false;
+
+    // Comprobar cantos de mano para cada jugador
+    for (final p in _players) {
       _checkHandCantos(p);
     }
 
-    _currentTurnIndex = 0;
+    _currentTurnIndex = _manoIndex;
     _selectedCard = null;
-    _resetTurnTimer();
+
+    if (!mounted) return;
+    final activePlayer = _players[_currentTurnIndex];
     setState(() {
-      _statusBanner = 'Nueva mano repartida (3 cartas). Es tu turno.';
+      _statusBanner = activePlayer.isBot
+          ? 'Ronda $_roundNumber • Turno de ${activePlayer.name} pensando...'
+          : 'Ronda $_roundNumber • ¡Es tu turno! (Eres Mano). Toca una carta.';
     });
+
+    _resetTurnTimer();
+
+    if (activePlayer.isBot) {
+      _botTimer?.cancel();
+      _botTimer = Timer(const Duration(milliseconds: 900), () {
+        if (mounted && !_isGameOver && _currentTurnIndex == _players.indexOf(activePlayer)) {
+          _botPlay(activePlayer);
+        }
+      });
+    }
+  }
+
+  void _dealNewRound() {
+    _onRoundFinished();
+  }
+
+  void _onRoundFinished() {
+    // Si ya no quedan suficientes cartas para otra mano de 3 por jugador
+    if (_deck.remainingCount < _players.length * 3) {
+      if (_players.any((p) => p.score >= 24)) {
+        _finishGame();
+        return;
+      }
+
+      // Iniciar nueva ronda con mazo barajado
+      // La Mano rota en sentido de las manecillas del reloj
+      _manoIndex = (_manoIndex + 1) % _players.length;
+      _roundNumber++;
+      _deck = SpanishDeck()..shuffle();
+      _tableCards.clear();
+      _lastPlayedCard = null;
+      _lastPlayedPlayerIndex = null;
+      _startDeal(isFirstRound: true, animate: widget.animateDealing && !widget.autoStart);
+      return;
+    }
+
+    // Aún quedan cartas en el mazo: se reparten 3 cartas más
+    // La Mano rota en sentido horario al siguiente jugador
+    _manoIndex = (_manoIndex + 1) % _players.length;
+    _roundNumber++;
+    _lastPlayedCard = null;
+    _lastPlayedPlayerIndex = null;
+    _startDeal(isFirstRound: false, animate: widget.animateDealing && !widget.autoStart);
   }
 
   bool _allHandsEmpty() => _players.every((p) => p.hand.isEmpty);
@@ -289,9 +406,9 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   }
 
   void _triggerCallout(_PlayerState player, String text) {
-    _calloutTimer?.cancel();
+    player.calloutTimer?.cancel();
     setState(() => player.currentCallout = text);
-    _calloutTimer = Timer(const Duration(milliseconds: 2000), () {
+    player.calloutTimer = Timer(const Duration(milliseconds: 2400), () {
       if (mounted) {
         setState(() => player.currentCallout = null);
       }
@@ -432,11 +549,20 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     final winner = sorted.first;
     final userWon = winner.id == 'user' || (_isTeams && winner.teamId == _players[0].teamId);
 
-    // Acumulación persistente de puntos/trofeos en la sesión
+    // Acumulación persistente de puntos/trofeos y nivel
+    bool didLevelUp = false;
+    final int xpGained = userWon ? 500 + (_players[0].cardsWon * 10) : 100 + (_players[0].cardsWon * 5);
     if (userWon) {
       _sessionTrophies += 2000 + (_players[0].score * 50);
     } else {
       _sessionTrophies = math.max(0, _sessionTrophies - 500 + (_players[0].score * 20));
+    }
+    _userXp += xpGained;
+    while (_userXp >= _xpToNextLevel) {
+      _userXp -= _xpToNextLevel;
+      _userLevel++;
+      _xpToNextLevel = _userLevel * 600;
+      didLevelUp = true;
     }
 
     final resultEntries = _players.map((p) {
@@ -451,7 +577,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
     setState(() {
       _statusBanner = userWon
-          ? '¡Felicidades! Has ganado la partida de Caída.'
+          ? '¡Felicidades! Has ganado la partida de Caída (+$xpGained XP).'
           : 'Partida concluida. Ganó ${winner.name}.';
     });
 
@@ -461,7 +587,9 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         GameResultDialog.show(
           context,
           userWon: userWon,
-          subtitle: 'Puntuación final: ${winner.name} con ${winner.score} pts',
+          subtitle: didLevelUp
+              ? '🎉 ¡SUBISTE AL NIVEL $_userLevel! (+$xpGained XP)\nPuntuación final: ${winner.name} con ${winner.score} pts'
+              : 'Puntuación final: ${winner.name} con ${winner.score} pts (+$xpGained XP • Nv. $_userLevel)',
           entries: resultEntries,
           onRematch: () {
             Navigator.pop(context);
@@ -560,6 +688,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         onOpenRules: () => GameRulesDialog.show(context, 'la_caida'),
         onSettings: _openMatchSettings,
         trophies: _sessionTrophies,
+        playerLevel: _userLevel,
         // Los ms SOLO se muestran en partidas por internet o red local
         showPing: _isMultiplayerNetwork,
         pingMs: 55,
@@ -1036,6 +1165,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             calloutMessage: rival.currentCallout,
             cardsInHandCount: rival.hand.length,
             avatarColor: rival.color,
+            isMano: _manoIndex == 1,
           ),
         ),
       );
@@ -1057,6 +1187,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             calloutMessage: rival1.currentCallout,
             cardsInHandCount: rival1.hand.length,
             avatarColor: rival1.color,
+            isMano: _manoIndex == 1,
           ),
         ),
       );
@@ -1075,6 +1206,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             calloutMessage: rival2.currentCallout,
             cardsInHandCount: rival2.hand.length,
             avatarColor: rival2.color,
+            isMano: _manoIndex == 2,
           ),
         ),
       );
@@ -1097,6 +1229,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             calloutMessage: rival1.currentCallout,
             cardsInHandCount: rival1.hand.length,
             avatarColor: rival1.color,
+            isMano: _manoIndex == 1,
           ),
         ),
       );
@@ -1114,6 +1247,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             calloutMessage: rival2.currentCallout,
             cardsInHandCount: rival2.hand.length,
             avatarColor: rival2.color,
+            isMano: _manoIndex == 2,
           ),
         ),
       );
@@ -1132,6 +1266,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             calloutMessage: rival3.currentCallout,
             cardsInHandCount: rival3.hand.length,
             avatarColor: rival3.color,
+            isMano: _manoIndex == 3,
           ),
         ),
       );
@@ -1157,6 +1292,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             calloutMessage: user.currentCallout,
             cardsInHandCount: user.hand.length,
             avatarColor: user.color,
+            isMano: _manoIndex == 0,
           ),
           const SizedBox(width: 8),
           // Indicador de Puntos en la mano actual
@@ -1179,6 +1315,46 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
               ],
             ),
           ),
+          const SizedBox(width: 6),
+          // Indicador de Nivel y progreso de XP
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF2DD4BF).withValues(alpha: 0.7), width: 1),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.shield_rounded, size: 11, color: Color(0xFF2DD4BF)),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Nv. $_userLevel',
+                      style: const TextStyle(color: Color(0xFF2DD4BF), fontSize: 10, fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                SizedBox(
+                  width: 46,
+                  height: 3,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: (_userXp / _xpToNextLevel).clamp(0.0, 1.0),
+                      backgroundColor: Colors.white24,
+                      valueColor: const AlwaysStoppedAnimation(Color(0xFF2DD4BF)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1189,17 +1365,21 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.2),
+          color: Colors.black.withValues(alpha: 0.25),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.white12, width: 1),
         ),
-        child: const Text(
-          'Mesa Limpia\n(Juega para abrir captura)',
+        child: Text(
+          _isDealing ? 'Repartiendo cartas...' : 'Mesa Limpia\n(Juega para abrir captura)',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold),
+          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
         ),
       );
     }
+
+    final cardsToShow = (_isDealing && _isFirstRoundDealing)
+        ? _tableCards.take(((_dealingController.value) * 6).clamp(1, 4).toInt()).toList()
+        : _tableCards;
 
     return Center(
       child: Container(
@@ -1208,13 +1388,23 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
           alignment: WrapAlignment.center,
           spacing: 10,
           runSpacing: 10,
-          children: _tableCards.map((card) {
+          children: cardsToShow.map((card) {
             final angle = (card.number % 3 - 1) * 0.05;
-            return Transform.rotate(
-              angle: angle,
-              child: SpanishCardView(
-                card: card,
-                width: 60,
+            return TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 250),
+              tween: Tween<double>(begin: 0.4, end: 1.0),
+              builder: (context, scale, child) {
+                return Transform.scale(
+                  scale: scale,
+                  child: child,
+                );
+              },
+              child: Transform.rotate(
+                angle: angle,
+                child: SpanishCardView(
+                  card: card,
+                  width: 60,
+                ),
               ),
             );
           }).toList(),
@@ -1223,99 +1413,106 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     );
   }
 
-  /// Abanico de cartas con selección individual:
-  /// Solo la carta tocada se eleva y tiene resplandor.
+  /// Abanico de cartas con selección individual limpia:
+  /// Cada carta tiene su espacio dedicado, sin solaparse ni bloquear toques.
+  /// Solo la carta tocada se eleva y resplandece.
   Widget _buildUserHandFan(_PlayerState user) {
     if (user.hand.isEmpty) {
-      return const SizedBox(
-        height: 125,
+      return SizedBox(
+        height: 140,
         child: Center(
           child: Text(
-            'Esperando nueva mano...',
-            style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+            _isDealing ? 'Repartiendo cartas...' : 'Esperando nueva mano...',
+            style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
           ),
         ),
       );
     }
 
     final cardCount = user.hand.length;
-    final isMyTurn = _currentTurnIndex == 0 && !_isGameOver;
+    final isMyTurn = _currentTurnIndex == 0 && !_isGameOver && !_isDealing;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Botón de acción rápida o texto guía cuando hay carta seleccionada
-        if (_selectedCard != null && isMyTurn)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: ElevatedButton.icon(
-              onPressed: () => _playCard(user, _selectedCard!),
-              icon: const Icon(Icons.arrow_upward_rounded, size: 16, color: Colors.white),
-              label: Text(
-                'JUGAR ${_selectedCard!.displayName.toUpperCase()}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.white,
-                elevation: 6,
-                shadowColor: const Color(0xFF10B981).withValues(alpha: 0.6),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-          )
-        else if (isMyTurn)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                'Toca una carta para seleccionarla',
-                style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.w600),
-              ),
+        // Contenedor de acción con altura fija (44px): La mano NUNCA salta ni se desplaza al tocar una carta
+        SizedBox(
+          height: 44,
+          child: Center(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: (_selectedCard != null && isMyTurn)
+                  ? ElevatedButton.icon(
+                      key: const ValueKey('play_card_btn'),
+                      onPressed: () => _playCard(user, _selectedCard!),
+                      icon: const Icon(Icons.arrow_upward_rounded, size: 16, color: Colors.white),
+                      label: Text(
+                        'JUGAR ${_selectedCard!.displayName.toUpperCase()}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        elevation: 6,
+                        shadowColor: const Color(0xFF10B981).withValues(alpha: 0.6),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                    )
+                  : (isMyTurn)
+                      ? Container(
+                          key: const ValueKey('select_card_prompt'),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4), width: 1),
+                          ),
+                          child: const Text(
+                            'Toca una carta para seleccionarla',
+                            style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                        )
+                      : const SizedBox(key: ValueKey('empty_prompt_slot')),
             ),
           ),
+        ),
 
+        const SizedBox(height: 6),
+
+        // Cartas individuales centradas con espacio suficiente (sin obstrucción)
         SizedBox(
-          height: 125,
-          width: double.infinity,
-          child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.bottomCenter,
-              children: List.generate(cardCount, (index) {
-                final card = user.hand[index];
-                final mid = (cardCount - 1) / 2.0;
-                final offsetIndex = index - mid;
-                final angle = offsetIndex * 0.07;
-                final xTranslation = offsetIndex * 40.0;
-                final yTranslation = math.pow(offsetIndex.abs(), 1.5) * 4.0;
+          height: 130,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(cardCount, (index) {
+              final card = user.hand[index];
+              final isSelected = isMyTurn && _selectedCard == card;
 
-                // Solo la carta seleccionada se eleva y resplandece
-                final isCardSelected = isMyTurn && _selectedCard == card;
-                final yOffset = isCardSelected ? -22.0 : 0.0;
-
-                return Transform.translate(
-                  offset: Offset(xTranslation, yTranslation + yOffset),
-                  child: Transform.rotate(
-                    angle: angle,
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  transform: Matrix4.translationValues(0, isSelected ? -16 : 0, 0),
+                  child: AnimatedScale(
+                    scale: isSelected ? 1.06 : 1.0,
+                    duration: const Duration(milliseconds: 200),
                     child: SpanishCardView(
                       key: ValueKey('user_card_$index'),
                       card: card,
-                      width: 74,
-                      isSelected: isCardSelected,
+                      width: 76,
+                      isSelected: isSelected,
                       onTap: isMyTurn ? () => _onUserCardTap(card) : null,
                     ),
                   ),
-                );
-              }),
-            ),
+                ),
+              );
+            }),
           ),
-        ],
-      );
+        ),
+      ],
+    );
   }
 }

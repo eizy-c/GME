@@ -10,6 +10,7 @@ class GameTableHeader extends StatelessWidget implements PreferredSizeWidget {
   final int trophies;
   final int pingMs;
   final bool showPing;
+  final int? playerLevel;
 
   const GameTableHeader({
     super.key,
@@ -20,6 +21,7 @@ class GameTableHeader extends StatelessWidget implements PreferredSizeWidget {
     this.trophies = 7500,
     this.pingMs = 60,
     this.showPing = false,
+    this.playerLevel,
   });
 
   @override
@@ -118,6 +120,42 @@ class GameTableHeader extends StatelessWidget implements PreferredSizeWidget {
                   ],
                 ),
               ),
+
+            // Indicador de Nivel del Jugador (si está presente)
+            if (playerLevel != null) ...[
+              Container(
+                margin: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0D9488), Color(0xFF0F766E)],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF2DD4BF), width: 1.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0D9488).withValues(alpha: 0.4),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.stars_rounded, color: Color(0xFFFDE047), size: 14),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Nv. $playerLevel',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             // Píldora de Trofeos / Puntos
             Container(
