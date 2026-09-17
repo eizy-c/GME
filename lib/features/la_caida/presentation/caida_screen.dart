@@ -13,7 +13,6 @@ import '../../../core/presentation/widgets/wood_table_background.dart';
 import '../../../core/services/user_profile_service.dart';
 import '../domain/caida_models.dart';
 import '../domain/caida_rules_engine.dart';
-import 'widgets/captured_pile_view.dart';
 import 'widgets/deck_stack_view.dart';
 import 'widgets/table_canto_dialog.dart';
 
@@ -110,7 +109,6 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   bool _isTeams = false;
   int _currentTurnIndex = 0;
   bool _isGameOver = false;
-  String _statusBanner = 'Bienvenido a La Caída Tradicional';
 
   // Mano actual y ronda
   int _manoIndex = 0; // Índice del jugador que es Mano (juega primero)
@@ -278,7 +276,6 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
     setState(() {
       _isChoosingMano = true;
-      _statusBanner = '¡ELIGE UNA CARTA! Quien saque la más alta es Mano.';
     });
   }
 
@@ -323,7 +320,6 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     setState(() {
       _manoIndex = winnerIndex;
       _manoAnnouncement = '¡${winner.name} saca el ${winnerChoice.card.number} y es MANO! ✋';
-      _statusBanner = '¡${winner.name} es Mano con el ${winnerChoice.card.number}! ✋';
     });
 
     await Future.delayed(const Duration(milliseconds: 2400));
@@ -444,12 +440,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     }
 
     _isDealing = true;
-    final manoPlayer = _players[_manoIndex];
-    setState(() {
-      _statusBanner = isFirstRound
-          ? 'Colocando mesa y repartiendo (${manoPlayer.name} es Mano • ${_cantoDirection.label})...'
-          : 'Repartiendo cartas (${manoPlayer.name} es Mano)...';
-    });
+    setState(() {});
 
     _dealingController.reset();
     _dealingController.forward();
@@ -466,11 +457,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
     if (!mounted) return;
     final activePlayer = _players[_currentTurnIndex];
-    setState(() {
-      _statusBanner = activePlayer.isBot
-          ? 'Ronda $_roundNumber • Turno de ${activePlayer.name} pensando...'
-          : 'Ronda $_roundNumber • ¡Es tu turno! (Eres Mano). Toca una carta.';
-    });
+    setState(() {});
 
     _resetTurnTimer();
 
@@ -584,7 +571,10 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     });
     player.calloutTimer = Timer(const Duration(milliseconds: 2400), () {
       if (mounted) {
-        setState(() => player.currentCallout = null);
+        setState(() {
+          player.currentCallout = null;
+          _pointEventBanner = null;
+        });
       }
     });
   }
@@ -681,11 +671,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       return;
     }
 
-    setState(() {
-      _statusBanner = nextPlayer.isBot
-          ? 'Turno de ${nextPlayer.name} pensando...'
-          : '¡Es tu turno! Toca una carta para seleccionarla.';
-    });
+    setState(() {});
 
     if (nextPlayer.isBot) {
       _botTimer?.cancel();
@@ -748,11 +734,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       );
     }).toList();
 
-    setState(() {
-      _statusBanner = userWon
-          ? '¡Felicidades! Has ganado la partida de Caída (+$xpGained XP).'
-          : 'Partida concluida. Ganó ${winner.name}.';
-    });
+    setState(() {});
 
     _finishTimer?.cancel();
     _finishTimer = Timer(const Duration(milliseconds: 600), () {
@@ -1293,73 +1275,117 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
   /// Mesa de juego activa con cartas, rivales y mano del usuario
   Widget _buildGameTable(_PlayerState user) {
-    return Column(
-      children: [
-        _buildStatusBar(),
-        Expanded(
-          child: AnimatedBuilder(
-            animation: _timerController,
-            builder: (context, _) {
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  _buildTableCenterCards(),
-                  ..._buildOpponents(),
-                  _buildUserBottomArea(user),
-                ],
-              );
-            },
-          ),
-        ),
-        _buildUserHandFan(user),
-        const SizedBox(height: 10),
-      ],
+    return AnimatedBuilder(
+      animation: _timerController,
+      builder: (context, _) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // 1. Cartas sobre el tapete central (directo sobre la madera, 100% natural, sin BOX)
+            _buildTableCenterCards(),
+
+            // 2. Mazo en el lateral izquierdo si hay cartas restantes
+            if (_deck.remainingCount > 0 && !_isChoosingMano)
+              Positioned(
+                left: 12,
+                top: 240,
+                child: DeckStackView(
+                  remainingCards: _deck.remainingCount,
+                ),
+              ),
+
+            // 3. Estaciones de los rivales limpias y despejadas (sin cajas estorbando)
+            ..._buildOpponents(),
+
+            // 4. Estación del usuario en la esquina inferior izquierda
+            _buildUserBottomArea(user),
+
+            // 5. Abanico de cartas en mano en la parte inferior derecha
+            Positioned(
+              right: 14,
+              bottom: 8,
+              child: _buildUserHandFan(user),
+            ),
+
+            // 6. Notificación flotante de jugadas (Arrastre, Caída, etc.)
+            if (_pointEventBanner != null)
+              Positioned(
+                top: 88,
+                child: _buildPointEventBanner(),
+              ),
+
+            // 7. Indicador sutil de jugadores en la esquina superior derecha
+            Positioned(
+              top: 8,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1B4B).withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white24, width: 0.8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '$_playerCount Jug.',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (_roundNumber > 1) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        '• R$_roundNumber',
+                        style: const TextStyle(
+                          color: Color(0xFFFDE047),
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildStatusBar() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      color: Colors.black.withValues(alpha: 0.45),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              _statusBanner,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFFFDE047),
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+  Widget _buildPointEventBanner() {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 250),
+      builder: (context, val, child) => Opacity(
+        opacity: val,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1B4B).withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFFDE047), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFEAB308).withValues(alpha: 0.4),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
               ),
+            ],
+          ),
+          child: Text(
+            _pointEventBanner!,
+            style: const TextStyle(
+              color: Color(0xFFFDE047),
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          InkWell(
-            onTap: _openMatchSettings,
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFF381F78),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF7C4DFF), width: 1),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.tune_rounded, size: 12, color: Colors.white),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$_playerCount Jug.',
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1371,30 +1397,19 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       final rival = _players[1];
       widgets.add(
         Positioned(
-          top: 14,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TablePlayerBadge(
-                name: rival.name,
-                scoreOrCards: rival.cardsWon,
-                isBot: rival.isBot,
-                isCurrentTurn: _currentTurnIndex == 1,
-                turnProgress: 1.0 - _timerController.value,
-                position: PlayerPositionOnTable.top,
-                calloutMessage: rival.currentCallout,
-                cardsInHandCount: rival.hand.length,
-                avatarColor: rival.color,
-                avatarId: rival.avatarId,
-                isMano: _manoIndex == 1,
-              ),
-              const SizedBox(height: 4),
-              CapturedPileView(
-                playerName: rival.name,
-                cardsCount: rival.cardsWon,
-                accentColor: rival.color,
-              ),
-            ],
+          top: 10,
+          child: TablePlayerBadge(
+            name: rival.name,
+            scoreOrCards: rival.cardsWon,
+            isBot: rival.isBot,
+            isCurrentTurn: _currentTurnIndex == 1,
+            turnProgress: 1.0 - _timerController.value,
+            position: PlayerPositionOnTable.top,
+            calloutMessage: rival.currentCallout,
+            cardsInHandCount: rival.hand.length,
+            avatarColor: rival.color,
+            avatarId: rival.avatarId,
+            isMano: _manoIndex == 1,
           ),
         ),
       );
@@ -1404,62 +1419,40 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
       widgets.add(
         Positioned(
-          left: 14,
-          top: 50,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TablePlayerBadge(
-                name: rival1.name,
-                scoreOrCards: rival1.cardsWon,
-                isBot: rival1.isBot,
-                isCurrentTurn: _currentTurnIndex == 1,
-                turnProgress: 1.0 - _timerController.value,
-                position: PlayerPositionOnTable.left,
-                calloutMessage: rival1.currentCallout,
-                cardsInHandCount: rival1.hand.length,
-                avatarColor: rival1.color,
-                avatarId: rival1.avatarId,
-                isMano: _manoIndex == 1,
-              ),
-              const SizedBox(height: 4),
-              CapturedPileView(
-                playerName: rival1.name,
-                cardsCount: rival1.cardsWon,
-                accentColor: rival1.color,
-              ),
-            ],
+          left: 12,
+          top: 80,
+          child: TablePlayerBadge(
+            name: rival1.name,
+            scoreOrCards: rival1.cardsWon,
+            isBot: rival1.isBot,
+            isCurrentTurn: _currentTurnIndex == 1,
+            turnProgress: 1.0 - _timerController.value,
+            position: PlayerPositionOnTable.left,
+            calloutMessage: rival1.currentCallout,
+            cardsInHandCount: rival1.hand.length,
+            avatarColor: rival1.color,
+            avatarId: rival1.avatarId,
+            isMano: _manoIndex == 1,
           ),
         ),
       );
 
       widgets.add(
         Positioned(
-          right: 14,
-          top: 50,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TablePlayerBadge(
-                name: rival2.name,
-                scoreOrCards: rival2.cardsWon,
-                isBot: rival2.isBot,
-                isCurrentTurn: _currentTurnIndex == 2,
-                turnProgress: 1.0 - _timerController.value,
-                position: PlayerPositionOnTable.right,
-                calloutMessage: rival2.currentCallout,
-                cardsInHandCount: rival2.hand.length,
-                avatarColor: rival2.color,
-                avatarId: rival2.avatarId,
-                isMano: _manoIndex == 2,
-              ),
-              const SizedBox(height: 4),
-              CapturedPileView(
-                playerName: rival2.name,
-                cardsCount: rival2.cardsWon,
-                accentColor: rival2.color,
-              ),
-            ],
+          right: 12,
+          top: 80,
+          child: TablePlayerBadge(
+            name: rival2.name,
+            scoreOrCards: rival2.cardsWon,
+            isBot: rival2.isBot,
+            isCurrentTurn: _currentTurnIndex == 2,
+            turnProgress: 1.0 - _timerController.value,
+            position: PlayerPositionOnTable.right,
+            calloutMessage: rival2.currentCallout,
+            cardsInHandCount: rival2.hand.length,
+            avatarColor: rival2.color,
+            avatarId: rival2.avatarId,
+            isMano: _manoIndex == 2,
           ),
         ),
       );
@@ -1468,94 +1461,64 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       final rival2 = _players[2];
       final rival3 = _players[3];
 
+      // Rival 1 (Izquierda / Alejandro)
       widgets.add(
         Positioned(
           left: 12,
-          top: 70,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TablePlayerBadge(
-                name: rival1.name,
-                scoreOrCards: rival1.cardsWon,
-                isBot: rival1.isBot,
-                isCurrentTurn: _currentTurnIndex == 1,
-                turnProgress: 1.0 - _timerController.value,
-                position: PlayerPositionOnTable.left,
-                calloutMessage: rival1.currentCallout,
-                cardsInHandCount: rival1.hand.length,
-                avatarColor: rival1.color,
-                avatarId: rival1.avatarId,
-                isMano: _manoIndex == 1,
-              ),
-              const SizedBox(height: 4),
-              CapturedPileView(
-                playerName: rival1.name,
-                cardsCount: rival1.cardsWon,
-                accentColor: rival1.color,
-              ),
-            ],
+          top: 110,
+          child: TablePlayerBadge(
+            name: rival1.name,
+            scoreOrCards: rival1.cardsWon,
+            isBot: rival1.isBot,
+            isCurrentTurn: _currentTurnIndex == 1,
+            turnProgress: 1.0 - _timerController.value,
+            position: PlayerPositionOnTable.left,
+            calloutMessage: rival1.currentCallout,
+            cardsInHandCount: rival1.hand.length,
+            avatarColor: rival1.color,
+            avatarId: rival1.avatarId,
+            isMano: _manoIndex == 1,
           ),
         ),
       );
 
+      // Rival 2 (Frente / Carl)
       widgets.add(
         Positioned(
-          top: 12,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TablePlayerBadge(
-                name: rival2.name,
-                scoreOrCards: rival2.cardsWon,
-                isBot: rival2.isBot,
-                isCurrentTurn: _currentTurnIndex == 2,
-                turnProgress: 1.0 - _timerController.value,
-                position: PlayerPositionOnTable.top,
-                calloutMessage: rival2.currentCallout,
-                cardsInHandCount: rival2.hand.length,
-                avatarColor: rival2.color,
-                avatarId: rival2.avatarId,
-                isMano: _manoIndex == 2,
-              ),
-              const SizedBox(height: 4),
-              CapturedPileView(
-                playerName: rival2.name,
-                cardsCount: rival2.cardsWon,
-                accentColor: rival2.color,
-              ),
-            ],
+          top: 8,
+          child: TablePlayerBadge(
+            name: rival2.name,
+            scoreOrCards: rival2.cardsWon,
+            isBot: rival2.isBot,
+            isCurrentTurn: _currentTurnIndex == 2,
+            turnProgress: 1.0 - _timerController.value,
+            position: PlayerPositionOnTable.top,
+            calloutMessage: rival2.currentCallout,
+            cardsInHandCount: rival2.hand.length,
+            avatarColor: rival2.color,
+            avatarId: rival2.avatarId,
+            isMano: _manoIndex == 2,
           ),
         ),
       );
 
+      // Rival 3 (Derecha / Jhonny)
       widgets.add(
         Positioned(
           right: 12,
-          top: 70,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TablePlayerBadge(
-                name: rival3.name,
-                scoreOrCards: rival3.cardsWon,
-                isBot: rival3.isBot,
-                isCurrentTurn: _currentTurnIndex == 3,
-                turnProgress: 1.0 - _timerController.value,
-                position: PlayerPositionOnTable.right,
-                calloutMessage: rival3.currentCallout,
-                cardsInHandCount: rival3.hand.length,
-                avatarColor: rival3.color,
-                avatarId: rival3.avatarId,
-                isMano: _manoIndex == 3,
-              ),
-              const SizedBox(height: 4),
-              CapturedPileView(
-                playerName: rival3.name,
-                cardsCount: rival3.cardsWon,
-                accentColor: rival3.color,
-              ),
-            ],
+          top: 110,
+          child: TablePlayerBadge(
+            name: rival3.name,
+            scoreOrCards: rival3.cardsWon,
+            isBot: rival3.isBot,
+            isCurrentTurn: _currentTurnIndex == 3,
+            turnProgress: 1.0 - _timerController.value,
+            position: PlayerPositionOnTable.right,
+            calloutMessage: rival3.currentCallout,
+            cardsInHandCount: rival3.hand.length,
+            avatarColor: rival3.color,
+            avatarId: rival3.avatarId,
+            isMano: _manoIndex == 3,
           ),
         ),
       );
@@ -1567,9 +1530,10 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   Widget _buildUserBottomArea(_PlayerState user) {
     return Positioned(
       left: 14,
-      bottom: 6,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      bottom: 10,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TablePlayerBadge(
             name: user.name,
@@ -1584,82 +1548,41 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             avatarId: user.avatarId,
             isMano: _manoIndex == 0,
           ),
-          const SizedBox(width: 8),
-          Column(
+          const SizedBox(height: 4),
+          Row(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Pozo de cartas recogidas del usuario
-                  CapturedPileView(
-                    playerName: 'Tú',
-                    cardsCount: user.cardsWon,
-                    accentColor: user.color,
-                    isUser: true,
-                  ),
-                  const SizedBox(width: 6),
-                  // Indicador de Puntos en la mano actual
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFFBBF24).withValues(alpha: 0.6), width: 1),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.star_rounded, size: 13, color: Color(0xFFFBBF24)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${user.score} pts',
-                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              // Indicador de Nivel y progreso de XP
+              // Icono de Chat limpio de la referencia
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                width: 24,
+                height: 20,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.85),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF2DD4BF).withValues(alpha: 0.7), width: 1),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.shield_rounded, size: 11, color: Color(0xFF2DD4BF)),
-                        const SizedBox(width: 3),
-                        Text(
-                          'Nv. $_userLevel',
-                          style: const TextStyle(color: Color(0xFF2DD4BF), fontSize: 10, fontWeight: FontWeight.w900),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    SizedBox(
-                      width: 46,
-                      height: 3,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
-                        child: LinearProgressIndicator(
-                          value: (_userXp / _xpToNextLevel).clamp(0.0, 1.0),
-                          backgroundColor: Colors.white24,
-                          valueColor: const AlwaysStoppedAnimation(Color(0xFF2DD4BF)),
-                        ),
-                      ),
-                    ),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(5),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 2),
                   ],
+                ),
+                child: const Center(
+                  child: Icon(Icons.chat_bubble_rounded, size: 12, color: Color(0xFF1E1B4B)),
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Píldora compacta de puntuación
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(color: Colors.white30, width: 0.8),
+                ),
+                child: Text(
+                  '${user.cardsWon}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -1676,18 +1599,18 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Banner superior "¡ELIGE UNA CARTA!"
+            // Banner superior "¡ELIGE UNA CARTA!" limpio sobre la madera
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1B4B).withValues(alpha: 0.95),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFFDE047), width: 1.5),
-                boxShadow: [
+                color: const Color(0xFF1E1B4B).withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFFDE047), width: 1.2),
+                boxShadow: const [
                   BoxShadow(
-                    color: const Color(0xFFEAB308).withValues(alpha: 0.5),
-                    blurRadius: 12,
-                    offset: const Offset(0, 3),
+                    color: Colors.black45,
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
                   ),
                 ],
               ),
@@ -1696,18 +1619,18 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFFFDE047),
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 1.1,
+                  letterSpacing: 1.2,
                 ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // Mesa con cartas esparcidas boca abajo (Screenshot 6)
+            // Mesa con cartas esparcidas boca abajo de forma natural
             SizedBox(
               width: 320,
-              height: 310,
+              height: 290,
               child: Stack(
                 alignment: Alignment.center,
                 children: _manoCandidates.map((cand) {
@@ -1715,8 +1638,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                   final player = isChosen ? _players[cand.chosenByPlayerIndex!] : null;
 
                   return Positioned(
-                    top: 130 + cand.topOffset,
-                    left: 130 + cand.leftOffset,
+                    top: 115 + cand.topOffset,
+                    left: 120 + cand.leftOffset,
                     child: GestureDetector(
                       onTap: () => _onCandidateCardTapped(cand),
                       child: Transform.rotate(
@@ -1741,6 +1664,9 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                                   color: player.color.withValues(alpha: 0.88),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(color: Colors.white70, width: 1),
+                                  boxShadow: const [
+                                    BoxShadow(color: Colors.black38, blurRadius: 3),
+                                  ],
                                 ),
                                 child: Text(
                                   player.name,
@@ -1765,6 +1691,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     );
   }
 
+  /// Cartas en tapete central: colocadas directamente sobre la madera (100% natural, sin cajas cuadradas)
   Widget _buildTableCenterCards() {
     if (_isChoosingMano) {
       return _buildChoosingManoView();
@@ -1776,139 +1703,88 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
     final spokenSeq = _cantoDirection.sequence;
 
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Mazo físico en mesa con contador en tiempo real
-              DeckStackView(
-                remainingCards: _deck.remainingCount,
-              ),
-              const SizedBox(width: 12),
-              // Cartas en tapete central
-              Container(
-                constraints: const BoxConstraints(maxWidth: 240, minHeight: 90),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white12, width: 1),
-                ),
-                child: _tableCards.isEmpty
-                    ? Center(
-                        child: Text(
-                          _isDealing ? 'Repartiendo cartas...' : 'Mesa Limpia\n(Juega para abrir captura)',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                      )
-                    : Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: cardsToShow.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final card = entry.value;
-                          final angle = (card.number % 3 - 1) * 0.05;
-                          final spokenNum = (index < spokenSeq.length) ? spokenSeq[index] : null;
-                          final isHit = spokenNum != null && card.number == spokenNum;
-
-                          return TweenAnimationBuilder<double>(
-                            duration: const Duration(milliseconds: 250),
-                            tween: Tween<double>(begin: 0.4, end: 1.0),
-                            builder: (context, scale, child) {
-                              return Transform.scale(
-                                scale: scale,
-                                child: child,
-                              );
-                            },
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Número cantado durante el Canto de Mesa (Screenshot 7)
-                                if (_isFirstRoundDealing && spokenNum != null)
-                                  Container(
-                                    margin: const EdgeInsets.only(bottom: 2),
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                    decoration: BoxDecoration(
-                                      color: isHit ? const Color(0xFFCA8A04) : Colors.black54,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: isHit ? const Color(0xFFFDE047) : Colors.white24,
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      isHit ? '¡$spokenNum! ⭐' : '$spokenNum',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w900,
-                                        color: isHit ? Colors.white : Colors.white70,
-                                      ),
-                                    ),
-                                  ),
-                                Transform.rotate(
-                                  angle: angle,
-                                  child: SpanishCardView(
-                                    card: card,
-                                    width: 56,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-              ),
+    if (_tableCards.isEmpty) {
+      return Center(
+        child: Text(
+          _isDealing ? 'Repartiendo cartas...' : 'Mesa Limpia',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.35),
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+            shadows: const [
+              Shadow(color: Colors.black54, blurRadius: 3, offset: Offset(0, 1)),
             ],
           ),
-          if (_pointEventBanner != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.9),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFDE047), width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFEAB308).withValues(alpha: 0.35),
-                    blurRadius: 8,
+        ),
+      );
+    }
+
+    return Center(
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 10,
+        runSpacing: 10,
+        children: cardsToShow.asMap().entries.map((entry) {
+          final index = entry.key;
+          final card = entry.value;
+          final angle = (card.number % 3 - 1) * 0.04;
+          final spokenNum = (index < spokenSeq.length) ? spokenSeq[index] : null;
+          final isHit = spokenNum != null && card.number == spokenNum;
+
+          return TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 250),
+            tween: Tween<double>(begin: 0.4, end: 1.0),
+            builder: (context, scale, child) {
+              return Transform.scale(
+                scale: scale,
+                child: child,
+              );
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Número cantado durante el Canto de Mesa (estampado en madera con sombra pura)
+                if (_isFirstRoundDealing && spokenNum != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      isHit ? '¡$spokenNum! ⭐' : '$spokenNum',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        color: isHit ? const Color(0xFFFDE047) : Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: isHit ? const Color(0xFFCA8A04) : Colors.black87,
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ],
-              ),
-              child: Text(
-                _pointEventBanner!,
-                style: const TextStyle(
-                  color: Color(0xFFFDE047),
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
+                Transform.rotate(
+                  angle: angle,
+                  child: SpanishCardView(
+                    card: card,
+                    width: 58,
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ],
+          );
+        }).toList(),
       ),
     );
   }
 
   /// Abanico de cartas en disposición real (fan layout) con selección individual limpia:
-  /// Cada carta tiene su inclinación natural (-0.08, 0.0, 0.08) emulando sostener naipes reales (Screenshot 7).
+  /// Cada carta tiene su inclinación natural (-0.08, 0.0, 0.08) emulando sostener naipes reales.
   Widget _buildUserHandFan(_PlayerState user) {
     if (user.hand.isEmpty) {
-      return SizedBox(
-        height: 140,
-        child: Center(
-          child: Text(
-            _isDealing ? 'Repartiendo cartas...' : 'Esperando nueva mano...',
-            style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
-          ),
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     final cardCount = user.hand.length;
@@ -1922,66 +1798,51 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        // Contenedor de acción con altura fija (44px)
+        // Botón de acción rápido cuando se selecciona una carta
         SizedBox(
-          height: 44,
-          child: Center(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: (_selectedCard != null && isMyTurn)
-                  ? ElevatedButton.icon(
-                      key: const ValueKey('play_card_btn'),
-                      onPressed: () => _playCard(user, _selectedCard!),
-                      icon: const Icon(Icons.arrow_upward_rounded, size: 16, color: Colors.white),
-                      label: Text(
-                        'JUGAR ${_selectedCard!.displayName.toUpperCase()}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10B981),
-                        foregroundColor: Colors.white,
-                        elevation: 6,
-                        shadowColor: const Color(0xFF10B981).withValues(alpha: 0.6),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                    )
-                  : (isMyTurn)
-                      ? Container(
-                          key: const ValueKey('select_card_prompt'),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4), width: 1),
-                          ),
-                          child: const Text(
-                            'Toca una carta para seleccionarla',
-                            style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.w600),
-                          ),
-                        )
-                      : const SizedBox(key: ValueKey('empty_prompt_slot')),
-            ),
+          height: 38,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: (_selectedCard != null && isMyTurn)
+                ? ElevatedButton.icon(
+                    key: const ValueKey('play_card_btn'),
+                    onPressed: () => _playCard(user, _selectedCard!),
+                    icon: const Icon(Icons.arrow_upward_rounded, size: 16, color: Colors.white),
+                    label: Text(
+                      'JUGAR ${_selectedCard!.displayName.toUpperCase()}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      elevation: 6,
+                      shadowColor: const Color(0xFF10B981).withValues(alpha: 0.6),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                  )
+                : const SizedBox(key: ValueKey('empty_action_slot')),
           ),
         ),
 
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
 
         // Cartas individuales en abanico (fan layout)
         SizedBox(
-          height: 136,
+          height: 128,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: List.generate(cardCount, (index) {
               final card = user.hand[index];
               final isSelected = isMyTurn && _selectedCard == card;
               final angle = isSelected ? 0.0 : fanAngles[index % fanAngles.length];
-              final yOffset = isSelected ? -20.0 : fanYOffsets[index % fanYOffsets.length];
+              final yOffset = isSelected ? -18.0 : fanYOffsets[index % fanYOffsets.length];
 
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 3),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeOutCubic,
@@ -1989,7 +1850,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                   child: Transform.rotate(
                     angle: angle,
                     child: AnimatedScale(
-                      scale: isSelected ? 1.08 : 1.0,
+                      scale: isSelected ? 1.06 : 1.0,
                       duration: const Duration(milliseconds: 200),
                       child: SpanishCardView(
                         key: ValueKey('user_card_$index'),
