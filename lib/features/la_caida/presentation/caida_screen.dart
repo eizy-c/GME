@@ -10,11 +10,31 @@ import '../../../core/presentation/widgets/game_table_header.dart';
 import '../../../core/presentation/widgets/spanish_card_view.dart';
 import '../../../core/presentation/widgets/table_player_badge.dart';
 import '../../../core/presentation/widgets/wood_table_background.dart';
+import '../../../core/services/user_profile_service.dart';
 import '../domain/caida_models.dart';
 import '../domain/caida_rules_engine.dart';
 import 'widgets/captured_pile_view.dart';
 import 'widgets/deck_stack_view.dart';
 import 'widgets/table_canto_dialog.dart';
+
+/// Candidato para el sorteo interactivo de Mano ("¡ELIGE UNA CARTA!")
+class _ManoCardCandidate {
+  final int id;
+  final SpanishCard card;
+  final double topOffset;
+  final double leftOffset;
+  final double rotation;
+  int? chosenByPlayerIndex;
+  bool isRevealed = false;
+
+  _ManoCardCandidate({
+    required this.id,
+    required this.card,
+    required this.topOffset,
+    required this.leftOffset,
+    required this.rotation,
+  });
+}
 
 class _PlayerState {
   final String id;
@@ -22,6 +42,7 @@ class _PlayerState {
   final bool isBot;
   final Color color;
   final int teamId;
+  final int avatarId;
   List<SpanishCard> hand = [];
   int score = 0;
   int cardsWon = 0;
@@ -34,6 +55,7 @@ class _PlayerState {
     required this.isBot,
     required this.color,
     this.teamId = 0,
+    this.avatarId = 2,
   });
 }
 
@@ -55,12 +77,20 @@ class CaidaScreen extends StatefulWidget {
   final int initialPlayers;
   final bool autoStart;
   final bool animateDealing;
+  final bool initialTeams;
+  final bool chooseMano;
+  final String? userName;
+  final List<String>? botNames;
 
   const CaidaScreen({
     super.key,
     this.initialPlayers = 2,
     this.autoStart = false,
     this.animateDealing = true,
+    this.initialTeams = false,
+    this.chooseMano = false,
+    this.userName,
+    this.botNames,
   });
 
   @override
@@ -110,6 +140,11 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   DealDirection _cantoDirection = DealDirection.ascending;
   String? _pointEventBanner;
 
+  // Sorteo interactivo de Mano ("¡ELIGE UNA CARTA!")
+  bool _isChoosingMano = false;
+  final List<_ManoCardCandidate> _manoCandidates = [];
+  String? _manoAnnouncement;
+
   // Temporizadores y animaciones
   late AnimationController _timerController;
   late AnimationController _dealingController;
@@ -122,6 +157,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _playerCount = widget.initialPlayers.clamp(2, 4);
     _botCount = (_playerCount - 1).clamp(1, 3);
     _hasGameStarted = widget.autoStart;
+    _isTeams = widget.initialTeams;
 
     _timerController = AnimationController(
       vsync: this,
@@ -144,14 +180,21 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       });
 
     // Inicializar jugadores mínimos para evitar excepciones de índice antes de iniciar
+    final initialUserName = widget.userName ?? 'Tú';
     _setupPlayers(
       totalPlayers: _playerCount,
-      userName: 'Tú',
+      userName: initialUserName,
       teams: _isTeams,
     );
 
     if (_hasGameStarted) {
-      _initMatch(_playerCount, _isTeams, 'Tú', animate: !widget.autoStart && widget.animateDealing);
+      _initMatch(
+        _playerCount,
+        _isTeams,
+        initialUserName,
+        animate: !widget.autoStart && widget.animateDealing,
+        startWithManoSelection: widget.chooseMano,
+      );
     }
   }
 
@@ -173,7 +216,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     }
   }
 
-  void _initMatch(int count, bool teams, String userName, {bool? animate}) {
+  void _initMatch(int count, bool teams, String userName, {bool? animate, bool startWithManoSelection = false}) {
     _playerCount = count;
     _isTeams = teams;
     _deck = SpanishDeck()..shuffle();
@@ -184,7 +227,6 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _pointEventBanner = null;
     _isGameOver = false;
     _selectedCard = null;
-    _manoIndex = 0; // En la primera ronda inicia el usuario (Tú)
     _roundNumber = 1;
     _clearAllCallouts();
 
@@ -194,8 +236,113 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       teams: teams,
     );
 
-    final shouldAnimate = animate ?? (widget.animateDealing && !widget.autoStart);
-    _startDeal(isFirstRound: true, animate: shouldAnimate);
+    if (startWithManoSelection) {
+      _startManoSelection();
+    } else {
+      _manoIndex = 0;
+      final shouldAnimate = animate ?? (widget.animateDealing && !widget.autoStart);
+      _startDeal(isFirstRound: true, animate: shouldAnimate);
+    }
+  }
+
+  void _startManoSelection() {
+    _manoCandidates.clear();
+    _manoAnnouncement = null;
+    final tempDeck = SpanishDeck()..shuffle();
+
+    // 10 posiciones orgánicas y naturales sobre el tapete de madera (Screenshot 6)
+    final positions = [
+      const Offset(-75, -100),
+      const Offset(15, -110),
+      const Offset(105, -105),
+      const Offset(-35, -45),
+      const Offset(65, -40),
+      const Offset(-85, 20),
+      const Offset(5, 25),
+      const Offset(95, 30),
+      const Offset(-45, 95),
+      const Offset(55, 90),
+    ];
+    final rotations = [-0.06, 0.04, -0.05, 0.08, -0.04, 0.05, -0.07, 0.06, -0.03, 0.05];
+
+    for (int i = 0; i < 10; i++) {
+      final card = tempDeck.draw()!;
+      _manoCandidates.add(_ManoCardCandidate(
+        id: i,
+        card: card,
+        topOffset: positions[i].dy,
+        leftOffset: positions[i].dx,
+        rotation: rotations[i],
+      ));
+    }
+
+    setState(() {
+      _isChoosingMano = true;
+      _statusBanner = '¡ELIGE UNA CARTA! Quien saque la más alta es Mano.';
+    });
+  }
+
+  void _onCandidateCardTapped(_ManoCardCandidate userChoice) async {
+    if (userChoice.chosenByPlayerIndex != null || !_isChoosingMano) return;
+
+    setState(() {
+      userChoice.chosenByPlayerIndex = 0; // Usuario
+      userChoice.isRevealed = true;
+    });
+
+    // Los bots escogen entre las cartas restantes sin revelar inmediatamente
+    final unchosen = _manoCandidates.where((c) => c.chosenByPlayerIndex == null).toList();
+    unchosen.shuffle();
+
+    for (int i = 1; i < _players.length; i++) {
+      if (unchosen.isNotEmpty) {
+        final botPick = unchosen.removeLast();
+        botPick.chosenByPlayerIndex = i;
+        botPick.isRevealed = true;
+      }
+    }
+
+    setState(() {});
+
+    // Determinar la carta mayor entre los jugadores
+    final chosenEntries = _manoCandidates
+        .where((c) => c.chosenByPlayerIndex != null)
+        .toList();
+
+    chosenEntries.sort((a, b) {
+      if (a.card.number != b.card.number) {
+        return b.card.number.compareTo(a.card.number);
+      }
+      return b.card.suit.index.compareTo(a.card.suit.index);
+    });
+
+    final winnerChoice = chosenEntries.first;
+    final winnerIndex = winnerChoice.chosenByPlayerIndex!;
+    final winner = _players[winnerIndex];
+
+    setState(() {
+      _manoIndex = winnerIndex;
+      _manoAnnouncement = '¡${winner.name} saca el ${winnerChoice.card.number} y es MANO! ✋';
+      _statusBanner = '¡${winner.name} es Mano con el ${winnerChoice.card.number}! ✋';
+    });
+
+    await Future.delayed(const Duration(milliseconds: 2400));
+    if (!mounted) return;
+
+    setState(() {
+      _isChoosingMano = false;
+      _manoAnnouncement = null;
+    });
+
+    // Si el usuario es el repartidor / Mano, se le ofrece elegir Canto de Mesa
+    if (_manoIndex == 0) {
+      final dir = await TableCantoDialog.show(context);
+      if (dir != null && mounted) {
+        setState(() => _cantoDirection = dir);
+      }
+    }
+
+    _startDeal(isFirstRound: true, animate: true);
   }
 
   void _setupPlayers({
@@ -204,29 +351,39 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     bool teams = false,
   }) {
     _players = [];
+    final profileService = UserProfileService();
+    final effectiveUserName = (widget.userName != null && widget.userName!.isNotEmpty)
+        ? widget.userName!
+        : (userName.isNotEmpty ? userName : profileService.name);
 
-    // 1. Asiento 0: Jugador local (tú, abajo en pantalla)
+    // 1. Asiento 0: Jugador local (abajo en pantalla)
     _players.add(_PlayerState(
       id: 'user',
-      name: userName,
+      name: effectiveUserName,
       isBot: false,
       color: const Color(0xFF38BDF8),
       teamId: teams ? 1 : 0,
+      avatarId: profileService.avatarId,
     ));
 
-    // Paleta para rivales según posición en mesa (Oeste, Norte, Este)
+    // Nombres y avatares según bots configurados o por defecto
+    final defaultBotNames = [
+      for (int i = 1; i < totalPlayers; i++) 'Player $i'
+    ];
+    final effectiveBotNames = widget.botNames ?? defaultBotNames;
+    const botAvatars = [1, 14, 5];
     const botColors = [
       Color(0xFFF43F5E), // Izquierda / Rival 1 (Rojo)
       Color(0xFF10B981), // Frente / Compañero o Rival 2 (Verde)
       Color(0xFFA855F7), // Derecha / Rival 3 (Morado)
     ];
 
-    // Cantidad de rivales
     final rivalCount = totalPlayers - 1;
 
     for (int i = 1; i <= rivalCount; i++) {
       final isTeammate = (totalPlayers == 4 && teams && i == 2);
-      final playerName = isTeammate ? 'Player $i (Compañero)' : 'Player $i';
+      final rawName = effectiveBotNames[(i - 1) % effectiveBotNames.length];
+      final playerName = isTeammate ? '$rawName (Compañero)' : rawName;
 
       _players.add(_PlayerState(
         id: 'player_$i',
@@ -234,6 +391,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         isBot: !_isMultiplayerNetwork,
         color: botColors[(i - 1) % botColors.length],
         teamId: teams ? (i % 2 == 0 ? 1 : 2) : i,
+        avatarId: botAvatars[(i - 1) % botAvatars.length],
       ));
     }
   }
@@ -1227,6 +1385,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                 calloutMessage: rival.currentCallout,
                 cardsInHandCount: rival.hand.length,
                 avatarColor: rival.color,
+                avatarId: rival.avatarId,
                 isMano: _manoIndex == 1,
               ),
               const SizedBox(height: 4),
@@ -1260,6 +1419,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                 calloutMessage: rival1.currentCallout,
                 cardsInHandCount: rival1.hand.length,
                 avatarColor: rival1.color,
+                avatarId: rival1.avatarId,
                 isMano: _manoIndex == 1,
               ),
               const SizedBox(height: 4),
@@ -1290,6 +1450,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                 calloutMessage: rival2.currentCallout,
                 cardsInHandCount: rival2.hand.length,
                 avatarColor: rival2.color,
+                avatarId: rival2.avatarId,
                 isMano: _manoIndex == 2,
               ),
               const SizedBox(height: 4),
@@ -1324,6 +1485,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                 calloutMessage: rival1.currentCallout,
                 cardsInHandCount: rival1.hand.length,
                 avatarColor: rival1.color,
+                avatarId: rival1.avatarId,
                 isMano: _manoIndex == 1,
               ),
               const SizedBox(height: 4),
@@ -1353,6 +1515,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                 calloutMessage: rival2.currentCallout,
                 cardsInHandCount: rival2.hand.length,
                 avatarColor: rival2.color,
+                avatarId: rival2.avatarId,
                 isMano: _manoIndex == 2,
               ),
               const SizedBox(height: 4),
@@ -1383,6 +1546,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                 calloutMessage: rival3.currentCallout,
                 cardsInHandCount: rival3.hand.length,
                 avatarColor: rival3.color,
+                avatarId: rival3.avatarId,
                 isMano: _manoIndex == 3,
               ),
               const SizedBox(height: 4),
@@ -1417,6 +1581,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             calloutMessage: user.currentCallout,
             cardsInHandCount: user.hand.length,
             avatarColor: user.color,
+            avatarId: user.avatarId,
             isMano: _manoIndex == 0,
           ),
           const SizedBox(width: 8),
@@ -1504,10 +1669,112 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     );
   }
 
+  Widget _buildChoosingManoView() {
+    return Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Banner superior "¡ELIGE UNA CARTA!"
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1B4B).withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFFDE047), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFEAB308).withValues(alpha: 0.5),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Text(
+                _manoAnnouncement ?? '¡ELIGE UNA CARTA!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFFFDE047),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Mesa con cartas esparcidas boca abajo (Screenshot 6)
+            SizedBox(
+              width: 320,
+              height: 310,
+              child: Stack(
+                alignment: Alignment.center,
+                children: _manoCandidates.map((cand) {
+                  final isChosen = cand.chosenByPlayerIndex != null;
+                  final player = isChosen ? _players[cand.chosenByPlayerIndex!] : null;
+
+                  return Positioned(
+                    top: 130 + cand.topOffset,
+                    left: 130 + cand.leftOffset,
+                    child: GestureDetector(
+                      onTap: () => _onCandidateCardTapped(cand),
+                      child: Transform.rotate(
+                        angle: cand.rotation,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            cand.isRevealed
+                                ? SpanishCardView(
+                                    card: cand.card,
+                                    width: 52,
+                                    isSelected: cand.chosenByPlayerIndex == 0,
+                                  )
+                                : const SpanishCardView.back(
+                                    width: 52,
+                                  ),
+                            if (player != null)
+                              Container(
+                                margin: const EdgeInsets.only(top: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: player.color.withValues(alpha: 0.88),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.white70, width: 1),
+                                ),
+                                child: Text(
+                                  player.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTableCenterCards() {
+    if (_isChoosingMano) {
+      return _buildChoosingManoView();
+    }
+
     final cardsToShow = (_isDealing && _isFirstRoundDealing)
         ? _tableCards.take(((_dealingController.value) * 6).clamp(1, 4).toInt()).toList()
         : _tableCards;
+
+    final spokenSeq = _cantoDirection.sequence;
 
     return Center(
       child: Column(
@@ -1543,8 +1810,13 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                         alignment: WrapAlignment.center,
                         spacing: 8,
                         runSpacing: 8,
-                        children: cardsToShow.map((card) {
+                        children: cardsToShow.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final card = entry.value;
                           final angle = (card.number % 3 - 1) * 0.05;
+                          final spokenNum = (index < spokenSeq.length) ? spokenSeq[index] : null;
+                          final isHit = spokenNum != null && card.number == spokenNum;
+
                           return TweenAnimationBuilder<double>(
                             duration: const Duration(milliseconds: 250),
                             tween: Tween<double>(begin: 0.4, end: 1.0),
@@ -1554,12 +1826,39 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                                 child: child,
                               );
                             },
-                            child: Transform.rotate(
-                              angle: angle,
-                              child: SpanishCardView(
-                                card: card,
-                                width: 56,
-                              ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Número cantado durante el Canto de Mesa (Screenshot 7)
+                                if (_isFirstRoundDealing && spokenNum != null)
+                                  Container(
+                                    margin: const EdgeInsets.only(bottom: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: isHit ? const Color(0xFFCA8A04) : Colors.black54,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: isHit ? const Color(0xFFFDE047) : Colors.white24,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      isHit ? '¡$spokenNum! ⭐' : '$spokenNum',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w900,
+                                        color: isHit ? Colors.white : Colors.white70,
+                                      ),
+                                    ),
+                                  ),
+                                Transform.rotate(
+                                  angle: angle,
+                                  child: SpanishCardView(
+                                    card: card,
+                                    width: 56,
+                                  ),
+                                ),
+                              ],
                             ),
                           );
                         }).toList(),
@@ -1597,9 +1896,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     );
   }
 
-  /// Abanico de cartas con selección individual limpia:
-  /// Cada carta tiene su espacio dedicado, sin solaparse ni bloquear toques.
-  /// Solo la carta tocada se eleva y resplandece.
+  /// Abanico de cartas en disposición real (fan layout) con selección individual limpia:
+  /// Cada carta tiene su inclinación natural (-0.08, 0.0, 0.08) emulando sostener naipes reales (Screenshot 7).
   Widget _buildUserHandFan(_PlayerState user) {
     if (user.hand.isEmpty) {
       return SizedBox(
@@ -1614,12 +1912,18 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     }
 
     final cardCount = user.hand.length;
-    final isMyTurn = _currentTurnIndex == 0 && !_isGameOver && !_isDealing;
+    final isMyTurn = _currentTurnIndex == 0 && !_isGameOver && !_isDealing && !_isChoosingMano;
+    final fanAngles = cardCount == 3
+        ? [-0.08, 0.0, 0.08]
+        : (cardCount == 2 ? [-0.05, 0.05] : [0.0]);
+    final fanYOffsets = cardCount == 3
+        ? [6.0, 0.0, 6.0]
+        : (cardCount == 2 ? [3.0, 3.0] : [0.0]);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Contenedor de acción con altura fija (44px): La mano NUNCA salta ni se desplaza al tocar una carta
+        // Contenedor de acción con altura fija (44px)
         SizedBox(
           height: 44,
           child: Center(
@@ -1664,31 +1968,36 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
         const SizedBox(height: 6),
 
-        // Cartas individuales centradas con espacio suficiente (sin obstrucción)
+        // Cartas individuales en abanico (fan layout)
         SizedBox(
-          height: 130,
+          height: 136,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: List.generate(cardCount, (index) {
               final card = user.hand[index];
               final isSelected = isMyTurn && _selectedCard == card;
+              final angle = isSelected ? 0.0 : fanAngles[index % fanAngles.length];
+              final yOffset = isSelected ? -20.0 : fanYOffsets[index % fanYOffsets.length];
 
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeOutCubic,
-                  transform: Matrix4.translationValues(0, isSelected ? -16 : 0, 0),
-                  child: AnimatedScale(
-                    scale: isSelected ? 1.06 : 1.0,
-                    duration: const Duration(milliseconds: 200),
-                    child: SpanishCardView(
-                      key: ValueKey('user_card_$index'),
-                      card: card,
-                      width: 76,
-                      isSelected: isSelected,
-                      onTap: isMyTurn ? () => _onUserCardTap(card) : null,
+                  transform: Matrix4.translationValues(0, yOffset, 0),
+                  child: Transform.rotate(
+                    angle: angle,
+                    child: AnimatedScale(
+                      scale: isSelected ? 1.08 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: SpanishCardView(
+                        key: ValueKey('user_card_$index'),
+                        card: card,
+                        width: 76,
+                        isSelected: isSelected,
+                        onTap: isMyTurn ? () => _onUserCardTap(card) : null,
+                      ),
                     ),
                   ),
                 ),

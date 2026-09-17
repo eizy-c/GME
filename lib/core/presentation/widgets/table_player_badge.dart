@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../features/la_caida/presentation/widgets/avatar_view.dart';
 import 'speech_bubble.dart';
 
 enum PlayerPositionOnTable { bottom, top, left, right }
@@ -17,6 +18,7 @@ class TablePlayerBadge extends StatelessWidget {
   final int cardsInHandCount;
   final Color avatarColor;
   final bool isMano;
+  final int? avatarId;
   final VoidCallback? onTap;
 
   const TablePlayerBadge({
@@ -31,6 +33,7 @@ class TablePlayerBadge extends StatelessWidget {
     this.cardsInHandCount = 3,
     this.avatarColor = const Color(0xFF6366F1),
     this.isMano = false,
+    this.avatarId,
     this.onTap,
   });
 
@@ -86,19 +89,25 @@ class TablePlayerBadge extends StatelessWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            color: avatarColor.withValues(alpha: 0.35),
-                          ),
-                          Icon(
-                            isBot ? Icons.smart_toy_rounded : Icons.person_rounded,
-                            size: 32,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
+                      child: avatarId != null
+                          ? AvatarView(
+                              avatarId: avatarId!,
+                              size: 54,
+                              showBorder: false,
+                            )
+                          : Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Container(
+                                  color: avatarColor.withValues(alpha: 0.35),
+                                ),
+                                Icon(
+                                  isBot ? Icons.smart_toy_rounded : Icons.person_rounded,
+                                  size: 32,
+                                  color: Colors.white,
+                                ),
+                              ],
+                            ),
                     ),
                   ),
 

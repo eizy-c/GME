@@ -6,7 +6,7 @@ import '../../core/presentation/widgets/game_rules_dialog.dart';
 import '../../core/stats/game_stats.dart';
 import '../../core/stats/stats_repository.dart';
 import '../domino/presentation/domino_screen.dart';
-import '../la_caida/presentation/caida_screen.dart';
+import '../la_caida/presentation/caida_splash_screen.dart';
 
 enum GameCategoryFilter { all, board, cards }
 
@@ -379,7 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
             await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => const CaidaScreen(),
+                builder: (_) => const CaidaSplashScreen(),
               ),
             );
             _refreshStats();
