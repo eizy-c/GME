@@ -511,75 +511,85 @@ class _HomeScreenState extends State<HomeScreen> {
             // Fila de metadatos (Jugadores, Categoría, Botón de Reglas "¿Cómo jugar?" y Acción JUGAR)
             Row(
               children: [
-                // Etiqueta Jugadores
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.black26,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.people_alt_outlined, size: 12, color: Colors.white60),
-                      const SizedBox(width: 4),
-                      Text(
-                        playersText,
-                        style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Etiqueta Jugadores
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.people_alt_outlined, size: 12, color: Colors.white60),
+                              const SizedBox(width: 4),
+                              Text(
+                                playersText,
+                                style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
 
-                // Etiqueta Categoría
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.black26,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    categoryText,
-                    style: const TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.w600),
-                  ),
-                ),
+                        // Etiqueta Categoría
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            categoryText,
+                            style: const TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                        ),
 
-                // Botón interactivo de Reglas "¿Cómo jugar?"
-                if (rulesGameId != null) ...[
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () => GameRulesDialog.show(context, rulesGameId),
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFCA8A04).withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFFDE047), width: 0.8),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.help_outline_rounded, size: 12, color: Color(0xFFFDE047)),
-                          SizedBox(width: 4),
-                          Text(
-                            '¿Cómo jugar?',
-                            style: TextStyle(
-                              color: Color(0xFFFDE047),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                        // Botón interactivo de Reglas "¿Cómo jugar?"
+                        if (rulesGameId != null) ...[
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () => GameRulesDialog.show(context, rulesGameId),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFCA8A04).withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFFDE047), width: 0.8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.help_outline_rounded, size: 12, color: Color(0xFFFDE047)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    '¿Cómo jugar?',
+                                    style: TextStyle(
+                                      color: Color(0xFFFDE047),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
                   ),
-                ],
-
-                const Spacer(),
+                ),
 
                 if (isAvailable) ...[
+                  const SizedBox(width: 8),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -587,8 +597,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         'JUGAR',
                         style: TextStyle(
                           color: accentColor,
-                          fontWeight: FontWeight.bold,
                           fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
                         ),
                       ),
                       const SizedBox(width: 4),

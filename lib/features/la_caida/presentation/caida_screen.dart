@@ -10,9 +10,12 @@ import '../../../core/presentation/widgets/game_table_header.dart';
 import '../../../core/presentation/widgets/spanish_card_view.dart';
 import '../../../core/presentation/widgets/table_player_badge.dart';
 import '../../../core/presentation/widgets/wood_table_background.dart';
+import '../../../core/services/audio_service.dart';
 import '../../../core/services/user_profile_service.dart';
 import '../domain/caida_models.dart';
 import '../domain/caida_rules_engine.dart';
+import '../economy/player_session.dart';
+import '../economy/vip_tier.dart';
 import 'widgets/deck_stack_view.dart';
 import 'widgets/table_canto_dialog.dart';
 import 'caida_lobby_screen.dart';
@@ -99,6 +102,9 @@ class CaidaScreen extends StatefulWidget {
   final bool chooseMano;
   final String? userName;
   final List<String>? botNames;
+  final VipTierOffer? vipTier;
+  final int? vipPrizePool;
+  final int? vipWinnerReward;
 
   const CaidaScreen({
     super.key,
@@ -109,6 +115,9 @@ class CaidaScreen extends StatefulWidget {
     this.chooseMano = false,
     this.userName,
     this.botNames,
+    this.vipTier,
+    this.vipPrizePool,
+    this.vipWinnerReward,
   });
 
   @override
@@ -596,11 +605,24 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   }
 
   void _announceInitialCantos() {
+    int delayMs = 0;
     for (final p in _players) {
       p.pendingCanto = CaidaRulesEngine.evaluateCantos(p.hand);
       if (p.pendingCanto != null) {
         // En el reparto inicial solo se canta la presencia del canto sin sumar puntos aún
         _triggerCallout(p, p.pendingCanto!.name);
+        final cantoName = p.pendingCanto!.name;
+        if (delayMs == 0) {
+          AudioService().playCanto(cantoName);
+        } else {
+          final captureDelay = delayMs;
+          Future.delayed(Duration(milliseconds: captureDelay), () {
+            if (mounted) {
+              AudioService().playCanto(cantoName);
+            }
+          });
+        }
+        delayMs += 1100;
       }
     }
   }
@@ -628,6 +650,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             ? 'Ronda de ${canto.pairNumber}'
             : canto.name.replaceAll('¡', '').replaceAll('!', '');
         _triggerCallout(p, '¡$detail! (+${canto.points} pts)');
+        AudioService().playCanto(canto.name);
       } else if (p.pendingCanto != null) {
         final defeated = p.pendingCanto!;
         final detail = defeated is RondaCanto
@@ -726,6 +749,18 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       _triggerCallout(player, eval.breakdownMessage);
     }
 
+    // Efectos de sonido para Caída y Mesa Limpia
+    if (eval.isCaida && eval.isLimpia) {
+      AudioService().playCaida();
+      Future.delayed(const Duration(milliseconds: 900), () {
+        AudioService().playMesaLimpia();
+      });
+    } else if (eval.isCaida) {
+      AudioService().playCaida();
+    } else if (eval.isLimpia) {
+      AudioService().playMesaLimpia();
+    }
+
     _lastPlayedCard = card;
     _lastPlayedPlayerIndex = _currentTurnIndex;
 
@@ -810,11 +845,31 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       didLevelUp = true;
     }
 
+    // Recompensas del sistema de economía de Fase 2 (PlayerSession)
+    int vipCoinsWon = 0;
+    if (widget.vipTier != null) {
+      if (userWon) {
+        vipCoinsWon = widget.vipWinnerReward ?? widget.vipTier!.calculateNetPrizePerWinner(isTeams: widget.initialTeams);
+        PlayerSession.shared.rewardCoins(vipCoinsWon, xpGain: xpGained);
+      } else {
+        PlayerSession.shared.addXp(xpGained);
+      }
+    } else {
+      if (userWon) {
+        PlayerSession.shared.rewardCoins(150, xpGain: xpGained);
+      } else {
+        PlayerSession.shared.addXp(xpGained);
+      }
+    }
+
     final resultEntries = _players.map((p) {
       final isWin = p.id == winner.id || (_isTeams && p.teamId == winner.teamId);
+      final change = isWin
+          ? (widget.vipTier != null ? vipCoinsWon : 2000)
+          : (widget.vipTier != null ? -(widget.vipTier!.entryFee) : -1000);
       return GameResultEntry(
         name: p.name,
-        scoreChange: isWin ? 2000 : -1000,
+        scoreChange: change,
         isWinner: isWin,
         isUser: p.id == 'user',
       );
@@ -825,12 +880,21 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _finishTimer?.cancel();
     _finishTimer = Timer(const Duration(milliseconds: 600), () {
       if (mounted) {
+        String customSubtitle;
+        if (widget.vipTier != null) {
+          customSubtitle = userWon
+              ? '👑 ¡VICTORIA VIP EN MESA ${widget.vipTier!.name.toUpperCase()}!\nPremio obtenido: +🪙 $vipCoinsWon monedas (+$xpGained XP)'
+              : 'Mesa ${widget.vipTier!.name}: Ganó ${winner.name} con ${winner.score} pts (+$xpGained XP)';
+        } else {
+          customSubtitle = didLevelUp
+              ? '🎉 ¡SUBISTE AL NIVEL $_userLevel! (+$xpGained XP)\nPuntuación final: ${winner.name} con ${winner.score} pts'
+              : 'Puntuación final: ${winner.name} con ${winner.score} pts (+$xpGained XP • Nv. $_userLevel)';
+        }
+
         GameResultDialog.show(
           context,
           userWon: userWon,
-          subtitle: didLevelUp
-              ? '🎉 ¡SUBISTE AL NIVEL $_userLevel! (+$xpGained XP)\nPuntuación final: ${winner.name} con ${winner.score} pts'
-              : 'Puntuación final: ${winner.name} con ${winner.score} pts (+$xpGained XP • Nv. $_userLevel)',
+          subtitle: customSubtitle,
           entries: resultEntries,
           onRematch: () {
             Navigator.pop(context);
@@ -950,6 +1014,12 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         // Los ms SOLO se muestran en partidas por internet o red local
         showPing: _isMultiplayerNetwork,
         pingMs: 55,
+        isMuted: AudioService().isMuted,
+        onToggleMute: () {
+          setState(() {
+            AudioService().toggleMute();
+          });
+        },
       ),
       body: WoodTableBackground(
         child: SafeArea(
@@ -1398,7 +1468,44 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
               child: _buildUserHandFan(user),
             ),
 
-            // 6. Notificación flotante de jugadas (Arrastre, Caída, etc.)
+            // 6. Indicador de Mesa VIP en la parte superior si aplica
+            if (widget.vipTier != null)
+              Positioned(
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [widget.vipTier!.accentColor, const Color(0xFF0F172A)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: widget.vipTier!.accentColor, width: 1.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: widget.vipTier!.accentColor.withValues(alpha: 0.4),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFDE047), size: 14),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Mesa ${widget.vipTier!.name} • Pozo: 🪙 ${widget.vipPrizePool ?? widget.vipTier!.calculatePrizePool(isTeams: widget.initialTeams)}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // 7. Notificación flotante de jugadas (Arrastre, Caída, etc.)
             if (_pointEventBanner != null)
               Positioned(
                 top: 88,

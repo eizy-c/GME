@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../core/rules/game_rules_data.dart';
 import '../../../core/services/user_profile_service.dart';
+import '../economy/player_session.dart';
 import 'caida_screen.dart';
 import 'widgets/avatar_view.dart';
+import 'widgets/buy_tickets_modal.dart';
 import 'widgets/profile_options_dialog.dart';
+import 'widgets/vip_tier_selector_modal.dart';
 
 /// Lobby principal de La Caída inspirado en las capturas de referencia:
 /// Barra superior con saldo de monedas y tickets, tarjetas coloridas de modos,
@@ -17,6 +20,7 @@ class CaidaLobbyScreen extends StatefulWidget {
 
 class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
   final _profileService = UserProfileService();
+  late PlayerSession _session;
 
   // Estado del flujo del lobby: 'main' o 'un_jugador'
   String _currentView = 'main';
@@ -29,11 +33,26 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
   @override
   void initState() {
     super.initState();
+    _session = PlayerSession.shared;
+    _session.addListener(_onProfileChanged);
     _profileService.addListener(_onProfileChanged);
+    _loadSessionAsync();
+  }
+
+  Future<void> _loadSessionAsync() async {
+    final loaded = await PlayerSession.load();
+    if (mounted) {
+      setState(() {
+        _session.removeListener(_onProfileChanged);
+        _session = loaded;
+        _session.addListener(_onProfileChanged);
+      });
+    }
   }
 
   @override
   void dispose() {
+    _session.removeListener(_onProfileChanged);
     _profileService.removeListener(_onProfileChanged);
     super.dispose();
   }
@@ -44,6 +63,36 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
 
   void _openProfileDialog() {
     ProfileOptionsDialog.show(context);
+  }
+
+  void _openVipModal({bool initialIsTeams = false}) {
+    VipTierSelectorModal.show(
+      context,
+      session: _session,
+      initialIsTeams: initialIsTeams,
+      onTierSelected: (tier, isTeams) {
+        final totalPlayers = isTeams ? 4 : 2;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => CaidaScreen(
+              initialPlayers: totalPlayers,
+              autoStart: true,
+              initialTeams: isTeams,
+              chooseMano: true,
+              userName: _session.name,
+              botNames: const ['Alejandro', 'Carl', 'Jhonny'],
+              vipTier: tier,
+              vipPrizePool: tier.calculatePrizePool(isTeams: isTeams),
+              vipWinnerReward: tier.calculateNetPrizePerWinner(isTeams: isTeams),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openBuyTicketsModal() {
+    BuyTicketsModal.show(context, session: _session);
   }
 
   void _showComingSoonToast(String message) {
@@ -220,12 +269,12 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                                   child: const Icon(Icons.confirmation_number_rounded, color: Color(0xFFB45309), size: 18),
                                 ),
                                 const SizedBox(width: 8),
-                                const Text(
-                                  '1',
-                                  style: TextStyle(
+                                Text(
+                                  '1  (${_session.tickets} disp.)',
+                                  style: const TextStyle(
                                     color: Color(0xFFFDE047),
                                     fontWeight: FontWeight.w900,
-                                    fontSize: 18,
+                                    fontSize: 16,
                                   ),
                                 ),
                               ],
@@ -314,33 +363,43 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                   ),
                   const SizedBox(height: 18),
 
-                  // Botón Empezar dorado con brillo
+                  // Botón Empezar / Recargar
                   GestureDetector(
                     onTap: () {
                       Navigator.of(ctx).pop();
-                      _startMatch();
+                      if (_session.tickets < 1) {
+                        _openBuyTicketsModal();
+                      } else {
+                        _startMatch();
+                      }
                     },
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
+                        gradient: LinearGradient(
+                          colors: _session.tickets >= 1
+                              ? [const Color(0xFFFBBF24), const Color(0xFFD97706)]
+                              : [const Color(0xFFEF4444), const Color(0xFFDC2626)],
                         ),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
+                        border: Border.all(
+                          color: _session.tickets >= 1 ? const Color(0xFFFDE68A) : const Color(0xFFFCA5A5),
+                          width: 1.2,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFD97706).withValues(alpha: 0.5),
+                            color: (_session.tickets >= 1 ? const Color(0xFFD97706) : const Color(0xFFDC2626))
+                                .withValues(alpha: 0.5),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
                         ],
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          '¡Empezar!',
-                          style: TextStyle(
+                          _session.tickets >= 1 ? '¡Empezar!' : '¡SIN TICKETS! - RECARGAR',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w900,
                             fontSize: 18,
@@ -359,6 +418,10 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
   }
 
   void _startMatch() {
+    if (!_session.consumeTicketForNormalMatch()) {
+      _openBuyTicketsModal();
+      return;
+    }
     _profileService.useTicket();
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -367,7 +430,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
           autoStart: true,
           initialTeams: _selectedTeams,
           chooseMano: true,
-          userName: _profileService.name,
+          userName: _session.name,
           botNames: const ['Alejandro', 'Carl', 'Jhonny'],
         ),
       ),
@@ -422,7 +485,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
       ),
       child: Row(
         children: [
-          // Avatar con lápiz y nombre
+          // Avatar con lápiz, nivel y nombre
           GestureDetector(
             onTap: _openProfileDialog,
             child: Row(
@@ -431,7 +494,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                   alignment: Alignment.bottomRight,
                   children: [
                     AvatarView(
-                      avatarId: _profileService.avatarId,
+                      avatarId: _session.avatarIndex,
                       size: 40,
                       showBorder: true,
                     ),
@@ -446,68 +509,117 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                   ],
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  _profileService.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 14,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _session.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFF59E0B), width: 0.8),
+                      ),
+                      child: Text(
+                        'Nv. ${_session.level}',
+                        style: const TextStyle(
+                          color: Color(0xFFFDE047),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
           const Spacer(),
 
-          // Píldora de Monedas
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.monetization_on_rounded, color: Color(0xFFFBBF24), size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  _profileService.coins.toString().replaceAllMapped(
-                    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-                    (Match m) => '${m[1]},',
+          // Píldora interactiva de Monedas (Tocar para ver Mesas VIP)
+          GestureDetector(
+            onTap: () => _openVipModal(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                    blurRadius: 4,
                   ),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.monetization_on_rounded, color: Color(0xFFFBBF24), size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    _session.coins.toString().replaceAllMapped(
+                      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                      (Match m) => '${m[1]},',
+                    ),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 8),
 
-          // Píldora de Tickets
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.confirmation_number_rounded, color: Color(0xFFFBBF24), size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  '${_profileService.tickets}/10',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+          // Píldora interactiva de Tickets (Tocar para Tienda de Recargas)
+          GestureDetector(
+            onTap: _openBuyTicketsModal,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                    blurRadius: 4,
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.confirmation_number_rounded, color: Color(0xFFFBBF24), size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_session.tickets}/10',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.all(1.5),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF59E0B),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.add, size: 9, color: Color(0xFF78350F)),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 6),
@@ -582,6 +694,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                     // 1. Un Jugador (Hero Button principal activo)
                     _buildActionCard(
                       title: 'Un Jugador',
+                      subtitle: '1 Ticket • Vs Bot o Parejas',
                       gradient: const LinearGradient(
                         colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
                         begin: Alignment.topCenter,
@@ -589,8 +702,8 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                       ),
                       borderColor: const Color(0xFFFDE68A),
                       textColor: Colors.white,
-                      badge: 'VS',
-                      badgeColor: const Color(0xFFDC2626),
+                      badge: '1 🎫',
+                      badgeColor: const Color(0xFF059669),
                       icon: Icons.smart_toy_rounded,
                       iconColor: Colors.white,
                       onTap: () {
@@ -599,7 +712,45 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 2. Multijugador (BLOQUEADO: Para jugar Online o en Red)
+                    // 2. Partidas VIP (🌟 FASE 2: Mesas de Apuestas con Monedas y Pozos)
+                    _buildActionCard(
+                      title: 'Partidas VIP',
+                      subtitle: 'Apuesta en Monedas • Pozos y Premios',
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderColor: const Color(0xFFFDE68A),
+                      textColor: Colors.white,
+                      badge: 'APUESTA VIP',
+                      badgeColor: const Color(0xFFF59E0B),
+                      icon: Icons.workspace_premium_rounded,
+                      iconColor: const Color(0xFFFDE047),
+                      onTap: () => _openVipModal(),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 3. Tienda de Tickets (🎫 FASE 2: Recarga por Video o Monedas)
+                    _buildActionCard(
+                      title: 'Tienda de Tickets',
+                      subtitle: 'Recarga gratis con Video o Monedas',
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderColor: const Color(0xFF7DD3FC),
+                      textColor: Colors.white,
+                      badge: 'RECARGAS',
+                      badgeColor: const Color(0xFF0284C7),
+                      icon: Icons.confirmation_number_rounded,
+                      iconColor: Colors.white,
+                      onTap: _openBuyTicketsModal,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 4. Multijugador (BLOQUEADO: Para jugar Online o en Red)
                     _buildActionCard(
                       title: 'Multijugador',
                       subtitle: 'Online / Red local',
@@ -812,6 +963,71 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 20),
+
+        // Opción 3: Mesas VIP (Apuestas con Monedas)
+        GestureDetector(
+          onTap: () => _openVipModal(),
+          child: Container(
+            width: 310,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.45),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFDE047), size: 26),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'MESAS VIP • APUESTAS',
+                        style: TextStyle(
+                          color: Color(0xFFFDE047),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Pozos y Premios en Monedas',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
+              ],
+            ),
+          ),
+        ),
         const Spacer(),
       ],
     );
@@ -834,8 +1050,8 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: subtitle != null ? 56 : 52,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        constraints: BoxConstraints(minHeight: subtitle != null ? 56 : 52),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: bgColor,
           gradient: gradient,
@@ -877,9 +1093,12 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: textColor,
                       fontWeight: FontWeight.w900,
@@ -889,6 +1108,8 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                   if (subtitle != null)
                     Text(
                       subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Color(0xFF94A3B8),
                         fontSize: 10,

@@ -34,13 +34,22 @@ class PlayerSession extends ChangeNotifier {
   })  : _tickets = tickets.clamp(0, _maxTickets),
         _lastTicketRegen = (lastTicketRegen ?? DateTime.now()).toUtc();
 
+  static PlayerSession? _shared;
+
+  /// Instancia compartida en memoria para acceso unificado en toda la UI.
+  static PlayerSession get shared =>
+      _shared ??= PlayerSession.createDefault(name: 'Eizy', avatarIndex: 2, coins: 6000);
+
+  /// Permite establecer o restablecer la instancia compartida (útil para pruebas).
+  static void setShared(PlayerSession session) => _shared = session;
+
   /// Factory para crear una sesión nueva con valores por defecto equilibrados.
-  factory PlayerSession.createDefault({String? name, int? avatarIndex}) {
+  factory PlayerSession.createDefault({String? name, int? avatarIndex, int? coins}) {
     return PlayerSession(
       id: 'user_${DateTime.now().millisecondsSinceEpoch}',
       name: name ?? 'Jugador',
       avatarIndex: avatarIndex ?? 0,
-      coins: 3000,
+      coins: coins ?? 3000,
       tickets: defaultMaxTickets,
       maxTickets: defaultMaxTickets,
       xp: 0,
@@ -304,6 +313,7 @@ class PlayerSession extends ChangeNotifier {
         final Map<String, dynamic> decoded = jsonDecode(raw) as Map<String, dynamic>;
         final session = PlayerSession.fromJson(decoded);
         session.regenerateTicketsPassive(nowUtc: nowUtc);
+        _shared = session;
         return session;
       }
     } catch (e) {
@@ -315,6 +325,7 @@ class PlayerSession extends ChangeNotifier {
     // Si no hay datos guardados o hubo un error, inicializar por defecto
     final newSession = PlayerSession.createDefault();
     await newSession.save(prefs: prefs);
+    _shared = newSession;
     return newSession;
   }
 

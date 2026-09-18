@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 /// Tipos de mesas VIP disponibles para apuestas con moneda virtual.
 enum VipTierType {
@@ -65,9 +65,15 @@ class VipTierOffer {
   /// Pozo total calculado en función de la modalidad activa (1v1 o Parejas).
   int getTotalPot({required bool isTeams}) => isTeams ? totalPotTeams : totalPot1v1;
 
+  /// Alias de cálculo de pozo total.
+  int calculatePrizePool({required bool isTeams}) => getTotalPot(isTeams: isTeams);
+
   /// Premio neto a recibir por jugador ganador en función de la modalidad activa.
   int getNetPrize({required bool isTeams}) =>
       isTeams ? winnerPrizePerPlayerTeams : winnerPrize1v1;
+
+  /// Alias de cálculo de premio neto.
+  int calculateNetPrizePerWinner({required bool isTeams}) => getNetPrize(isTeams: isTeams);
 
   /// Determina si la mesa está desbloqueada según el nivel actual del jugador.
   bool isUnlockedFor(int playerLevel) => playerLevel >= minPlayerLevel;

@@ -11,6 +11,8 @@ class GameTableHeader extends StatelessWidget implements PreferredSizeWidget {
   final int pingMs;
   final bool showPing;
   final int? playerLevel;
+  final bool isMuted;
+  final VoidCallback? onToggleMute;
 
   const GameTableHeader({
     super.key,
@@ -22,6 +24,8 @@ class GameTableHeader extends StatelessWidget implements PreferredSizeWidget {
     this.pingMs = 60,
     this.showPing = false,
     this.playerLevel,
+    this.isMuted = false,
+    this.onToggleMute,
   });
 
   @override
@@ -78,6 +82,30 @@ class GameTableHeader extends StatelessWidget implements PreferredSizeWidget {
                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               ),
+            if (onToggleMute != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                decoration: BoxDecoration(
+                  color: isMuted ? Colors.red.withValues(alpha: 0.25) : const Color(0xFF4A2B99),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isMuted ? Colors.redAccent : const Color(0xFF6B42DC),
+                    width: 1,
+                  ),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                    color: isMuted ? Colors.red[200] : Colors.white,
+                    size: 20,
+                  ),
+                  tooltip: isMuted ? 'Activar sonido' : 'Silenciar sonido',
+                  onPressed: onToggleMute,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+              ),
+            ],
             const SizedBox(width: 10),
 
             // Título breve o logo

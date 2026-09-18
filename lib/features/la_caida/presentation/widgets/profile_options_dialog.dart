@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/services/user_profile_service.dart';
+import '../../economy/player_session.dart';
 import 'avatar_view.dart';
 
 /// Modal para editar el perfil del jugador y seleccionar entre 20 avatares
@@ -40,10 +41,16 @@ class _ProfileOptionsDialogState extends State<ProfileOptionsDialog> {
   }
 
   void _saveAndClose() {
-    final newName = _nameController.text.trim();
+    final finalName = _nameController.text.trim().isNotEmpty
+        ? _nameController.text.trim()
+        : 'Eizy';
     _profileService.updateProfile(
-      name: newName.isNotEmpty ? newName : 'Eizy',
+      name: finalName,
       avatarId: _selectedAvatarId,
+    );
+    PlayerSession.shared.updateProfile(
+      name: finalName,
+      avatarIndex: _selectedAvatarId,
     );
     Navigator.of(context).pop();
   }
