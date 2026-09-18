@@ -41,7 +41,7 @@ void main() {
   });
 
   group('Interacción Táctil y Selección Individual de Cartas', () {
-    testWidgets('Tocar una carta selecciona únicamente esa carta y muestra botón JUGAR', (tester) async {
+    testWidgets('Tocar una carta la selecciona/sombrea y tocar de nuevo la juega sin texto JUGAR', (tester) async {
       tester.view.physicalSize = const Size(412 * 2.6, 915 * 2.6);
       tester.view.devicePixelRatio = 2.6;
       addTearDown(() {
@@ -65,28 +65,28 @@ void main() {
       final cardViews = find.byType(SpanishCardView);
       expect(cardViews, findsWidgets);
 
-      // Antes de tocar ninguna carta, no debe haber botón de jugar carta específica
+      // No debe haber ningún botón ni texto de "JUGAR ..."
       expect(find.textContaining('JUGAR '), findsNothing);
 
-      // Tocar la primera carta en la mano del usuario mediante su ValueKey
+      // Primer toque: selecciona y sombrea la carta 0
       final userCardFinder = find.byKey(const ValueKey('user_card_0'));
       expect(userCardFinder, findsOneWidget);
       await tester.tap(userCardFinder);
       await tester.pump();
 
-      // Ahora solo esa carta está seleccionada y aparece el botón de acción rápido
-      expect(find.textContaining('JUGAR '), findsOneWidget);
+      // No aparece ningún texto que diga qué se va a lanzar
+      expect(find.textContaining('JUGAR '), findsNothing);
 
-      // Tocar el botón de jugar carta para jugarla a la mesa
-      await tester.tap(find.textContaining('JUGAR '));
+      // Segundo toque en la misma carta: la lanza / juega a la mesa
+      await tester.tap(userCardFinder);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // La carta fue jugada (se resetea la selección)
+      // La carta fue jugada
       expect(find.textContaining('JUGAR '), findsNothing);
     });
 
-    testWidgets('Tocar individualmente cada una de las 3 cartas permite alternar la selección sin conflicto', (tester) async {
+    testWidgets('Tocar individualmente cada una de las 3 cartas permite alternar la selección y jugar con segundo toque', (tester) async {
       tester.view.physicalSize = const Size(412 * 2.6, 915 * 2.6);
       tester.view.devicePixelRatio = 2.6;
       addTearDown(() {
@@ -111,23 +111,23 @@ void main() {
       expect(card1, findsOneWidget);
       expect(card2, findsOneWidget);
 
-      // Tocar carta 0
+      // Tocar carta 0 (la sombrea)
       await tester.tap(card0);
       await tester.pump();
-      expect(find.textContaining('JUGAR '), findsOneWidget);
+      expect(find.textContaining('JUGAR '), findsNothing);
 
-      // Tocar carta 1 directamente (debe alternar a carta 1)
+      // Tocar carta 1 directamente (alterna el sombreado a carta 1)
       await tester.tap(card1);
       await tester.pump();
-      expect(find.textContaining('JUGAR '), findsOneWidget);
+      expect(find.textContaining('JUGAR '), findsNothing);
 
-      // Tocar carta 2 directamente (debe alternar a carta 2)
+      // Tocar carta 2 directamente (alterna el sombreado a carta 2)
       await tester.tap(card2);
       await tester.pump();
-      expect(find.textContaining('JUGAR '), findsOneWidget);
+      expect(find.textContaining('JUGAR '), findsNothing);
 
-      // Jugar la carta 2
-      await tester.tap(find.textContaining('JUGAR '));
+      // Segundo toque en la carta 2: la lanza a la mesa
+      await tester.tap(card2);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 

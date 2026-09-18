@@ -1771,45 +1771,12 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         ? [6.0, 0.0, 6.0]
         : (cardCount == 2 ? [3.0, 3.0] : [0.0]);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        // Botón de acción rápido cuando se selecciona una carta
-        SizedBox(
-          height: 38,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: (_selectedCard != null && isMyTurn)
-                ? ElevatedButton.icon(
-                    key: const ValueKey('play_card_btn'),
-                    onPressed: () => _playCard(user, _selectedCard!),
-                    icon: const Icon(Icons.arrow_upward_rounded, size: 16, color: Colors.white),
-                    label: Text(
-                      'JUGAR ${_selectedCard!.displayName.toUpperCase()}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                      foregroundColor: Colors.white,
-                      elevation: 6,
-                      shadowColor: const Color(0xFF10B981).withValues(alpha: 0.6),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                  )
-                : const SizedBox(key: ValueKey('empty_action_slot')),
-          ),
-        ),
-
-        const SizedBox(height: 4),
-
-        // Cartas individuales en abanico (fan layout)
-        SizedBox(
-          height: 128,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
+    // Cartas individuales en abanico (fan layout) con sombreado de selección limpio
+    return SizedBox(
+      height: 132,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
             children: List.generate(cardCount, (index) {
               final card = user.hand[index];
               final isSelected = isMyTurn && _selectedCard == card;
@@ -1838,10 +1805,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                   ),
                 ),
               );
-            }),
-          ),
-        ),
-      ],
+        }),
+      ),
     );
   }
 }
