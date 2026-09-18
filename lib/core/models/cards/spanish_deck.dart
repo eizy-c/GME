@@ -130,4 +130,9 @@ class SpanishDeck {
     _discardPile.clear();
     shuffle(random);
   }
+
+  /// Coloca una carta al fondo del mazo (utilizado para cartas repetidas en el reparto inicial).
+  void putAtBottom(SpanishCard card) {
+    _cards.add(card);
+  }
 }

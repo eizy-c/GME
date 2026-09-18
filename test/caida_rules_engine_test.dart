@@ -439,4 +439,79 @@ void main() {
       expect(res.volumeBonusPoints['p2'], equals(0));
     });
   });
+
+  group('CaidaRulesEngine - 5. Conservación de 40 Cartas y Blindaje de Unicidad en Mesa', () {
+    test('dealInitialTable coloca repetidas al fondo conservando 40 naipes en el mazo', () {
+      final cards = [
+        const SpanishCard(number: 3, suit: CardSuit.oros),
+        const SpanishCard(number: 3, suit: CardSuit.copas), // Repetida con 3 de oros
+        const SpanishCard(number: 5, suit: CardSuit.espadas),
+        const SpanishCard(number: 5, suit: CardSuit.bastos), // Repetida con 5 de espadas
+        const SpanishCard(number: 7, suit: CardSuit.oros),
+        const SpanishCard(number: 10, suit: CardSuit.copas),
+        ...SpanishDeck().remainingCards.where((c) =>
+          c != const SpanishCard(number: 3, suit: CardSuit.oros) &&
+          c != const SpanishCard(number: 3, suit: CardSuit.copas) &&
+          c != const SpanishCard(number: 5, suit: CardSuit.espadas) &&
+          c != const SpanishCard(number: 5, suit: CardSuit.bastos) &&
+          c != const SpanishCard(number: 7, suit: CardSuit.oros) &&
+          c != const SpanishCard(number: 10, suit: CardSuit.copas)
+        ),
+      ];
+
+      final deck = SpanishDeck.fromCards(cards);
+      expect(deck.remainingCount, equals(40));
+
+      final result = CaidaRulesEngine.dealInitialTable(
+        direction: DealDirection.ascending,
+        deck: deck,
+        dealerId: 'dealer',
+        opponentId: 'rival',
+      );
+
+      // 4 cartas en mesa
+      expect(result.tableCards.length, equals(4));
+      final numbers = result.tableCards.map((c) => c.number).toSet();
+      expect(numbers.length, equals(4), reason: 'Las 4 cartas de mesa deben tener números distintos');
+
+      // 2 cartas repetidas fueron colocadas al fondo del mazo
+      expect(result.discardedRepeats.length, equals(2));
+      // El mazo debe tener exactamente 40 - 4 = 36 cartas disponibles para los jugadores
+      expect(deck.remainingCount, equals(36));
+
+      // El total de cartas entre mesa (4) y mazo (36) es exactamente 40
+      expect(result.tableCards.length + deck.remainingCount, equals(40));
+    });
+
+    test('evaluatePlay nunca permite dos cartas del mismo número ni idénticas en mesa', () {
+      final initialTable = [
+        const SpanishCard(number: 2, suit: CardSuit.oros),
+        const SpanishCard(number: 4, suit: CardSuit.copas),
+      ];
+
+      // Jugada de una carta con número 4 (debe capturar el 4 de mesa y no dejar dos 4s)
+      final play1 = CaidaRulesEngine.evaluatePlay(
+        playedCard: const SpanishCard(number: 4, suit: CardSuit.espadas),
+        tableCards: initialTable,
+        isDeckEmpty: false,
+      );
+
+      expect(play1.didCapture, isTrue);
+      expect(play1.capturedCards, contains(const SpanishCard(number: 4, suit: CardSuit.espadas)));
+      expect(play1.capturedCards, contains(const SpanishCard(number: 4, suit: CardSuit.copas)));
+      expect(play1.newTableCards, equals([const SpanishCard(number: 2, suit: CardSuit.oros)]));
+      expect(play1.newTableCards.any((c) => c.number == 4), isFalse);
+
+      // Jugada de una carta que no coincide
+      final play2 = CaidaRulesEngine.evaluatePlay(
+        playedCard: const SpanishCard(number: 6, suit: CardSuit.bastos),
+        tableCards: play1.newTableCards,
+        isDeckEmpty: false,
+      );
+
+      expect(play2.didCapture, isFalse);
+      expect(play2.newTableCards.length, equals(2));
+      expect(play2.newTableCards.map((c) => c.number).toSet().length, equals(2));
+    });
+  });
 }

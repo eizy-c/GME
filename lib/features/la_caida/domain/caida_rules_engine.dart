@@ -103,7 +103,8 @@ class CaidaRulesEngine {
       SpanishCard? drawn = deck.draw();
       while (drawn != null && tableCards.any((c) => c.number == drawn!.number)) {
         discardedRepeats.add(drawn);
-        deck.discard(drawn);
+        // Colocar la carta repetida al fondo del mazo para conservar los 40 naipes de la partida
+        deck.putAtBottom(drawn);
         opponentPoints += 1;
         events.add('Número repetido (${drawn.number}) descartado de mesa: +1 pt para rivales.');
         drawn = deck.draw();
@@ -131,8 +132,18 @@ class CaidaRulesEngine {
       events.add('El repartidor no acertó ningún número en mesa: +1 pt para rivales.');
     }
 
+    // Blindaje estricto: nunca puede haber cartas con números duplicados en mesa
+    final sanitizedTable = <SpanishCard>[];
+    final seenNumbers = <int>{};
+    for (final c in tableCards) {
+      if (!seenNumbers.contains(c.number)) {
+        seenNumbers.add(c.number);
+        sanitizedTable.add(c);
+      }
+    }
+
     return InitialTableDealResult(
-      tableCards: tableCards,
+      tableCards: sanitizedTable,
       dealerPoints: dealerPoints,
       opponentPoints: opponentPoints,
       events: events,
@@ -340,11 +351,24 @@ class CaidaRulesEngine {
       }
     } else {
       // No hubo coincidencia: la carta jugada queda en la mesa
-      tableCopy.add(playedCard);
+      // Blindaje estricto: solo se agrega si no existe ya una carta del mismo número o idéntica
+      if (!tableCopy.any((c) => c.number == playedCard.number || c == playedCard)) {
+        tableCopy.add(playedCard);
+      }
+    }
+
+    // Blindaje de unicidad en mesa: nunca pueden coexistir dos cartas del mismo número ni naipes duplicados
+    final sanitizedTable = <SpanishCard>[];
+    final seenNumbers = <int>{};
+    for (final c in tableCopy) {
+      if (!seenNumbers.contains(c.number)) {
+        seenNumbers.add(c.number);
+        sanitizedTable.add(c);
+      }
     }
 
     // 3. Verificación de Mesa Limpia (solo si hubo captura y la mesa quedó sin naipes)
-    final isLimpia = captured.isNotEmpty && tableCopy.isEmpty;
+    final isLimpia = captured.isNotEmpty && sanitizedTable.isEmpty;
     final limpiaPoints = isLimpia ? getLimpiaPoints(isDeckEmpty: isDeckEmpty) : 0;
 
     final totalPoints = caidaPoints + limpiaPoints;
@@ -364,7 +388,7 @@ class CaidaRulesEngine {
     return PlayEvaluationResult(
       playedCard: playedCard,
       capturedCards: captured,
-      newTableCards: tableCopy,
+      newTableCards: sanitizedTable,
       isCaida: isCaida,
       caidaPoints: caidaPoints,
       isLimpia: isLimpia,

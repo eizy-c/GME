@@ -36,6 +36,21 @@ class _ManoCardCandidate {
   });
 }
 
+/// Naipe colocado sobre el tapete central con posición y rotación orgánicas ("regadas al azar").
+class _PlacedTableCard {
+  final SpanishCard card;
+  final Offset offset;
+  final double rotation;
+  final int zIndex;
+
+  _PlacedTableCard({
+    required this.card,
+    required this.offset,
+    required this.rotation,
+    required this.zIndex,
+  });
+}
+
 class _PlayerState {
   final String id;
   final String name;
@@ -101,6 +116,9 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   late SpanishDeck _deck;
   late List<_PlayerState> _players;
   final List<SpanishCard> _tableCards = [];
+  final List<_PlacedTableCard> _placedTableCards = [];
+  int _tableCardZCounter = 0;
+  bool _isProcessingPlay = false;
 
   // Configuración de la partida
   bool _hasGameStarted = false;
@@ -216,10 +234,16 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   }
 
   void _initMatch(int count, bool teams, String userName, {bool? animate, bool startWithManoSelection = false}) {
+    _botTimer?.cancel();
+    _finishTimer?.cancel();
+    _timerController.stop();
+    _isProcessingPlay = false;
     _playerCount = count;
     _isTeams = teams;
     _deck = SpanishDeck()..shuffle();
     _tableCards.clear();
+    _placedTableCards.clear();
+    _tableCardZCounter = 0;
     _lastPlayedCard = null;
     _lastPlayedPlayerIndex = null;
     _lastCapturingPlayerIndex = null;
@@ -400,6 +424,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
     if (isFirstRound) {
       _tableCards.clear();
+      _placedTableCards.clear();
+      _tableCardZCounter = 0;
       _lastCapturingPlayerIndex = null;
       _lastPlayedCard = null;
       _lastPlayedPlayerIndex = null;
@@ -415,6 +441,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       );
 
       _tableCards.addAll(dealResult.tableCards);
+      _syncPlacedCards();
 
       if (dealResult.dealerPoints > 0) {
         dealer.score += dealResult.dealerPoints;
@@ -515,15 +542,23 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         return;
       }
 
-      // Iniciar nueva ronda con mazo barajado
+      // Iniciar nuevo manojo con mazo completo de 40 cartas barajado
       // La Mano rota en sentido de las manecillas del reloj
       _manoIndex = (_manoIndex + 1) % _players.length;
       _roundNumber++;
       _deck = SpanishDeck()..shuffle();
       _tableCards.clear();
+      _placedTableCards.clear();
+      _tableCardZCounter = 0;
       _lastPlayedCard = null;
       _lastPlayedPlayerIndex = null;
       _lastCapturingPlayerIndex = null;
+
+      // CRÍTICO: Reiniciar las cartas recogidas a 0 para el nuevo manojo de 40 cartas
+      for (final p in _players) {
+        p.cardsWon = 0;
+      }
+
       _startDeal(isFirstRound: true, animate: widget.animateDealing && !widget.autoStart);
       return;
     }
@@ -602,7 +637,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   /// 1. Si no estaba seleccionada: la selecciona individualmente.
   /// 2. Si ya estaba seleccionada: confirma y la juega a la mesa.
   void _onUserCardTap(SpanishCard card) {
-    if (_currentTurnIndex != 0 || _isGameOver) return;
+    if (_currentTurnIndex != 0 || _isGameOver || _isDealing || _isChoosingMano || _isProcessingPlay) return;
 
     if (_selectedCard == card) {
       // Segundo toque en la misma carta -> Jugar
@@ -616,6 +651,13 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   }
 
   void _playCard(_PlayerState player, SpanishCard card) {
+    if (_isProcessingPlay || _isGameOver || _isDealing || _isChoosingMano) return;
+    if (!player.hand.contains(card)) return;
+
+    _isProcessingPlay = true;
+    _botTimer?.cancel();
+    _timerController.stop();
+
     setState(() {
       player.hand.remove(card);
       _selectedCard = null;
@@ -635,6 +677,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     setState(() {
       _tableCards.clear();
       _tableCards.addAll(eval.newTableCards);
+      _syncPlacedCards();
     });
 
     if (eval.didCapture) {
@@ -651,6 +694,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
     _lastPlayedCard = card;
     _lastPlayedPlayerIndex = _currentTurnIndex;
+
+    _isProcessingPlay = false;
 
     // Comprobar si alguien llegó a 24 puntos
     if (_players.any((p) => p.score >= 24)) {
@@ -1666,10 +1711,67 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     );
   }
 
-  /// Cartas en tapete central: colocadas directamente sobre la madera (100% natural, sin cajas cuadradas)
+  void _syncPlacedCards() {
+    // 1. Eliminar cartas capturadas que ya no están en mesa
+    _placedTableCards.removeWhere((placed) => !_tableCards.contains(placed.card));
+
+    // 2. Colocar nuevas cartas manteniendo estabilidad de las ya existentes
+    for (int i = 0; i < _tableCards.length; i++) {
+      final card = _tableCards[i];
+      final alreadyPlaced = _placedTableCards.any((p) => p.card == card);
+      if (!alreadyPlaced) {
+        final pos = _computeNaturalCardOffset(i, card);
+        final rot = _computeNaturalCardRotation(i, card);
+        _tableCardZCounter++;
+        _placedTableCards.add(_PlacedTableCard(
+          card: card,
+          offset: pos,
+          rotation: rot,
+          zIndex: _tableCardZCounter,
+        ));
+      }
+    }
+  }
+
+  Offset _computeNaturalCardOffset(int index, SpanishCard card) {
+    if (index == 0) {
+      return const Offset(-54, -26);
+    } else if (index == 1) {
+      return const Offset(46, -28);
+    } else if (index == 2) {
+      return const Offset(-38, 30);
+    } else if (index == 3) {
+      return const Offset(52, 28);
+    }
+
+    final seed = card.number * 17 + card.suit.index * 31 + index * 7;
+    final rnd = math.Random(seed);
+    final radius = 22.0 + (rnd.nextDouble() * 60.0);
+    final angle = (index * 2.39996) + (rnd.nextDouble() * 0.4 - 0.2);
+    final dx = radius * math.cos(angle);
+    final dy = (radius * 0.62) * math.sin(angle);
+    return Offset(dx, dy);
+  }
+
+  double _computeNaturalCardRotation(int index, SpanishCard card) {
+    if (index == 0) return -0.10;
+    if (index == 1) return 0.09;
+    if (index == 2) return 0.12;
+    if (index == 3) return -0.07;
+
+    final seed = card.number * 23 + card.suit.index * 41 + index * 11;
+    final rnd = math.Random(seed);
+    return (rnd.nextDouble() - 0.5) * 0.42;
+  }
+
+  /// Cartas en tapete central: colocadas directamente sobre la madera (100% natural, "regadas al azar")
   Widget _buildTableCenterCards() {
     if (_isChoosingMano) {
       return _buildChoosingManoView();
+    }
+
+    if (_placedTableCards.length != _tableCards.length) {
+      _syncPlacedCards();
     }
 
     final cardsToShow = (_isDealing && _isFirstRoundDealing)
@@ -1696,61 +1798,76 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       );
     }
 
-    return Center(
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 10,
-        runSpacing: 10,
-        children: cardsToShow.asMap().entries.map((entry) {
-          final index = entry.key;
-          final card = entry.value;
-          final angle = (card.number % 3 - 1) * 0.04;
-          final spokenNum = (index < spokenSeq.length) ? spokenSeq[index] : null;
-          final isHit = spokenNum != null && card.number == spokenNum;
+    // Filtrar y ordenar naipes visibles según su zIndex para que se solapen naturalmente
+    final visiblePlaced = _placedTableCards
+        .where((p) => cardsToShow.contains(p.card))
+        .toList()
+      ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
 
-          return TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 250),
-            tween: Tween<double>(begin: 0.4, end: 1.0),
-            builder: (context, scale, child) {
-              return Transform.scale(
-                scale: scale,
-                child: child,
-              );
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Número cantado durante el Canto de Mesa (estampado en madera con sombra pura)
-                if (_isDealing && _isFirstRoundDealing && spokenNum != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 2),
-                    child: Text(
-                      isHit ? '¡$spokenNum! ⭐' : '$spokenNum',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        color: isHit ? const Color(0xFFFDE047) : Colors.white,
-                        shadows: [
-                          Shadow(
-                            color: isHit ? const Color(0xFFCA8A04) : Colors.black87,
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+    return Center(
+      child: SizedBox(
+        height: 220,
+        width: double.infinity,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: visiblePlaced.map((placed) {
+            final card = placed.card;
+            final cardIndex = _tableCards.indexOf(card);
+            final spokenNum = (_isDealing && _isFirstRoundDealing && cardIndex >= 0 && cardIndex < spokenSeq.length)
+                ? spokenSeq[cardIndex]
+                : null;
+            final isHit = spokenNum != null && card.number == spokenNum;
+
+            return Transform.translate(
+              key: ValueKey('table_card_${card.suit.index}_${card.number}'),
+              offset: placed.offset,
+              child: Transform.rotate(
+                angle: placed.rotation,
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey('scale_${card.suit.index}_${card.number}'),
+                  duration: const Duration(milliseconds: 250),
+                  tween: Tween<double>(begin: 0.5, end: 1.0),
+                  builder: (context, scale, child) {
+                    return Transform.scale(
+                      scale: scale,
+                      child: child,
+                    );
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Número cantado durante el Canto de Mesa (estampado en madera con sombra pura)
+                      if (_isDealing && _isFirstRoundDealing && spokenNum != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Text(
+                            isHit ? '¡$spokenNum! ⭐' : '$spokenNum',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                              color: isHit ? const Color(0xFFFDE047) : Colors.white,
+                              shadows: [
+                                Shadow(
+                                  color: isHit ? const Color(0xFFCA8A04) : Colors.black87,
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
                           ),
-                        ],
+                        ),
+                      SpanishCardView(
+                        card: card,
+                        width: 58,
                       ),
-                    ),
-                  ),
-                Transform.rotate(
-                  angle: angle,
-                  child: SpanishCardView(
-                    card: card,
-                    width: 58,
+                    ],
                   ),
                 ),
-              ],
-            ),
-          );
-        }).toList(),
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
