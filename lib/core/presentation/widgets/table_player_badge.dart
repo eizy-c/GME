@@ -130,21 +130,22 @@ class TablePlayerBadge extends StatelessWidget {
                       ),
                     ),
 
-                    // 3. Corona dorada flotante de "MANO" en la esquina superior derecha
+                    // 3. Insignia flotante de Mano Dorada en la esquina superior derecha (sin palabra MANO)
                     if (isMano)
                       Positioned(
-                        top: -8,
-                        right: -10,
+                        top: -7,
+                        right: -7,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          width: 22,
+                          height: 22,
                           decoration: BoxDecoration(
+                            shape: BoxShape.circle,
                             gradient: const LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
                             ),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.white, width: 1.3),
+                            border: Border.all(color: Colors.white, width: 1.4),
                             boxShadow: [
                               BoxShadow(
                                 color: const Color(0xFFEAB308).withValues(alpha: 0.65),
@@ -154,24 +155,12 @@ class TablePlayerBadge extends StatelessWidget {
                               ),
                             ],
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '👑',
-                                style: TextStyle(fontSize: 9.5, height: 1.0),
-                              ),
-                              SizedBox(width: 2.5),
-                              Text(
-                                'MANO',
-                                style: TextStyle(
-                                  color: Color(0xFF713F12),
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ],
+                          child: const Center(
+                            child: Icon(
+                              Icons.front_hand_rounded,
+                              size: 13,
+                              color: Color(0xFF713F12),
+                            ),
                           ),
                         ),
                       ),
