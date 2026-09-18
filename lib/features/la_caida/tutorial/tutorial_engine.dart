@@ -13,6 +13,7 @@ class TutorialEngine extends ChangeNotifier {
   int _botScore = 0;
   bool _showingFeedbackModal = false;
   bool _isCompleted = false;
+  bool _rewardAwarded = false;
 
   late List<SpanishCard> _currentUserHand;
   late List<SpanishCard> _currentTableCards;
@@ -118,9 +119,11 @@ class TutorialEngine extends ChangeNotifier {
     // Etapa 8: ¡Trivilín y Finalización!
     if (currentStep.isTrivilinFinale) {
       _isCompleted = true;
-      PlayerSession.shared.completeTutorialReward(coinReward: 1000);
-      UserProfileService().addCoins(1000);
-      UserProfileService().markNotFirstTime();
+      if (!_rewardAwarded) {
+        _rewardAwarded = true;
+        PlayerSession.shared.completeTutorialReward(coinReward: 1000);
+        UserProfileService().markNotFirstTime();
+      }
     }
 
     _showingFeedbackModal = true;

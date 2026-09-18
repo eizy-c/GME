@@ -105,6 +105,7 @@ class PlayerSession extends ChangeNotifier {
   /// Otorga la bonificación de graduación del tutorial (+1000 monedas),
   /// marca hasCompletedTutorial en true y persiste de inmediato en disco.
   void completeTutorialReward({int coinReward = 1000}) {
+    if (_hasCompletedTutorial) return;
     _coins += coinReward;
     _hasCompletedTutorial = true;
     _isFirstTime = false;
