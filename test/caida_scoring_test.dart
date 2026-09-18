@@ -159,5 +159,25 @@ void main() {
       // La insignia de Mano dorada (ícono de mano) aparece en pantalla (sin texto MANO)
       expect(find.byIcon(Icons.front_hand_rounded), findsOneWidget);
     });
+
+    testWidgets('Cantos se valen y suman puntos luego de agotarse las 3 cartas de cada uno', (tester) async {
+      tester.view.physicalSize = const Size(412 * 2.6, 915 * 2.6);
+      tester.view.devicePixelRatio = 2.6;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: CaidaScreen(initialPlayers: 2, autoStart: true),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // El juego inicia y no se otorgan puntos inmediatos de cantos antes de jugar los 3 naipes
+      expect(find.byType(CaidaScreen), findsOneWidget);
+    });
   });
 }

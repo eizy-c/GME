@@ -63,6 +63,7 @@ class _PlayerState {
   int cardsWon = 0;
   String? currentCallout;
   Timer? calloutTimer;
+  Canto? pendingCanto;
 
   _PlayerState({
     required this.id,
@@ -455,6 +456,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
     for (final p in _players) {
       p.hand.clear();
+      p.pendingCanto = null;
       for (int i = 0; i < 3; i++) {
         final c = _deck.draw();
         if (c != null) p.hand.add(c);
@@ -478,8 +480,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _isDealing = false;
     _isFirstRoundDealing = false;
 
-    // Comprobar cantos y resolver conflicto con CaidaRulesEngine
-    _evaluateAllCantos();
+    // Al recibir las 3 cartas, se canta únicamente la presencia del canto sin sumar puntos aún
+    _announceInitialCantos();
 
     _currentTurnIndex = _manoIndex;
     _selectedCard = null;
@@ -573,11 +575,39 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
   bool _allHandsEmpty() => _players.every((p) => p.hand.isEmpty);
 
-  void _evaluateAllCantos() {
+  void _onHandsExhausted() async {
+    final hadCantos = _players.any((p) => p.pendingCanto != null);
+    if (hadCantos) {
+      _resolveAndAwardCantos();
+      setState(() {});
+
+      if (_players.any((p) => p.score >= 24)) {
+        _finishGame();
+        return;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 1800));
+      if (!mounted || _isGameOver) return;
+    }
+
+    _dealNewRound();
+  }
+
+  void _announceInitialCantos() {
+    for (final p in _players) {
+      p.pendingCanto = CaidaRulesEngine.evaluateCantos(p.hand);
+      if (p.pendingCanto != null) {
+        // En el reparto inicial solo se canta la presencia del canto sin sumar puntos aún
+        _triggerCallout(p, p.pendingCanto!.name);
+      }
+    }
+  }
+
+  void _resolveAndAwardCantos() {
     final cantosMap = <String, Canto?>{};
     final teamsMap = <String, int>{};
     for (final p in _players) {
-      cantosMap[p.id] = CaidaRulesEngine.evaluateCantos(p.hand);
+      cantosMap[p.id] = p.pendingCanto;
       teamsMap[p.id] = p.teamId;
     }
 
@@ -592,16 +622,18 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       final canto = resolved[p.id];
       if (canto != null) {
         p.score += canto.points;
-        _triggerCallout(p, '${canto.name} (+${canto.points})');
-      } else if (cantosMap[p.id] != null) {
-        final defeated = cantosMap[p.id]!;
-        _triggerCallout(p, '${defeated.name} (Derrotada)');
+        final detail = canto is RondaCanto
+            ? 'Ronda de ${canto.pairNumber}'
+            : canto.name.replaceAll('¡', '').replaceAll('!', '');
+        _triggerCallout(p, '¡$detail! (+${canto.points} pts)');
+      } else if (p.pendingCanto != null) {
+        final defeated = p.pendingCanto!;
+        final detail = defeated is RondaCanto
+            ? 'Ronda de ${defeated.pairNumber}'
+            : defeated.name.replaceAll('¡', '').replaceAll('!', '');
+        _triggerCallout(p, '$detail (Matada)');
       }
-    }
-
-    if (_players.any((p) => p.score >= 24)) {
-      _finishGame();
-      return;
+      p.pendingCanto = null;
     }
   }
 
@@ -709,7 +741,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
   void _nextTurn() {
     if (_allHandsEmpty()) {
-      _dealNewRound();
+      _onHandsExhausted();
       return;
     }
 
