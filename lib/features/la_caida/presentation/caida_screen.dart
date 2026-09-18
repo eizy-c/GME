@@ -42,12 +42,14 @@ class _PlacedTableCard {
   final Offset offset;
   final double rotation;
   final int zIndex;
+  final int zoneIndex;
 
   _PlacedTableCard({
     required this.card,
     required this.offset,
     required this.rotation,
     required this.zIndex,
+    required this.zoneIndex,
   });
 }
 
@@ -1743,57 +1745,124 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     );
   }
 
+  /// Zonas fijas de aterrizaje en tapete central para dispersión orgánica y amplia.
+  /// Distribuidas para aprovechar al máximo la mesa de madera evitando solapamiento total.
+  static const List<Offset> _tableLandingZones = [
+    // 0..3: Cuadrantes amplios para el reparto inicial de 4 cartas
+    Offset(-68, -80), // 0: Cuadrante Superior Izquierdo
+    Offset(68, -80),  // 1: Cuadrante Superior Derecho
+    Offset(-68, 75),  // 2: Cuadrante Inferior Izquierdo
+    Offset(68, 75),   // 3: Cuadrante Inferior Derecho
+
+    // 4..8: Zonas centrales e intermedias despejadas
+    Offset(0, 0),     // 4: Centro absoluto de la mesa
+    Offset(-82, -2),  // 5: Flanco Izquierdo central
+    Offset(82, -2),   // 6: Flanco Derecho central
+    Offset(0, -96),   // 7: Centro Superior
+    Offset(0, 96),    // 8: Centro Inferior
+
+    // 9..12: Anillo intermedio diagonal
+    Offset(-40, -42), // 9: Intermedio Superior Izquierdo
+    Offset(40, -42),  // 10: Intermedio Superior Derecho
+    Offset(-40, 42),  // 11: Intermedio Inferior Izquierdo
+    Offset(40, 42),   // 12: Intermedio Inferior Derecho
+
+    // 13..16: Flancos exteriores diagonales
+    Offset(-84, -45), // 13: Exterior Izquierdo Alto
+    Offset(84, -45),  // 14: Exterior Derecho Alto
+    Offset(-84, 45),  // 15: Exterior Izquierdo Bajo
+    Offset(84, 45),   // 16: Exterior Derecho Bajo
+  ];
+
+  static const List<double> _tableLandingRotations = [
+    -0.08, // 0
+     0.07, // 1
+     0.09, // 2
+    -0.06, // 3
+     0.03, // 4
+    -0.07, // 5
+     0.08, // 6
+    -0.05, // 7
+     0.06, // 8
+     0.08, // 9
+    -0.07, // 10
+    -0.06, // 11
+     0.07, // 12
+    -0.09, // 13
+     0.08, // 14
+     0.06, // 15
+    -0.08, // 16
+  ];
+
   void _syncPlacedCards() {
     // 1. Eliminar cartas capturadas que ya no están en mesa
     _placedTableCards.removeWhere((placed) => !_tableCards.contains(placed.card));
 
-    // 2. Colocar nuevas cartas manteniendo estabilidad de las ya existentes
+    // 2. Obtener conjunto de zonas actualmente ocupadas
+    final occupiedZones = _placedTableCards.map((p) => p.zoneIndex).toSet();
+
+    // 3. Colocar nuevas cartas manteniendo estabilidad de las ya existentes
     for (int i = 0; i < _tableCards.length; i++) {
       final card = _tableCards[i];
       final alreadyPlaced = _placedTableCards.any((p) => p.card == card);
       if (!alreadyPlaced) {
-        final pos = _computeNaturalCardOffset(i, card);
-        final rot = _computeNaturalCardRotation(i, card);
+        int chosenZone = -1;
+
+        // Para las 4 cartas iniciales, asignar los cuadrantes 0..3 si están disponibles
+        if (i < 4 && !occupiedZones.contains(i)) {
+          chosenZone = i;
+        } else {
+          // Seleccionar la zona libre que maximice la distancia mínima a todas las cartas ya colocadas
+          double maxMinDist = -1;
+          for (int z = 0; z < _tableLandingZones.length; z++) {
+            if (occupiedZones.contains(z)) continue;
+            final candidateOffset = _tableLandingZones[z];
+
+            if (_placedTableCards.isEmpty) {
+              chosenZone = z;
+              break;
+            }
+
+            double minDistToPlaced = double.infinity;
+            for (final placed in _placedTableCards) {
+              final d = (candidateOffset - placed.offset).distance;
+              if (d < minDistToPlaced) {
+                minDistToPlaced = d;
+              }
+            }
+
+            if (minDistToPlaced > maxMinDist) {
+              maxMinDist = minDistToPlaced;
+              chosenZone = z;
+            }
+          }
+
+          // Fallback de seguridad si todas las zonas estuvieran ocupadas (>17 cartas)
+          if (chosenZone == -1) {
+            chosenZone = _tableCardZCounter % _tableLandingZones.length;
+          }
+        }
+
+        occupiedZones.add(chosenZone);
+
+        final baseOffset = _tableLandingZones[chosenZone];
+        final baseRot = _tableLandingRotations[chosenZone];
+
+        // Micro-jitter determinista por carta (±3.6 px y ±0.02 rad) para aspecto natural
+        final jitterX = ((card.number * 7 + card.suit.index * 13) % 7 - 3) * 1.2;
+        final jitterY = ((card.number * 11 + card.suit.index * 19) % 7 - 3) * 1.2;
+        final jitterRot = ((card.number * 13 + card.suit.index * 17) % 5 - 2) * 0.01;
+
         _tableCardZCounter++;
         _placedTableCards.add(_PlacedTableCard(
           card: card,
-          offset: pos,
-          rotation: rot,
+          offset: Offset(baseOffset.dx + jitterX, baseOffset.dy + jitterY),
+          rotation: baseRot + jitterRot,
           zIndex: _tableCardZCounter,
+          zoneIndex: chosenZone,
         ));
       }
     }
-  }
-
-  Offset _computeNaturalCardOffset(int index, SpanishCard card) {
-    if (index == 0) {
-      return const Offset(-54, -26);
-    } else if (index == 1) {
-      return const Offset(46, -28);
-    } else if (index == 2) {
-      return const Offset(-38, 30);
-    } else if (index == 3) {
-      return const Offset(52, 28);
-    }
-
-    final seed = card.number * 17 + card.suit.index * 31 + index * 7;
-    final rnd = math.Random(seed);
-    final radius = 22.0 + (rnd.nextDouble() * 60.0);
-    final angle = (index * 2.39996) + (rnd.nextDouble() * 0.4 - 0.2);
-    final dx = radius * math.cos(angle);
-    final dy = (radius * 0.62) * math.sin(angle);
-    return Offset(dx, dy);
-  }
-
-  double _computeNaturalCardRotation(int index, SpanishCard card) {
-    if (index == 0) return -0.10;
-    if (index == 1) return 0.09;
-    if (index == 2) return 0.12;
-    if (index == 3) return -0.07;
-
-    final seed = card.number * 23 + card.suit.index * 41 + index * 11;
-    final rnd = math.Random(seed);
-    return (rnd.nextDouble() - 0.5) * 0.42;
   }
 
   /// Cartas en tapete central: colocadas directamente sobre la madera (100% natural, "regadas al azar")
@@ -1838,7 +1907,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
     return Center(
       child: SizedBox(
-        height: 220,
+        height: 310,
         width: double.infinity,
         child: Stack(
           alignment: Alignment.center,
