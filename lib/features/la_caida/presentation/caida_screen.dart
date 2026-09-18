@@ -179,6 +179,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   late AnimationController _dealingController;
   Timer? _botTimer;
   Timer? _finishTimer;
+  final List<Timer> _cantoAudioTimers = [];
 
   @override
   void initState() {
@@ -233,6 +234,10 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _dealingController.dispose();
     _botTimer?.cancel();
     _finishTimer?.cancel();
+    for (final t in _cantoAudioTimers) {
+      t.cancel();
+    }
+    _cantoAudioTimers.clear();
     _clearAllCallouts();
     super.dispose();
   }
@@ -616,11 +621,12 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
           AudioService().playCanto(cantoName);
         } else {
           final captureDelay = delayMs;
-          Future.delayed(Duration(milliseconds: captureDelay), () {
+          final timer = Timer(Duration(milliseconds: captureDelay), () {
             if (mounted) {
               AudioService().playCanto(cantoName);
             }
           });
+          _cantoAudioTimers.add(timer);
         }
         delayMs += 1100;
       }

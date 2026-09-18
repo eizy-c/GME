@@ -1,4 +1,4 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gme/features/la_caida/economy/player_session.dart';
 
@@ -51,10 +51,12 @@ void main() {
       final session = await PlayerSession.load();
       expect(session.id, isNotEmpty);
       expect(session.name, equals('Jugador'));
-      expect(session.coins, equals(3000));
-      expect(session.tickets, equals(10));
+      expect(session.coins, equals(0));
+      expect(session.tickets, equals(3));
       expect(session.maxTickets, equals(10));
       expect(session.level, equals(1));
+      expect(session.hasCompletedTutorial, isFalse);
+      expect(session.isFirstTime, isTrue);
 
       // Verificar que se guardó en SharedPreferences
       final prefs = await SharedPreferences.getInstance();
@@ -64,6 +66,7 @@ void main() {
     test('save() y load() recuperan y preservan modificaciones del jugador', () async {
       final session = await PlayerSession.load();
       session.updateProfile(name: 'Maestro Caída', avatarIndex: 3);
+      session.addCoins(3000);
       session.deductCoinsForVipMatch(1000);
       await session.save();
 
@@ -71,6 +74,21 @@ void main() {
       expect(reloaded.name, equals('Maestro Caída'));
       expect(reloaded.avatarIndex, equals(3));
       expect(reloaded.coins, equals(2000));
+    });
+
+    test('completeTutorialReward() otorga 1000 monedas y marca tutorial como completado', () async {
+      final session = await PlayerSession.load();
+      expect(session.coins, equals(0));
+      expect(session.hasCompletedTutorial, isFalse);
+
+      session.completeTutorialReward();
+      expect(session.coins, equals(1000));
+      expect(session.hasCompletedTutorial, isTrue);
+      await session.save();
+
+      final reloaded = await PlayerSession.load();
+      expect(reloaded.coins, equals(1000));
+      expect(reloaded.hasCompletedTutorial, isTrue);
     });
   });
 

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../core/services/user_profile_service.dart';
+import '../economy/player_session.dart';
 import 'caida_lobby_screen.dart';
 import 'widgets/profile_options_dialog.dart';
 
@@ -34,8 +35,13 @@ class _CaidaSplashScreenState extends State<CaidaSplashScreen>
 
   Future<void> _proceedToLobby() async {
     final profileService = UserProfileService();
-    if (profileService.isFirstTime && mounted) {
+    final session = PlayerSession.shared;
+    final isFirst = profileService.isFirstTime && session.isFirstTime;
+    if (isFirst && mounted) {
       await ProfileOptionsDialog.show(context);
+    } else {
+      profileService.markNotFirstTime();
+      session.markNotFirstTime();
     }
 
     if (mounted) {

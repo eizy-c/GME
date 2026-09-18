@@ -7,6 +7,7 @@ import 'widgets/avatar_view.dart';
 import 'widgets/buy_tickets_modal.dart';
 import 'widgets/profile_options_dialog.dart';
 import 'widgets/vip_tier_selector_modal.dart';
+import '../tutorial/presentation/tutorial_screen.dart';
 
 /// Lobby principal de La Caída inspirado en las capturas de referencia:
 /// Barra superior con saldo de monedas y tickets, tarjetas coloridas de modos,
@@ -93,6 +94,20 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
 
   void _openBuyTicketsModal() {
     BuyTicketsModal.show(context, session: _session);
+  }
+
+  void _openTutorial() {
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute(
+        builder: (_) => const TutorialScreen(),
+      ),
+    )
+        .then((_) {
+      setState(() {
+        _session = PlayerSession.shared;
+      });
+    });
   }
 
   void _showComingSoonToast(String message) {
@@ -690,6 +705,27 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                       ),
                     ),
                     const SizedBox(height: 18),
+
+                    // 0. Modo Entrenamiento / Tutorial Guiado (FASE 3: Novatos & Recompensa +1000 Monedas)
+                    _buildActionCard(
+                      title: _session.hasCompletedTutorial ? 'Repasar Tutorial' : 'Tutorial de Novatos',
+                      subtitle: _session.hasCompletedTutorial
+                          ? 'Entrenamiento interactivo de 8 etapas'
+                          : 'Aprende Caída, Cantos y gana 1,000 🪙',
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF059669), Color(0xFF047857)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderColor: const Color(0xFF34D399),
+                      textColor: Colors.white,
+                      badge: _session.hasCompletedTutorial ? 'COMPLETADO' : '🪙 +1,000',
+                      badgeColor: _session.hasCompletedTutorial ? const Color(0xFF059669) : const Color(0xFFF59E0B),
+                      icon: Icons.school_rounded,
+                      iconColor: const Color(0xFFFDE047),
+                      onTap: _openTutorial,
+                    ),
+                    const SizedBox(height: 12),
 
                     // 1. Un Jugador (Hero Button principal activo)
                     _buildActionCard(

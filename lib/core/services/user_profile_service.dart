@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Modelo de datos del perfil del jugador.
 class UserProfileData {
@@ -15,6 +17,22 @@ class UserProfileData {
     required this.tickets,
     required this.isFirstTime,
   });
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'avatarId': avatarId,
+        'coins': coins,
+        'tickets': tickets,
+        'isFirstTime': isFirstTime,
+      };
+
+  factory UserProfileData.fromJson(Map<String, dynamic> json) => UserProfileData(
+        name: json['name'] as String? ?? 'Eizy',
+        avatarId: json['avatarId'] as int? ?? 2,
+        coins: json['coins'] as int? ?? 0,
+        tickets: json['tickets'] as int? ?? 3,
+        isFirstTime: json['isFirstTime'] as bool? ?? false,
+      );
 
   UserProfileData copyWith({
     String? name,
@@ -33,8 +51,9 @@ class UserProfileData {
   }
 }
 
-/// Servicio singleton reactivo para gestionar el perfil, monedas y tickets del usuario.
+/// Servicio singleton reactivo para gestionar el perfil, monedas y tickets del usuario con persistencia en disco.
 class UserProfileService extends ChangeNotifier {
+  static const String _storageKey = 'user_profile_data_v1';
   static final UserProfileService _instance = UserProfileService._internal();
   factory UserProfileService() => _instance;
 
@@ -43,8 +62,8 @@ class UserProfileService extends ChangeNotifier {
   UserProfileData _profile = const UserProfileData(
     name: 'Eizy',
     avatarId: 2, // Avatar inicial de chico con lentes
-    coins: 6000,
-    tickets: 10,
+    coins: 0,
+    tickets: 3,
     isFirstTime: true,
   );
 
@@ -55,6 +74,30 @@ class UserProfileService extends ChangeNotifier {
   int get tickets => _profile.tickets;
   bool get isFirstTime => _profile.isFirstTime;
 
+  /// Carga el perfil persistido desde SharedPreferences.
+  Future<void> load({SharedPreferences? prefs}) async {
+    try {
+      final p = prefs ?? await SharedPreferences.getInstance();
+      final raw = p.getString(_storageKey);
+      if (raw != null && raw.isNotEmpty) {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        _profile = UserProfileData.fromJson(decoded);
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  /// Guarda el perfil actual en SharedPreferences de forma segura.
+  void save({SharedPreferences? prefs}) {
+    if (prefs != null) {
+      prefs.setString(_storageKey, jsonEncode(_profile.toJson())).catchError((_) => false);
+      return;
+    }
+    SharedPreferences.getInstance().then((p) {
+      p.setString(_storageKey, jsonEncode(_profile.toJson())).catchError((_) => false);
+    }).catchError((_) {});
+  }
+
   void updateProfile({String? name, int? avatarId}) {
     _profile = _profile.copyWith(
       name: name?.trim().isNotEmpty == true ? name!.trim() : _profile.name,
@@ -62,12 +105,14 @@ class UserProfileService extends ChangeNotifier {
       isFirstTime: false,
     );
     notifyListeners();
+    save();
   }
 
   void markNotFirstTime() {
     if (_profile.isFirstTime) {
       _profile = _profile.copyWith(isFirstTime: false);
       notifyListeners();
+      save();
     }
   }
 
@@ -75,6 +120,7 @@ class UserProfileService extends ChangeNotifier {
     if (_profile.tickets > 0) {
       _profile = _profile.copyWith(tickets: _profile.tickets - 1);
       notifyListeners();
+      save();
       return true;
     }
     return false;
@@ -83,11 +129,13 @@ class UserProfileService extends ChangeNotifier {
   void addCoins(int amount) {
     _profile = _profile.copyWith(coins: _profile.coins + amount);
     notifyListeners();
+    save();
   }
 
   void addTickets(int amount) {
     _profile = _profile.copyWith(tickets: (_profile.tickets + amount).clamp(0, 10));
     notifyListeners();
+    save();
   }
 
   void resetToDefault() {

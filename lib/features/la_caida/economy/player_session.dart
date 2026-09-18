@@ -20,17 +20,21 @@ class PlayerSession extends ChangeNotifier {
   int _xp;
   int _level;
   DateTime _lastTicketRegen;
+  bool _hasCompletedTutorial;
+  bool _isFirstTime;
 
   PlayerSession({
     required this._id,
     required this._name,
     this._avatarIndex = 0,
-    this._coins = 3000,
-    int tickets = defaultMaxTickets,
+    this._coins = 0,
+    int tickets = 3,
     this._maxTickets = defaultMaxTickets,
     this._xp = 0,
     this._level = 1,
     DateTime? lastTicketRegen,
+    this._hasCompletedTutorial = false,
+    this._isFirstTime = true,
   })  : _tickets = tickets.clamp(0, _maxTickets),
         _lastTicketRegen = (lastTicketRegen ?? DateTime.now()).toUtc();
 
@@ -38,23 +42,33 @@ class PlayerSession extends ChangeNotifier {
 
   /// Instancia compartida en memoria para acceso unificado en toda la UI.
   static PlayerSession get shared =>
-      _shared ??= PlayerSession.createDefault(name: 'Eizy', avatarIndex: 2, coins: 6000);
+      _shared ??= PlayerSession.createDefault(name: 'Eizy', avatarIndex: 2, coins: 6000, tickets: defaultMaxTickets);
 
   /// Permite establecer o restablecer la instancia compartida (útil para pruebas).
   static void setShared(PlayerSession session) => _shared = session;
 
   /// Factory para crear una sesión nueva con valores por defecto equilibrados.
-  factory PlayerSession.createDefault({String? name, int? avatarIndex, int? coins}) {
+  /// Para novatos: 0 monedas, 3 tickets de prueba y tutorial pendiente.
+  factory PlayerSession.createDefault({
+    String? name,
+    int? avatarIndex,
+    int? coins,
+    int? tickets,
+    bool hasCompletedTutorial = false,
+    bool isFirstTime = true,
+  }) {
     return PlayerSession(
       id: 'user_${DateTime.now().millisecondsSinceEpoch}',
       name: name ?? 'Jugador',
-      avatarIndex: avatarIndex ?? 0,
-      coins: coins ?? 3000,
-      tickets: defaultMaxTickets,
+      avatarIndex: avatarIndex ?? 2,
+      coins: coins ?? (hasCompletedTutorial ? 3000 : 0),
+      tickets: tickets ?? (hasCompletedTutorial ? defaultMaxTickets : 3),
       maxTickets: defaultMaxTickets,
       xp: 0,
       level: 1,
       lastTicketRegen: DateTime.now().toUtc(),
+      hasCompletedTutorial: hasCompletedTutorial,
+      isFirstTime: isFirstTime,
     );
   }
 
@@ -68,11 +82,33 @@ class PlayerSession extends ChangeNotifier {
   int get xp => _xp;
   int get level => _level;
   DateTime get lastTicketRegen => _lastTicketRegen;
+  bool get hasCompletedTutorial => _hasCompletedTutorial;
+  bool get isFirstTime => _isFirstTime;
 
   // Setters de perfil
   void updateProfile({String? name, int? avatarIndex}) {
     if (name != null) _name = name;
     if (avatarIndex != null) _avatarIndex = avatarIndex;
+    _isFirstTime = false;
+    notifyListeners();
+    save();
+  }
+
+  void markNotFirstTime() {
+    if (_isFirstTime) {
+      _isFirstTime = false;
+      notifyListeners();
+      save();
+    }
+  }
+
+  /// Otorga la bonificación de graduación del tutorial (+1000 monedas),
+  /// marca hasCompletedTutorial en true y persiste de inmediato en disco.
+  void completeTutorialReward({int coinReward = 1000}) {
+    _coins += coinReward;
+    _hasCompletedTutorial = true;
+    _isFirstTime = false;
+    _addXpInternal(150);
     notifyListeners();
     save();
   }
@@ -213,6 +249,11 @@ class PlayerSession extends ChangeNotifier {
     return true;
   }
 
+  /// Incrementa el balance de monedas blandas
+  void addCoins(int amount) {
+    rewardCoins(amount);
+  }
+
   /// Descuenta saldo en monedas para ingresar a una mesa de apuesta VIP.
   /// Retorna true si el jugador contaba con los fondos suficientes.
   bool deductCoinsForVipMatch(int amount) {
@@ -265,6 +306,8 @@ class PlayerSession extends ChangeNotifier {
       'xp': _xp,
       'level': _level,
       'lastTicketRegen': _lastTicketRegen.toIso8601String(),
+      'hasCompletedTutorial': _hasCompletedTutorial,
+      'isFirstTime': _isFirstTime,
     };
   }
 
@@ -279,13 +322,15 @@ class PlayerSession extends ChangeNotifier {
     return PlayerSession(
       id: json['id'] as String? ?? 'user_${DateTime.now().millisecondsSinceEpoch}',
       name: json['name'] as String? ?? 'Jugador',
-      avatarIndex: json['avatarIndex'] as int? ?? 0,
-      coins: json['coins'] as int? ?? 3000,
+      avatarIndex: json['avatarIndex'] as int? ?? 2,
+      coins: json['coins'] as int? ?? 0,
       tickets: parsedTickets,
       maxTickets: parsedMaxTickets,
       xp: json['xp'] as int? ?? 0,
       level: json['level'] as int? ?? 1,
       lastTicketRegen: parsedRegen,
+      hasCompletedTutorial: json['hasCompletedTutorial'] as bool? ?? false,
+      isFirstTime: json['isFirstTime'] as bool? ?? false,
     );
   }
 
@@ -295,15 +340,11 @@ class PlayerSession extends ChangeNotifier {
       final p = prefs ?? await SharedPreferences.getInstance();
       final jsonString = jsonEncode(toJson());
       await p.setString(storageKey, jsonString);
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error al guardar PlayerSession: $e');
-      }
-    }
+    } catch (_) {}
   }
 
   /// Carga la sesión del jugador desde SharedPreferences.
-  /// Si no existe, crea una nueva sesión por defecto.
+  /// Si no existe, crea una nueva sesión por defecto para novatos (0 monedas, 3 tickets).
   /// Realiza la regeneración pasiva de tickets offline inmediatamente al cargar.
   static Future<PlayerSession> load({SharedPreferences? prefs, DateTime? nowUtc}) async {
     try {
@@ -316,14 +357,15 @@ class PlayerSession extends ChangeNotifier {
         _shared = session;
         return session;
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error al cargar PlayerSession: $e');
-      }
-    }
+    } catch (_) {}
 
-    // Si no hay datos guardados o hubo un error, inicializar por defecto
-    final newSession = PlayerSession.createDefault();
+    // Si no hay datos guardados o hubo un error, inicializar por defecto para novatos
+    final newSession = PlayerSession.createDefault(
+      coins: 0,
+      tickets: 3,
+      hasCompletedTutorial: false,
+      isFirstTime: true,
+    );
     await newSession.save(prefs: prefs);
     _shared = newSession;
     return newSession;

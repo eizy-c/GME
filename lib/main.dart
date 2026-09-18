@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 
+import 'core/services/user_profile_service.dart';
 import 'core/stats/stats_repository.dart';
 import 'features/home/home_screen.dart';
+import 'features/la_caida/economy/player_session.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final statsRepository = InMemoryStatsRepository();
+
+  // Precarga persistente de datos del usuario, sesión de La Caída y estadísticas
+  final statsRepository = SharedPrefsStatsRepository();
+  await statsRepository.load();
+  await UserProfileService().load();
+  await PlayerSession.load();
+
   runApp(CompendioJuegosApp(statsRepository: statsRepository));
 }
 
