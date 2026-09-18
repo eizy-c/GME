@@ -113,8 +113,8 @@ void main() {
       expect(canto.priority, equals(5));
     });
 
-    test('Vigía (2 iguales + 1 consecutiva) otorga 8 puntos y es VigiaCanto', () {
-      // Caso 1: [5, 5, 6]
+    test('Vigía (2 iguales + 1 que le sigue o le atrasa) otorga 7 puntos y es VigiaCanto', () {
+      // Caso 1: [5, 5, 6] (le sigue)
       final hand1 = [
         const SpanishCard(number: 5, suit: CardSuit.oros),
         const SpanishCard(number: 5, suit: CardSuit.copas),
@@ -124,23 +124,44 @@ void main() {
       expect(c1, isNotNull);
       expect(c1, isA<VigiaCanto>());
       expect(c1!.type, equals(CantoType.vigia));
-      expect(c1.points, equals(8));
+      expect(c1.points, equals(7));
       expect(c1.priority, equals(4));
 
-      // Caso 2: [7, 7, 10] (7 y 10 son correlativos)
+      // Caso 2: [4, 4, 3] (le atrasa)
       final hand2 = [
-        const SpanishCard(number: 7, suit: CardSuit.oros),
-        const SpanishCard(number: 10, suit: CardSuit.copas),
-        const SpanishCard(number: 7, suit: CardSuit.espadas),
+        const SpanishCard(number: 4, suit: CardSuit.oros),
+        const SpanishCard(number: 3, suit: CardSuit.copas),
+        const SpanishCard(number: 4, suit: CardSuit.espadas),
       ];
       final c2 = CaidaRulesEngine.evaluateCantos(hand2);
       expect(c2, isNotNull);
       expect(c2, isA<VigiaCanto>());
-      expect(c2!.type, equals(CantoType.vigia));
-      expect(c2.points, equals(8));
+      expect(c2!.points, equals(7));
+
+      // Caso 3: [7, 7, 10] (7 y 10 son correlativos, le sigue)
+      final hand3 = [
+        const SpanishCard(number: 7, suit: CardSuit.oros),
+        const SpanishCard(number: 10, suit: CardSuit.copas),
+        const SpanishCard(number: 7, suit: CardSuit.espadas),
+      ];
+      final c3 = CaidaRulesEngine.evaluateCantos(hand3);
+      expect(c3, isNotNull);
+      expect(c3, isA<VigiaCanto>());
+      expect(c3!.points, equals(7));
+
+      // Caso 4: [10, 10, 7] (10 y 7 son correlativos, le atrasa)
+      final hand4 = [
+        const SpanishCard(number: 10, suit: CardSuit.oros),
+        const SpanishCard(number: 7, suit: CardSuit.copas),
+        const SpanishCard(number: 10, suit: CardSuit.espadas),
+      ];
+      final c4 = CaidaRulesEngine.evaluateCantos(hand4);
+      expect(c4, isNotNull);
+      expect(c4, isA<VigiaCanto>());
+      expect(c4!.points, equals(7));
     });
 
-    test('Registro (As, Caballo y Rey [1, 11, 12]) otorga 12 puntos y es RegistroCanto', () {
+    test('Registro (As, Caballo y Rey [1, 11, 12]) otorga 8 puntos y es RegistroCanto', () {
       final hand = [
         const SpanishCard(number: 11, suit: CardSuit.bastos),
         const SpanishCard(number: 1, suit: CardSuit.oros),
@@ -150,11 +171,11 @@ void main() {
       expect(canto, isNotNull);
       expect(canto, isA<RegistroCanto>());
       expect(canto!.type, equals(CantoType.registro));
-      expect(canto.points, equals(12));
+      expect(canto.points, equals(8));
       expect(canto.priority, equals(3));
     });
 
-    test('Patrulla (3 cartas consecutivas) otorga 4 puntos y es PatrullaCanto', () {
+    test('Patrulla (3 cartas consecutivas) otorga 6 puntos y es PatrullaCanto', () {
       // Caso 1: [3, 4, 5]
       final hand1 = [
         const SpanishCard(number: 4, suit: CardSuit.oros),
@@ -165,7 +186,7 @@ void main() {
       expect(c1, isNotNull);
       expect(c1, isA<PatrullaCanto>());
       expect(c1!.type, equals(CantoType.patrulla));
-      expect(c1.points, equals(4));
+      expect(c1.points, equals(6));
       expect(c1.priority, equals(2));
 
       // Caso 2: [7, 10, 11]
@@ -177,11 +198,11 @@ void main() {
       final c2 = CaidaRulesEngine.evaluateCantos(hand2);
       expect(c2, isNotNull);
       expect(c2, isA<PatrullaCanto>());
-      expect(c2!.type, equals(CantoType.patrulla));
+      expect(c2!.points, equals(6));
     });
 
-    test('Ronda (2 iguales no consecutivas con la 3ra) otorga 2..5 puntos y es RondaCanto', () {
-      // Par de 4 con 10 (no consecutivas) -> 2 puntos base
+    test('Ronda (2 iguales no consecutivas con la 3ra) otorga 1..4 puntos y es RondaCanto', () {
+      // Par de 4 con 10 (no consecutivas) -> 1 punto base
       final hand1 = [
         const SpanishCard(number: 4, suit: CardSuit.oros),
         const SpanishCard(number: 10, suit: CardSuit.copas),
@@ -191,10 +212,26 @@ void main() {
       expect(c1, isNotNull);
       expect(c1, isA<RondaCanto>());
       expect(c1!.type, equals(CantoType.ronda));
-      expect(c1.points, equals(2));
+      expect(c1.points, equals(1));
       expect(c1.priority, equals(1));
 
-      // Par de Rey (12) con 3 -> 5 puntos
+      // Par de Sota (10) -> 2 puntos
+      final handSota = [
+        const SpanishCard(number: 10, suit: CardSuit.oros),
+        const SpanishCard(number: 3, suit: CardSuit.copas),
+        const SpanishCard(number: 10, suit: CardSuit.espadas),
+      ];
+      expect(CaidaRulesEngine.evaluateCantos(handSota)!.points, equals(2));
+
+      // Par de Caballo (11) -> 3 puntos
+      final handCaballo = [
+        const SpanishCard(number: 11, suit: CardSuit.oros),
+        const SpanishCard(number: 3, suit: CardSuit.copas),
+        const SpanishCard(number: 11, suit: CardSuit.espadas),
+      ];
+      expect(CaidaRulesEngine.evaluateCantos(handCaballo)!.points, equals(3));
+
+      // Par de Rey (12) con 3 -> 4 puntos
       final hand2 = [
         const SpanishCard(number: 12, suit: CardSuit.oros),
         const SpanishCard(number: 3, suit: CardSuit.copas),
@@ -204,7 +241,7 @@ void main() {
       expect(c2, isNotNull);
       expect(c2, isA<RondaCanto>());
       expect(c2!.type, equals(CantoType.ronda));
-      expect(c2.points, equals(5), reason: 'Ronda de Rey vale 5 puntos');
+      expect(c2.points, equals(4), reason: 'Ronda de Rey vale 4 puntos');
     });
 
     test('Sin cantos retorna null', () {
@@ -221,7 +258,7 @@ void main() {
         'player_1': const RondaCanto(
           cards: [],
           pairNumber: 12,
-          nominalPoints: 5,
+          nominalPoints: 4,
         ),
         'player_2': const VigiaCanto(
           cards: [],
@@ -239,7 +276,7 @@ void main() {
 
       expect(resolved['player_1'], isNull, reason: 'Ronda pierde contra Vigía');
       expect(resolved['player_2'], isNotNull);
-      expect(resolved['player_2']!.points, equals(8));
+      expect(resolved['player_2']!.points, equals(7));
     });
   });
 
@@ -288,11 +325,29 @@ void main() {
         isDeckEmpty: false,
       );
 
-      // Levanta todas las cartas y deja mesa limpia
+      // Levanta todas las cartas y deja mesa limpia con mazo activo (+4)
       expect(result.capturedCards.length, equals(4));
       expect(result.newTableCards, isEmpty);
       expect(result.isLimpia, isTrue);
       expect(result.limpiaPoints, equals(4));
+    });
+
+    test('Mesa Limpia en última mano (sin cartas en manojo) otorga 0 puntos', () {
+      final table = [
+        const SpanishCard(number: 7, suit: CardSuit.oros),
+      ];
+      final play = const SpanishCard(number: 7, suit: CardSuit.copas);
+
+      final result = CaidaRulesEngine.evaluatePlay(
+        playedCard: play,
+        tableCards: table,
+        previousCard: null,
+        isDeckEmpty: true, // Última mano sin cartas en mazo
+      );
+
+      expect(result.newTableCards, isEmpty);
+      expect(result.isLimpia, isTrue);
+      expect(result.limpiaPoints, equals(0), reason: 'Sin cartas en manojo no otorga puntos');
     });
 
     test('Caída otorga puntos según figura (+1..+4)', () {
@@ -315,7 +370,7 @@ void main() {
   });
 
   group('CaidaRulesEngine - 4. Conteo por Volumen y Cierre', () {
-    test('Cartas sobrantes se adjudican al último capturador y bono > 20 cartas', () {
+    test('2 Jugadores: Cartas sobrantes se adjudican al último capturador y bono > 20 cartas', () {
       final players = [
         const CaidaPlayerState(id: 'user', name: 'Tú', teamId: 0, initialScore: 10, initialCardsWon: 22),
         const CaidaPlayerState(id: 'p1', name: 'Player 1', teamId: 1, initialScore: 8, initialCardsWon: 16),
@@ -338,6 +393,50 @@ void main() {
       // Bono volumen: 24 - 20 = +4 puntos
       expect(res.volumeBonusPoints['user'], equals(4));
       expect(res.updatedScores['user'], equals(14));
+    });
+
+    test('3 Jugadores: Umbral es 13 para no repartidores y 14 para el repartidor', () {
+      final players = [
+        const CaidaPlayerState(id: 'p1', name: 'Jugador 1', teamId: 0, initialScore: 0, initialCardsWon: 15),
+        const CaidaPlayerState(id: 'p2', name: 'Jugador 2', teamId: 1, initialScore: 0, initialCardsWon: 13),
+        const CaidaPlayerState(id: 'dealer', name: 'Repartidor', teamId: 2, initialScore: 0, initialCardsWon: 16),
+      ];
+
+      final res = CaidaRulesEngine.resolveHandEnd(
+        players: players,
+        remainingTable: [],
+        lastCapturingPlayerId: null,
+        isTeams: false,
+        dealerId: 'dealer',
+      );
+
+      // p1: 15 - 13 = +2 pts
+      expect(res.volumeBonusPoints['p1'], equals(2));
+      // p2: 13 - 13 = 0 pts
+      expect(res.volumeBonusPoints['p2'], equals(0));
+      // dealer: 16 - 14 = +2 pts
+      expect(res.volumeBonusPoints['dealer'], equals(2));
+    });
+
+    test('4 Jugadores Individual: Umbral es 10 cartas', () {
+      final players = [
+        const CaidaPlayerState(id: 'p1', name: 'Jugador 1', teamId: 0, initialScore: 0, initialCardsWon: 12),
+        const CaidaPlayerState(id: 'p2', name: 'Jugador 2', teamId: 1, initialScore: 0, initialCardsWon: 10),
+        const CaidaPlayerState(id: 'p3', name: 'Jugador 3', teamId: 2, initialScore: 0, initialCardsWon: 9),
+        const CaidaPlayerState(id: 'p4', name: 'Jugador 4', teamId: 3, initialScore: 0, initialCardsWon: 9),
+      ];
+
+      final res = CaidaRulesEngine.resolveHandEnd(
+        players: players,
+        remainingTable: [],
+        lastCapturingPlayerId: null,
+        isTeams: false,
+      );
+
+      // p1: 12 - 10 = +2 pts
+      expect(res.volumeBonusPoints['p1'], equals(2));
+      // p2: 10 - 10 = 0 pts
+      expect(res.volumeBonusPoints['p2'], equals(0));
     });
   });
 }

@@ -15,6 +15,7 @@ import '../domain/caida_models.dart';
 import '../domain/caida_rules_engine.dart';
 import 'widgets/deck_stack_view.dart';
 import 'widgets/table_canto_dialog.dart';
+import 'caida_lobby_screen.dart';
 
 /// Candidato para el sorteo interactivo de Mano ("¡ELIGE UNA CARTA!")
 class _ManoCardCandidate {
@@ -248,18 +249,18 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _manoAnnouncement = null;
     final tempDeck = SpanishDeck()..shuffle();
 
-    // 10 posiciones orgánicas y naturales sobre el tapete de madera (Screenshot 6)
+    // 10 posiciones orgánicas y naturales sobre el tapete de madera
     final positions = [
-      const Offset(-75, -100),
-      const Offset(15, -110),
-      const Offset(105, -105),
-      const Offset(-35, -45),
-      const Offset(65, -40),
-      const Offset(-85, 20),
-      const Offset(5, 25),
-      const Offset(95, 30),
-      const Offset(-45, 95),
-      const Offset(55, 90),
+      const Offset(-70, -70),
+      const Offset(15, -75),
+      const Offset(85, -70),
+      const Offset(-35, -20),
+      const Offset(55, -15),
+      const Offset(-75, 30),
+      const Offset(5, 35),
+      const Offset(75, 35),
+      const Offset(-40, 80),
+      const Offset(45, 75),
     ];
     final rotations = [-0.06, 0.04, -0.05, 0.08, -0.04, 0.05, -0.07, 0.06, -0.03, 0.05];
 
@@ -448,6 +449,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
   void _onDealingCompleted() {
     _isDealing = false;
+    _isFirstRoundDealing = false;
 
     // Comprobar cantos y resolver conflicto con CaidaRulesEngine
     _evaluateAllCantos();
@@ -495,6 +497,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         remainingTable: _tableCards,
         lastCapturingPlayerId: lastCapturingId,
         isTeams: _isTeams,
+        dealerId: _players[_manoIndex].id,
       );
 
       for (final p in _players) {
@@ -525,9 +528,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       return;
     }
 
-    // Aún quedan cartas en el mazo: se reparten 3 cartas más
-    // La Mano rota en sentido horario al siguiente jugador
-    _manoIndex = (_manoIndex + 1) % _players.length;
+    // Aún quedan cartas en el mazo: se reparten 3 cartas más dentro del mismo manojo.
+    // La Mano se mantiene fija durante todo el manojo hasta agotarse el mazo completo.
     _roundNumber++;
     _lastPlayedCard = null;
     _lastPlayedPlayerIndex = null;
@@ -560,6 +562,11 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         final defeated = cantosMap[p.id]!;
         _triggerCallout(p, '${defeated.name} (Derrotada)');
       }
+    }
+
+    if (_players.any((p) => p.score >= 24)) {
+      _finishGame();
+      return;
     }
   }
 
@@ -751,10 +758,15 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             _initMatch(_playerCount, _isTeams, _players[0].name);
           },
           onBackToMenu: () {
-            Navigator.pop(context);
-            setState(() {
-              _hasGameStarted = false;
-            });
+            Navigator.pop(context); // Cierra el modal de GameResultDialog
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context); // Regresa al lobby principal de La Caída
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const CaidaLobbyScreen()),
+              );
+            }
           },
         );
       }
@@ -1284,11 +1296,11 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             // 1. Cartas sobre el tapete central (directo sobre la madera, 100% natural, sin BOX)
             _buildTableCenterCards(),
 
-            // 2. Mazo en el lateral izquierdo si hay cartas restantes
+            // 2. Mazo en la esquina superior izquierda despejada si hay cartas restantes
             if (_deck.remainingCount > 0 && !_isChoosingMano)
               Positioned(
-                left: 12,
-                top: 240,
+                left: 14,
+                top: 10,
                 child: DeckStackView(
                   remainingCards: _deck.remainingCount,
                 ),
@@ -1400,7 +1412,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
           top: 10,
           child: TablePlayerBadge(
             name: rival.name,
-            scoreOrCards: rival.cardsWon,
+            score: rival.score,
+            cardsWon: rival.cardsWon,
             isBot: rival.isBot,
             isCurrentTurn: _currentTurnIndex == 1,
             turnProgress: 1.0 - _timerController.value,
@@ -1420,10 +1433,11 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       widgets.add(
         Positioned(
           left: 12,
-          top: 80,
+          top: 100,
           child: TablePlayerBadge(
             name: rival1.name,
-            scoreOrCards: rival1.cardsWon,
+            score: rival1.score,
+            cardsWon: rival1.cardsWon,
             isBot: rival1.isBot,
             isCurrentTurn: _currentTurnIndex == 1,
             turnProgress: 1.0 - _timerController.value,
@@ -1440,10 +1454,11 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       widgets.add(
         Positioned(
           right: 12,
-          top: 80,
+          top: 100,
           child: TablePlayerBadge(
             name: rival2.name,
-            scoreOrCards: rival2.cardsWon,
+            score: rival2.score,
+            cardsWon: rival2.cardsWon,
             isBot: rival2.isBot,
             isCurrentTurn: _currentTurnIndex == 2,
             turnProgress: 1.0 - _timerController.value,
@@ -1465,10 +1480,11 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       widgets.add(
         Positioned(
           left: 12,
-          top: 110,
+          top: 130,
           child: TablePlayerBadge(
             name: rival1.name,
-            scoreOrCards: rival1.cardsWon,
+            score: rival1.score,
+            cardsWon: rival1.cardsWon,
             isBot: rival1.isBot,
             isCurrentTurn: _currentTurnIndex == 1,
             turnProgress: 1.0 - _timerController.value,
@@ -1488,7 +1504,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
           top: 8,
           child: TablePlayerBadge(
             name: rival2.name,
-            scoreOrCards: rival2.cardsWon,
+            score: rival2.score,
+            cardsWon: rival2.cardsWon,
             isBot: rival2.isBot,
             isCurrentTurn: _currentTurnIndex == 2,
             turnProgress: 1.0 - _timerController.value,
@@ -1506,10 +1523,11 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       widgets.add(
         Positioned(
           right: 12,
-          top: 110,
+          top: 130,
           child: TablePlayerBadge(
             name: rival3.name,
-            scoreOrCards: rival3.cardsWon,
+            score: rival3.score,
+            cardsWon: rival3.cardsWon,
             isBot: rival3.isBot,
             isCurrentTurn: _currentTurnIndex == 3,
             turnProgress: 1.0 - _timerController.value,
@@ -1531,63 +1549,19 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     return Positioned(
       left: 14,
       bottom: 10,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TablePlayerBadge(
-            name: user.name,
-            scoreOrCards: user.cardsWon,
-            isBot: false,
-            isCurrentTurn: _currentTurnIndex == 0,
-            turnProgress: 1.0 - _timerController.value,
-            position: PlayerPositionOnTable.bottom,
-            calloutMessage: user.currentCallout,
-            cardsInHandCount: user.hand.length,
-            avatarColor: user.color,
-            avatarId: user.avatarId,
-            isMano: _manoIndex == 0,
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Icono de Chat limpio de la referencia
-              Container(
-                width: 24,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(5),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 2),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(Icons.chat_bubble_rounded, size: 12, color: Color(0xFF1E1B4B)),
-                ),
-              ),
-              const SizedBox(width: 4),
-              // Píldora compacta de puntuación
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(5),
-                  border: Border.all(color: Colors.white30, width: 0.8),
-                ),
-                child: Text(
-                  '${user.cardsWon}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+      child: TablePlayerBadge(
+        name: user.name,
+        score: user.score,
+        cardsWon: user.cardsWon,
+        isBot: false,
+        isCurrentTurn: _currentTurnIndex == 0,
+        turnProgress: 1.0 - _timerController.value,
+        position: PlayerPositionOnTable.bottom,
+        calloutMessage: user.currentCallout,
+        cardsInHandCount: user.hand.length,
+        avatarColor: user.color,
+        avatarId: user.avatarId,
+        isMano: _manoIndex == 0,
       ),
     );
   }
@@ -1629,17 +1603,18 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
             // Mesa con cartas esparcidas boca abajo de forma natural
             SizedBox(
-              width: 320,
-              height: 290,
+              width: 340,
+              height: 330,
               child: Stack(
+                clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: _manoCandidates.map((cand) {
                   final isChosen = cand.chosenByPlayerIndex != null;
                   final player = isChosen ? _players[cand.chosenByPlayerIndex!] : null;
 
                   return Positioned(
-                    top: 115 + cand.topOffset,
-                    left: 120 + cand.leftOffset,
+                    top: 125 + cand.topOffset,
+                    left: 140 + cand.leftOffset,
                     child: GestureDetector(
                       onTap: () => _onCandidateCardTapped(cand),
                       child: Transform.rotate(
@@ -1746,7 +1721,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Número cantado durante el Canto de Mesa (estampado en madera con sombra pura)
-                if (_isFirstRoundDealing && spokenNum != null)
+                if (_isDealing && _isFirstRoundDealing && spokenNum != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 2),
                     child: Text(

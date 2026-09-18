@@ -46,18 +46,53 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
     ProfileOptionsDialog.show(context);
   }
 
+  void _showComingSoonToast(String message) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.lock_clock_rounded, color: Color(0xFFFDE047), size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF0F172A),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Color(0xFFF59E0B), width: 1.2),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   void _openLearnRulesDialog() {
     final rules = GameRulesData.getRules('la_caida');
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1B4B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFFF59E0B), width: 1.5),
+        ),
         title: Row(
           children: [
-            const Icon(Icons.menu_book_rounded, color: Color(0xFF38BDF8)),
+            const Icon(Icons.menu_book_rounded, color: Color(0xFFFBBF24)),
             const SizedBox(width: 8),
-            Text(rules.title, style: const TextStyle(color: Colors.white, fontSize: 18)),
+            Expanded(
+              child: Text(
+                rules.title,
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
           ],
         ),
         content: SizedBox(
@@ -86,14 +121,18 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Entendido', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold)),
+            child: const Text('Entendido', style: TextStyle(color: Color(0xFFFBBF24), fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  void _showGamePreferencesDialog({required int players, required bool teams}) {
+  void _showGamePreferencesDialog({
+    required int players,
+    required bool teams,
+    bool isVsBot = false,
+  }) {
     setState(() {
       _selectedTotalPlayers = players;
       _selectedTeams = teams;
@@ -109,32 +148,37 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFF708FA8), // Fondo azul pastel de la captura 4
+                color: const Color(0xFF0F172A),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFBAE6FD), width: 2),
+                border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
+                    color: Colors.black.withValues(alpha: 0.6),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Título
+                  // Título con estilo de placa dorada
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                      ),
                       borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
                     ),
-                    child: const Text(
-                      'Preferencias de juego\nUn Jugador',
+                    child: Text(
+                      isVsBot
+                          ? 'Preferencias de juego\nVs Bot'
+                          : 'Preferencias de juego\n2 vs 2 (Parejas)',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF1E1B4B),
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontWeight: FontWeight.w900,
                         fontSize: 14,
                       ),
@@ -142,12 +186,13 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Contenedor interior blanco
+                  // Contenedor interior oscuro armonioso
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEEF2FF),
+                      color: const Color(0xFF1E293B),
                       borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFF334155), width: 1),
                     ),
                     child: Column(
                       children: [
@@ -158,9 +203,9 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                             const Text(
                               'Entrada',
                               style: TextStyle(
-                                color: Color(0xFF1E3A8A),
+                                color: Colors.white,
                                 fontWeight: FontWeight.w900,
-                                fontSize: 18,
+                                fontSize: 16,
                               ),
                             ),
                             Row(
@@ -178,7 +223,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                                 const Text(
                                   '1',
                                   style: TextStyle(
-                                    color: Color(0xFF1E3A8A),
+                                    color: Color(0xFFFDE047),
                                     fontWeight: FontWeight.w900,
                                     fontSize: 18,
                                   ),
@@ -187,7 +232,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                             ),
                           ],
                         ),
-                        const Divider(height: 24),
+                        const Divider(height: 24, color: Colors.white12),
 
                         // Switch: Matando cantos
                         Row(
@@ -196,7 +241,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                             const Text(
                               'Matando cantos',
                               style: TextStyle(
-                                color: Color(0xFF1E1B4B),
+                                color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
@@ -204,7 +249,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                             Switch(
                               value: _isMatandoCantos,
                               activeThumbColor: Colors.white,
-                              activeTrackColor: const Color(0xFF38BDF8),
+                              activeTrackColor: const Color(0xFFF59E0B),
                               onChanged: (val) {
                                 setDialogState(() => _isMatandoCantos = val);
                                 setState(() => _isMatandoCantos = val);
@@ -212,62 +257,64 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
 
-                        // Modo de juego: 2 Jugadores / 4 Jugadores
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Modo de juego',
-                              style: TextStyle(
-                                color: Color(0xFF1E1B4B),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                setDialogState(() {
-                                  if (_selectedTotalPlayers == 2) {
-                                    _selectedTotalPlayers = 3;
-                                    _selectedTeams = false;
-                                  } else if (_selectedTotalPlayers == 3) {
-                                    _selectedTotalPlayers = 4;
-                                    _selectedTeams = true;
-                                  } else {
-                                    _selectedTotalPlayers = 2;
-                                    _selectedTeams = false;
-                                  }
-                                });
-                                setState(() {});
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1E3A8A),
-                                  borderRadius: BorderRadius.circular(10),
+                        // Solo en modo Vs Bot se muestra el selector de cantidad de jugadores
+                        // En 2 vs 2 no aparece ya que está predeterminado en parejas (4 Jug.)
+                        if (isVsBot) ...[
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Modo de juego',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
-                                child: Text(
-                                  _selectedTeams
-                                      ? '4 Jug. (Parejas)'
-                                      : '$_selectedTotalPlayers Jugadores',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  setDialogState(() {
+                                    if (_selectedTotalPlayers == 2) {
+                                      _selectedTotalPlayers = 3;
+                                    } else if (_selectedTotalPlayers == 3) {
+                                      _selectedTotalPlayers = 4;
+                                    } else {
+                                      _selectedTotalPlayers = 2;
+                                    }
+                                    _selectedTeams = false;
+                                  });
+                                  setState(() {});
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: const Color(0xFFFDE68A), width: 1),
+                                  ),
+                                  child: Text(
+                                    '$_selectedTotalPlayers Jugadores',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
                   const SizedBox(height: 18),
 
-                  // Botón Empezar
+                  // Botón Empezar dorado con brillo
                   GestureDetector(
                     onTap: () {
                       Navigator.of(ctx).pop();
@@ -277,11 +324,14 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1), // Índigo vibrante
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
+                        ),
                         borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF4338CA).withValues(alpha: 0.6),
+                            color: const Color(0xFFD97706).withValues(alpha: 0.5),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -289,7 +339,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                       ),
                       child: const Center(
                         child: Text(
-                          'Empezar',
+                          '¡Empezar!',
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w900,
@@ -327,23 +377,32 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1B4B), // Púrpura oscuro base
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 1. Barra Superior con Perfil, Monedas y Tickets
-            _buildTopBar(),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF0F172A), // Midnight slate
+              Color(0xFF1E1B4B), // Deep royal indigo
+              Color(0xFF0F172A),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // 1. Barra Superior con Perfil, Monedas y Tickets
+              _buildTopBar(),
 
-            // 2. Contenido Central (Lobby Principal o Sub-menú Un Jugador)
-            Expanded(
-              child: _currentView == 'un_jugador'
-                  ? _buildUnJugadorView()
-                  : _buildMainLobbyView(),
-            ),
-
-            // 3. Barra Inferior de Iconos
-            _buildBottomBar(),
-          ],
+              // 2. Contenido Central (Lobby Principal o Sub-menú Un Jugador)
+              Expanded(
+                child: _currentView == 'un_jugador'
+                    ? _buildUnJugadorView()
+                    : _buildMainLobbyView(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -353,8 +412,13 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF2E1065).withValues(alpha: 0.8),
-        border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+        color: const Color(0xFF0F172A).withValues(alpha: 0.95),
+        border: Border(
+          bottom: BorderSide(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+            width: 1,
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -374,10 +438,10 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                     Container(
                       padding: const EdgeInsets.all(2),
                       decoration: const BoxDecoration(
-                        color: Color(0xFFD97706),
+                        color: Color(0xFFF59E0B),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.edit, size: 10, color: Colors.white),
+                      child: const Icon(Icons.edit, size: 10, color: Color(0xFF78350F)),
                     ),
                   ],
                 ),
@@ -399,13 +463,13 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1B4B),
+              color: const Color(0xFF1E293B),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFFDE047), width: 1),
+              border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
             ),
             child: Row(
               children: [
-                const Icon(Icons.monetization_on_rounded, color: Color(0xFFFDE047), size: 16),
+                const Icon(Icons.monetization_on_rounded, color: Color(0xFFFBBF24), size: 16),
                 const SizedBox(width: 4),
                 Text(
                   _profileService.coins.toString().replaceAllMapped(
@@ -427,13 +491,13 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1B4B),
+              color: const Color(0xFF1E293B),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF59E0B), width: 1),
+              border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
             ),
             child: Row(
               children: [
-                const Icon(Icons.confirmation_number_rounded, color: Color(0xFFF59E0B), size: 16),
+                const Icon(Icons.confirmation_number_rounded, color: Color(0xFFFBBF24), size: 16),
                 const SizedBox(width: 4),
                 Text(
                   '${_profileService.tickets}/10',
@@ -448,13 +512,10 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
           ),
           const SizedBox(width: 6),
 
-          // Engranaje de Ajustes
+          // Engranaje de Ajustes / Guía
           IconButton(
             icon: const Icon(Icons.settings_rounded, color: Colors.white70),
-            onPressed: () {
-              // Dialog de ajustes rápidos o info
-              _openLearnRulesDialog();
-            },
+            onPressed: _openLearnRulesDialog,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
@@ -464,95 +525,146 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
   }
 
   Widget _buildMainLobbyView() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        children: [
-          // Lado Izquierdo: Iconos laterales pequeños
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _buildSideIcon(Icons.ondemand_video_rounded, Colors.redAccent),
-              const SizedBox(height: 16),
-              _buildSideIcon(Icons.shopping_cart_rounded, Colors.orangeAccent),
-              const SizedBox(height: 16),
-              _buildSideIcon(Icons.camera_alt_rounded, Colors.pinkAccent),
-              const SizedBox(height: 16),
-              _buildSideIcon(Icons.mail_rounded, Colors.amberAccent),
+              // Panel central de Opciones de Juego estilo arcade
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.5),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Plaqueta de encabezado estilo arcade
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 2)),
+                        ],
+                      ),
+                      child: const Text(
+                        'MODOS DE JUEGO',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // 1. Un Jugador (Hero Button principal activo)
+                    _buildActionCard(
+                      title: 'Un Jugador',
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderColor: const Color(0xFFFDE68A),
+                      textColor: Colors.white,
+                      badge: 'VS',
+                      badgeColor: const Color(0xFFDC2626),
+                      icon: Icons.smart_toy_rounded,
+                      iconColor: Colors.white,
+                      onTap: () {
+                        setState(() => _currentView = 'un_jugador');
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 2. Multijugador (BLOQUEADO: Para jugar Online o en Red)
+                    _buildActionCard(
+                      title: 'Multijugador',
+                      subtitle: 'Online / Red local',
+                      bgColor: const Color(0xFF1E293B),
+                      borderColor: const Color(0xFF334155),
+                      textColor: const Color(0xFFCBD5E1),
+                      icon: Icons.public_rounded,
+                      iconColor: const Color(0xFF64748B),
+                      isLocked: true,
+                      onTap: () {
+                        _showComingSoonToast('Modo Multijugador (Online / Red local) próximamente.');
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 3. Aprende (Tutorial interactivo de reglas)
+                    _buildActionCard(
+                      title: 'Aprende',
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFEA580C), Color(0xFFC2410C)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderColor: const Color(0xFFFDBA74),
+                      textColor: Colors.white,
+                      icon: Icons.menu_book_rounded,
+                      iconColor: Colors.white,
+                      onTap: _openLearnRulesDialog,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 4. Personalizar (Bloqueado)
+                    _buildActionCard(
+                      title: 'Personalizar',
+                      bgColor: const Color(0xFF1E293B),
+                      borderColor: const Color(0xFF334155),
+                      textColor: const Color(0xFF94A3B8),
+                      icon: Icons.style_rounded,
+                      iconColor: const Color(0xFF64748B),
+                      isLocked: true,
+                      onTap: () {
+                        _showComingSoonToast('Próximamente: Barajas y tapetes personalizados.');
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 5. Amigos (Bloqueado)
+                    _buildActionCard(
+                      title: 'Amigos',
+                      bgColor: const Color(0xFF1E293B),
+                      borderColor: const Color(0xFF334155),
+                      textColor: const Color(0xFF94A3B8),
+                      icon: Icons.people_alt_rounded,
+                      iconColor: const Color(0xFF64748B),
+                      isLocked: true,
+                      onTap: () {
+                        _showComingSoonToast('Próximamente: Lista y salas de amigos.');
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          const Spacer(),
-
-          // Lado Derecho: Tarjetas principales curvadas
-          SizedBox(
-            width: 220,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // 1. Multijugador
-                _buildActionCard(
-                  title: 'Multijugador',
-                  bgColor: const Color(0xFFFACC15), // Amarillo
-                  textColor: const Color(0xFF78350F),
-                  icon: Icons.public_rounded,
-                  iconColor: const Color(0xFF0284C7),
-                  onTap: () {
-                    // Modal de multijugador o red local
-                    _showGamePreferencesDialog(players: 2, teams: false);
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // 2. Un Jugador
-                _buildActionCard(
-                  title: 'Un Jugador',
-                  bgColor: const Color(0xFFFB923C), // Naranja
-                  textColor: const Color(0xFF7C2D12),
-                  badge: 'VS',
-                  badgeColor: const Color(0xFFEF4444),
-                  icon: Icons.smartphone_rounded,
-                  iconColor: const Color(0xFF1E3A8A),
-                  onTap: () {
-                    setState(() => _currentView = 'un_jugador');
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // 3. Aprende (Tutorial y Reglas)
-                _buildActionCard(
-                  title: 'Aprende',
-                  bgColor: const Color(0xFF38BDF8), // Cian
-                  textColor: const Color(0xFF0C4A6E),
-                  icon: Icons.menu_book_rounded,
-                  iconColor: Colors.purpleAccent,
-                  onTap: _openLearnRulesDialog,
-                ),
-                const SizedBox(height: 12),
-
-                // 4. Personalizar (Bloqueado)
-                _buildActionCard(
-                  title: 'Personalizar',
-                  bgColor: const Color(0xFF475569), // Gris
-                  textColor: Colors.white,
-                  icon: Icons.style_rounded,
-                  iconColor: Colors.white70,
-                  isLocked: true,
-                ),
-                const SizedBox(height: 12),
-
-                // 5. Amigos (Bloqueado)
-                _buildActionCard(
-                  title: 'Amigos',
-                  bgColor: const Color(0xFF64748B), // Gris pizarra
-                  textColor: Colors.white,
-                  icon: Icons.people_alt_rounded,
-                  iconColor: Colors.white70,
-                  isLocked: true,
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -562,27 +674,29 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
       children: [
         // Cabecera con botón de regreso
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
               GestureDetector(
                 onTap: () => setState(() => _currentView = 'main'),
                 child: Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white12,
-                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5), width: 1),
                   ),
                   child: const Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.arrow_back_ios_rounded, color: Colors.white, size: 18),
-                      SizedBox(width: 4),
+                      Icon(Icons.arrow_back_ios_rounded, color: Color(0xFFFBBF24), size: 16),
+                      SizedBox(width: 6),
                       Text(
                         'Un Jugador',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,
-                          fontSize: 18,
+                          fontSize: 16,
                         ),
                       ),
                     ],
@@ -594,85 +708,103 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
         ),
         const Spacer(),
 
-        // Tarjetas de Selección "Vs Bot" y "2 vs 2"
+        // Tarjetas de Selección "Vs Bot" y "2 vs 2" con paleta armoniosa
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Opción 1: Vs Bot (1 vs 1)
+            // Opción 1: Vs Bot (Mano a Mano o varios jugadores individuales)
             GestureDetector(
-              onTap: () => _showGamePreferencesDialog(players: 2, teams: false),
+              onTap: () => _showGamePreferencesDialog(
+                players: _selectedTeams ? 2 : _selectedTotalPlayers.clamp(2, 4),
+                teams: false,
+                isVsBot: true,
+              ),
               child: Container(
-                width: 140,
-                height: 140,
+                width: 145,
+                height: 155,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFA855F7), // Púrpura
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFC084FC), width: 2),
+                  border: Border.all(color: const Color(0xFFFDE68A), width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF7E22CE).withValues(alpha: 0.5),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      color: const Color(0xFFD97706).withValues(alpha: 0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5),
                     ),
                   ],
                 ),
                 child: const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.smart_toy_rounded, color: Color(0xFF86EFAC), size: 52),
-                    SizedBox(height: 6),
+                    Icon(Icons.smart_toy_rounded, color: Colors.white, size: 52),
+                    SizedBox(height: 8),
                     Text(
                       'Vs Bot',
                       style: TextStyle(
-                        color: Color(0xFF86EFAC),
+                        color: Colors.white,
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
+                    SizedBox(height: 2),
                     Text(
                       'Mano a Mano (1v1)',
-                      style: TextStyle(color: Colors.white70, fontSize: 10),
+                      style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(width: 24),
+            const SizedBox(width: 20),
 
-            // Opción 2: 2 vs 2 (Parejas)
+            // Opción 2: 2 vs 2 (Parejas fijas de 4 jugadores)
             GestureDetector(
-              onTap: () => _showGamePreferencesDialog(players: 4, teams: true),
+              onTap: () => _showGamePreferencesDialog(
+                players: 4,
+                teams: true,
+                isVsBot: false,
+              ),
               child: Container(
-                width: 140,
-                height: 140,
+                width: 145,
+                height: 155,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D9488), // Verde azulado
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFEA580C), Color(0xFFC2410C)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFF2DD4BF), width: 2),
+                  border: Border.all(color: const Color(0xFFFDBA74), width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF0F766E).withValues(alpha: 0.5),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      color: const Color(0xFFC2410C).withValues(alpha: 0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5),
                     ),
                   ],
                 ),
                 child: const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.group_rounded, color: Color(0xFFC084FC), size: 52),
-                    SizedBox(height: 6),
+                    Icon(Icons.group_rounded, color: Colors.white, size: 52),
+                    SizedBox(height: 8),
                     Text(
                       '2 vs 2',
                       style: TextStyle(
-                        color: Color(0xFFC084FC),
+                        color: Colors.white,
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
+                    SizedBox(height: 2),
                     Text(
                       'En Parejas (4 Jug.)',
-                      style: TextStyle(color: Colors.white70, fontSize: 10),
+                      style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -687,7 +819,10 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
 
   Widget _buildActionCard({
     required String title,
-    required Color bgColor,
+    String? subtitle,
+    Color? bgColor,
+    Gradient? gradient,
+    Color? borderColor,
     required Color textColor,
     required IconData icon,
     required Color iconColor,
@@ -697,13 +832,18 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
     VoidCallback? onTap,
   }) {
     return GestureDetector(
-      onTap: isLocked ? null : onTap,
+      onTap: onTap,
       child: Container(
-        height: 52,
+        height: subtitle != null ? 56 : 52,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(16),
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: borderColor ?? Colors.transparent,
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.35),
@@ -716,7 +856,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
           children: [
             if (badge != null)
               Container(
-                margin: const EdgeInsets.only(right: 6),
+                margin: const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: badgeColor ?? Colors.red,
@@ -727,82 +867,48 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 11,
+                    fontSize: 10,
                   ),
                 ),
               ),
-            Icon(icon, color: iconColor, size: 26),
-            const SizedBox(width: 8),
+            Icon(icon, color: iconColor, size: 24),
+            const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: textColor,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
               ),
             ),
             if (isLocked)
-              const Icon(Icons.lock_rounded, color: Colors.white54, size: 18),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.lock_rounded, color: Color(0xFF94A3B8), size: 16),
+              ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildSideIcon(IconData icon, Color color) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: const Color(0xFF2E1065),
-        shape: BoxShape.circle,
-        border: Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
-      ),
-      child: Center(
-        child: Icon(icon, color: color, size: 20),
-      ),
-    );
-  }
-
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2E1065).withValues(alpha: 0.9),
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildBottomIcon(Icons.video_collection_rounded, Colors.blueAccent),
-          _buildBottomIcon(Icons.card_giftcard_rounded, Colors.orangeAccent),
-          _buildBottomIcon(Icons.star_rounded, Colors.yellowAccent, isBig: true),
-          _buildBottomIcon(Icons.handshake_rounded, Colors.tealAccent),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomIcon(IconData icon, Color color, {bool isBig = false}) {
-    final s = isBig ? 46.0 : 38.0;
-    return Container(
-      width: s,
-      height: s,
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1B4B),
-        shape: BoxShape.circle,
-        border: Border.all(color: color, width: isBig ? 2 : 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.4),
-            blurRadius: 6,
-          ),
-        ],
-      ),
-      child: Center(
-        child: Icon(icon, color: color, size: isBig ? 24 : 18),
       ),
     );
   }

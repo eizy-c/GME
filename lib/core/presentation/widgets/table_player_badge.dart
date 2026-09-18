@@ -4,15 +4,21 @@ import 'speech_bubble.dart';
 
 enum PlayerPositionOnTable { bottom, top, left, right }
 
-/// Badge visual para representar a cualquier jugador o bot en la mesa.
-/// Incluye avatar ilustrado, barra de tiempo de turno, conteo de cartas/puntos,
-/// indicador de bot y bocadillo de diálogo de cantos.
+/// Badge visual unificado para representar a cualquier jugador o bot en la mesa.
+/// Traduce el diseño técnico del boceto:
+/// - Barra de tiempo curva en la esquina superior izquierda.
+/// - Corona dorada flotante de "Mano" en la esquina superior derecha.
+/// - Cápsulas gemelas de Puntos (★) y Cartas recogidas (🎴) en el borde inferior del avatar.
+/// - Placa horizontal redondeada con el nombre del jugador.
+/// - Mini-cartas boca abajo para rivales.
 class TablePlayerBadge extends StatelessWidget {
   final String name;
-  final int scoreOrCards;
+  final int? scoreOrCards;
+  final int? score;
+  final int? cardsWon;
   final bool isBot;
   final bool isCurrentTurn;
-  final double turnProgress; // 0.0 a 1.0 para la barra de tiempo verde
+  final double turnProgress; // 0.0 a 1.0 para la barra de tiempo
   final PlayerPositionOnTable position;
   final String? calloutMessage;
   final int cardsInHandCount;
@@ -24,7 +30,9 @@ class TablePlayerBadge extends StatelessWidget {
   const TablePlayerBadge({
     super.key,
     required this.name,
-    required this.scoreOrCards,
+    this.scoreOrCards,
+    this.score,
+    this.cardsWon,
     this.isBot = true,
     this.isCurrentTurn = false,
     this.turnProgress = 1.0,
@@ -35,10 +43,12 @@ class TablePlayerBadge extends StatelessWidget {
     this.isMano = false,
     this.avatarId,
     this.onTap,
-  });
+  }) : assert(scoreOrCards != null || score != null, 'Debe especificarse score o scoreOrCards');
 
   @override
   Widget build(BuildContext context) {
+    const avatarSize = 56.0;
+
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
@@ -48,180 +58,195 @@ class TablePlayerBadge extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Barra de tiempo de turno animada (verde brillante) si es su turno
-              if (isCurrentTurn) ...[
-                _buildTurnTimerBar(),
-                const SizedBox(height: 4),
-              ],
-
-              // Contenedor principal del Avatar y sus etiquetas
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Cuadro del Avatar con borde brillante si está en turno
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1B4B),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isCurrentTurn
-                            ? const Color(0xFF22C55E)
-                            : const Color(0xFF818CF8).withValues(alpha: 0.6),
-                        width: isCurrentTurn ? 2.5 : 1.5,
-                      ),
-                      boxShadow: [
-                        if (isCurrentTurn)
-                          BoxShadow(
-                            color: const Color(0xFF22C55E).withValues(alpha: 0.5),
-                            blurRadius: 10,
-                            spreadRadius: 2,
-                          )
-                        else
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.4),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+              // Contenedor del Avatar con decoraciones flotantes
+              SizedBox(
+                width: avatarSize,
+                height: avatarSize,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    // 1. Barra de tiempo curva en la esquina superior izquierda
+                    if (isCurrentTurn)
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _CurvedCornerTimerPainter(
+                            progress: turnProgress,
+                            isCurrentTurn: isCurrentTurn,
                           ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: avatarId != null
-                          ? AvatarView(
-                              avatarId: avatarId!,
-                              size: 54,
-                              showBorder: false,
-                            )
-                          : Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Container(
-                                  color: avatarColor.withValues(alpha: 0.35),
-                                ),
-                                Icon(
-                                  isBot ? Icons.smart_toy_rounded : Icons.person_rounded,
-                                  size: 32,
-                                  color: Colors.white,
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-
-                  // Insignia dorada de Mano (jugador con prioridad en la mano/ronda)
-                  if (isMano)
-                    Positioned(
-                      top: -7,
-                      left: -6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
-                          ),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.white, width: 1.2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFEAB308).withValues(alpha: 0.7),
-                              blurRadius: 5,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.pan_tool_alt_rounded, size: 9, color: Color(0xFF713F12)),
-                            SizedBox(width: 2),
-                            Text(
-                              'MANO',
-                              style: TextStyle(
-                                color: Color(0xFF713F12),
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ],
                         ),
                       ),
-                    ),
 
-                  // Indicador de Bot (+🤖 verde menta) en la esquina superior derecha
-                  if (isBot)
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0D9488),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.2),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black38, blurRadius: 2),
-                          ],
-                        ),
-                        child: const Icon(Icons.smart_toy_rounded, size: 10, color: Colors.white),
-                      ),
-                    ),
-
-                  // Chip de cartas/puntos (cajita oscura con borde)
-                  Positioned(
-                    bottom: -6,
-                    right: -6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    // 2. Cuadro del Avatar con squircle y borde suave
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      width: avatarSize,
+                      height: avatarSize,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(6),
+                        color: const Color(0xFF1E1B4B),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isCurrentTurn ? const Color(0xFF22C55E) : Colors.white54,
-                          width: 1,
+                          color: isCurrentTurn
+                              ? const Color(0xFF22C55E)
+                              : const Color(0xFF818CF8).withValues(alpha: 0.5),
+                          width: isCurrentTurn ? 2.5 : 1.5,
                         ),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black45, blurRadius: 3),
+                        boxShadow: [
+                          if (isCurrentTurn)
+                            BoxShadow(
+                              color: const Color(0xFF22C55E).withValues(alpha: 0.45),
+                              blurRadius: 10,
+                              spreadRadius: 1.5,
+                            )
+                          else
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
                         ],
                       ),
-                      child: Text(
-                        '$scoreOrCards',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                        ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: avatarId != null
+                            ? AvatarView(
+                                avatarId: avatarId!,
+                                size: avatarSize,
+                                showBorder: false,
+                              )
+                            : Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Container(
+                                    color: avatarColor.withValues(alpha: 0.35),
+                                  ),
+                                  Icon(
+                                    isBot ? Icons.smart_toy_rounded : Icons.person_rounded,
+                                    size: 30,
+                                    color: Colors.white,
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
-                  ),
-                ],
+
+                    // 3. Corona dorada flotante de "MANO" en la esquina superior derecha
+                    if (isMano)
+                      Positioned(
+                        top: -8,
+                        right: -10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white, width: 1.3),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFEAB308).withValues(alpha: 0.65),
+                                blurRadius: 6,
+                                spreadRadius: 1,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '👑',
+                                style: TextStyle(fontSize: 9.5, height: 1.0),
+                              ),
+                              SizedBox(width: 2.5),
+                              Text(
+                                'MANO',
+                                style: TextStyle(
+                                  color: Color(0xFF713F12),
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                    // 4. Cápsulas gemelas: Puntos (★) y Cartas recogidas (🎴) en el borde inferior
+                    Positioned(
+                      bottom: -9,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildPointsPill(),
+                          if (cardsWon != null) ...[
+                            const SizedBox(width: 3),
+                            _buildCardsWonPill(),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
-              const SizedBox(height: 5),
+              // Separación para librar las cápsulas que sobresalen hacia abajo
+              const SizedBox(height: 12),
 
-              // Nombre del jugador
+              // 5. Placa horizontal del Nombre del Jugador
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isCurrentTurn ? const Color(0xFF86EFAC) : Colors.white,
-                    fontSize: 11,
-                    fontWeight: isCurrentTurn ? FontWeight.bold : FontWeight.w600,
+                  border: Border.all(
+                    color: isCurrentTurn
+                        ? const Color(0xFF22C55E).withValues(alpha: 0.8)
+                        : Colors.white24,
+                    width: isCurrentTurn ? 1.2 : 0.8,
                   ),
+                  boxShadow: [
+                    if (isCurrentTurn)
+                      BoxShadow(
+                        color: const Color(0xFF22C55E).withValues(alpha: 0.35),
+                        blurRadius: 6,
+                        spreadRadius: 1,
+                      )
+                    else
+                      const BoxShadow(
+                        color: Colors.black38,
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isBot) ...[
+                      const Icon(Icons.smart_toy_rounded, size: 10, color: Color(0xFF2DD4BF)),
+                      const SizedBox(width: 3),
+                    ],
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isCurrentTurn ? const Color(0xFF86EFAC) : Colors.white,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
-              // Representación de cartas en mano para rivales
+              // 6. Mini-cartas en mano para rivales
               if (position != PlayerPositionOnTable.bottom && cardsInHandCount > 0) ...[
                 const SizedBox(height: 3),
                 _buildMiniFacedownCards(),
@@ -230,10 +255,10 @@ class TablePlayerBadge extends StatelessWidget {
           ),
         ),
 
-        // Bocadillo de canto ("Patrulla", "Ronda", "¡Caída!", "Truco")
+        // Bocadillo flotante de cantos
         if (calloutMessage != null && calloutMessage!.isNotEmpty)
           Positioned(
-            top: position == PlayerPositionOnTable.top ? 64 : -45,
+            top: position == PlayerPositionOnTable.top ? 85 : -52,
             child: SpeechBubble(
               text: calloutMessage!,
               pointsDown: position != PlayerPositionOnTable.top,
@@ -243,35 +268,82 @@ class TablePlayerBadge extends StatelessWidget {
     );
   }
 
-  Widget _buildTurnTimerBar() {
+  /// Cápsula izquierda: Puntos (★)
+  Widget _buildPointsPill() {
+    final displayValue = score ?? scoreOrCards ?? 0;
     return Container(
-      width: 50,
-      height: 4,
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
       decoration: BoxDecoration(
-        color: Colors.black45,
-        borderRadius: BorderRadius.circular(3),
-      ),
-      child: FractionallySizedBox(
-        alignment: Alignment.centerLeft,
-        widthFactor: turnProgress.clamp(0.0, 1.0),
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF22C55E),
-            borderRadius: BorderRadius.circular(3),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0xFF22C55E),
-                blurRadius: 4,
-              ),
-            ],
-          ),
+        color: const Color(0xFF0F172A).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: const Color(0xFFFBBF24).withValues(alpha: 0.8),
+          width: 1,
         ),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black54,
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, size: 10.5, color: Color(0xFFFDE047)),
+          const SizedBox(width: 2),
+          Text(
+            '$displayValue',
+            style: const TextStyle(
+              color: Color(0xFFFDE047),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Cápsula derecha: Cartas recogidas (🎴)
+  Widget _buildCardsWonPill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: const Color(0xFF38BDF8).withValues(alpha: 0.8),
+          width: 1,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black54,
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.style_rounded, size: 9.5, color: Color(0xFF38BDF8)),
+          const SizedBox(width: 2),
+          Text(
+            '$cardsWon',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildMiniFacedownCards() {
-    // Si la posición es izquierda o derecha, se pueden mostrar de lado
     final count = cardsInHandCount.clamp(0, 5);
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -302,5 +374,90 @@ class TablePlayerBadge extends StatelessWidget {
         );
       }),
     );
+  }
+}
+
+/// Painter para la barra de tiempo en L / curva en la esquina superior izquierda del avatar
+class _CurvedCornerTimerPainter extends CustomPainter {
+  final double progress;
+  final bool isCurrentTurn;
+
+  _CurvedCornerTimerPainter({
+    required this.progress,
+    required this.isCurrentTurn,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!isCurrentTurn) return;
+
+    const strokeWidth = 3.8;
+    const padding = 2.5;
+    const cornerRadius = 16.0;
+
+    // Ruta en L curvada que abraza la esquina superior izquierda del avatar:
+    // Empieza a 65% de altura en el lateral izquierdo, sube por la esquina redondeada
+    // y termina a 65% de ancho en el borde superior.
+    final path = Path();
+    final startY = size.height * 0.65;
+    final endX = size.width * 0.65;
+
+    path.moveTo(-padding, startY);
+    path.lineTo(-padding, cornerRadius);
+    path.arcToPoint(
+      const Offset(cornerRadius, -padding),
+      radius: const Radius.circular(cornerRadius + padding),
+      clockwise: true,
+    );
+    path.lineTo(endX, -padding);
+
+    // 1. Trazado sutil de fondo
+    final trackPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.15)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawPath(path, trackPaint);
+
+    // 2. Trazo de progreso activo
+    final clampedProgress = progress.clamp(0.0, 1.0);
+    if (clampedProgress <= 0.001) return;
+
+    final metrics = path.computeMetrics().toList();
+    if (metrics.isEmpty) return;
+
+    final metric = metrics.first;
+    final extractLength = metric.length * clampedProgress;
+    final progressPath = metric.extractPath(0, extractLength);
+
+    final isWarning = clampedProgress <= 0.25;
+    final activeColor = isWarning
+        ? const Color(0xFFEF4444)
+        : const Color(0xFF22C55E);
+
+    // Resplandor exterior
+    final glowPaint = Paint()
+      ..color = activeColor.withValues(alpha: 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth + 2.5
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+
+    canvas.drawPath(progressPath, glowPaint);
+
+    // Trazo principal nítido
+    final activePaint = Paint()
+      ..color = activeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawPath(progressPath, activePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CurvedCornerTimerPainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.isCurrentTurn != isCurrentTurn;
   }
 }

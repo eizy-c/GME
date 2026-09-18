@@ -151,7 +151,9 @@ void main() {
       expect(find.text('Player 1'), findsOneWidget);
       expect(find.text('+2000'), findsOneWidget);
       expect(find.text('-1000'), findsOneWidget);
+      expect(find.text('Lobby'), findsOneWidget);
       expect(find.text('Revancha'), findsOneWidget);
+      expect(find.text('Atrás'), findsNothing);
     });
   });
 

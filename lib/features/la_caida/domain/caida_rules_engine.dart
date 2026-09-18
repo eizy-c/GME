@@ -23,29 +23,25 @@ class CaidaRulesEngine {
     return (idxA - idxB).abs() == 1;
   }
 
-  /// Puntos otorgados por una Ronda según el valor del par.
+  /// Puntos otorgados por una Ronda según el valor del naipe:
   /// 1 al 7: +1 punto
   /// 10 (Sota): +2 puntos
   /// 11 (Caballo): +3 puntos
-  /// Puntos otorgados por una Ronda según el valor del naipe:
-  /// 1 al 7: +2 puntos base
-  /// 10 (Sota): +3 puntos
-  /// 11 (Caballo): +4 puntos
-  /// 12 (Rey): +5 puntos
+  /// 12 (Rey): +4 puntos
   static int getCardRondaPoints(int number) {
     switch (number) {
       case 10:
-        return 3;
-      case 11:
-        return 4;
-      case 12:
-        return 5;
-      default:
         return 2;
+      case 11:
+        return 3;
+      case 12:
+        return 4;
+      default:
+        return 1;
     }
   }
 
-  /// Puntos otorgados por una Caída según el valor del naipe caído.
+  /// Puntos otorgados por una Caída según el valor del naipe caído:
   /// 1 al 7: +1 punto
   /// 10 (Sota): +2 puntos
   /// 11 (Caballo): +3 puntos
@@ -65,9 +61,9 @@ class CaidaRulesEngine {
 
   /// Puntos otorgados por Mesa Limpia:
   /// +4 puntos si aún quedan cartas en mazo/manojo.
-  /// +2 puntos si es la última mano con el mazo ya agotado.
+  /// 0 puntos si es la última mano con el mazo ya agotado (no vale mesa limpia).
   static int getLimpiaPoints({required bool isDeckEmpty}) {
-    return isDeckEmpty ? 2 : 4;
+    return isDeckEmpty ? 0 : 4;
   }
 
   // ===========================================================================
@@ -384,13 +380,17 @@ class CaidaRulesEngine {
 
   /// Resuelve el cierre de mano o fin del mazo de 40 naipes:
   /// - Cartas sobrantes en mesa se las lleva el último jugador que capturó legítimamente.
-  /// - Conteo por volumen: Quien tenga más de 20 cartas físicas suma (Cartas - 20) puntos.
+  /// - Conteo por volumen:
+  ///   • 2 Jugadores o Parejas (Equipos): se cuenta hasta 20 cartas (Total - 20).
+  ///   • 3 Jugadores: se cuenta hasta 13 cartas (Total - 13) y 14 cartas el repartidor (Total - 14).
+  ///   • 4 Jugadores (individual): se cuenta hasta 10 cartas (Total - 10).
   /// - Meta de partida: 24 puntos.
   static HandResolutionResult resolveHandEnd({
     required List<CaidaPlayerState> players,
     required List<SpanishCard> remainingTable,
     required String? lastCapturingPlayerId,
     bool isTeams = false,
+    String? dealerId,
   }) {
     final events = <String>[];
     final totalCardsWon = <String, int>{};
@@ -412,7 +412,7 @@ class CaidaRulesEngine {
 
     // 2. Conteo físico de naipes por jugador o bando
     if (isTeams) {
-      // Agrupar por bando
+      // Agrupar por bando (umbral 20)
       final teamCards = <int, int>{};
       for (final p in players) {
         teamCards[p.teamId] = (teamCards[p.teamId] ?? 0) + (totalCardsWon[p.id] ?? 0);
@@ -431,14 +431,24 @@ class CaidaRulesEngine {
         }
       }
     } else {
-      // Individual: cada jugador contabiliza sus cartas
+      // Individual: cada jugador contabiliza sus cartas según número de jugadores
+      final countPlayers = players.length;
       for (final p in players) {
         final count = totalCardsWon[p.id] ?? 0;
-        if (count > 20) {
-          final bonus = count - 20;
+        int threshold = 20;
+        if (countPlayers == 3) {
+          threshold = (dealerId != null && p.id == dealerId) ? 14 : 13;
+        } else if (countPlayers >= 4) {
+          threshold = 10;
+        } else {
+          threshold = 20;
+        }
+
+        if (count > threshold) {
+          final bonus = count - threshold;
           volumeBonusPoints[p.id] = bonus;
           updatedScores[p.id] = (updatedScores[p.id] ?? 0) + bonus;
-          events.add('${p.name} superó 20 cartas físicas ($count cartas): +$bonus pts por volumen.');
+          events.add('${p.name} superó $threshold cartas físicas ($count cartas): +$bonus pts por volumen.');
         }
       }
     }

@@ -109,8 +109,8 @@ class TrivilinCanto extends Canto {
   IconData get icon => Icons.auto_awesome_rounded;
 }
 
-/// Vigía: Dos cartas iguales + una consecutiva según la secuencia tradicional.
-/// Otorga +8 puntos.
+/// Vigía: Dos cartas iguales + una consecutiva (que le sigue o le atrasa) según la secuencia tradicional.
+/// Otorga +7 puntos.
 class VigiaCanto extends Canto {
   final int pairNumber;
   final int consecutiveNumber;
@@ -128,7 +128,7 @@ class VigiaCanto extends Canto {
   String get name => '¡Vigía!';
 
   @override
-  int get points => 8;
+  int get points => 7;
 
   @override
   int get priority => 4;
@@ -137,7 +137,7 @@ class VigiaCanto extends Canto {
   int get tieBreakerValue => pairNumber * 100 + consecutiveNumber;
 
   @override
-  String get description => 'Par de $pairNumber y consecutiva $consecutiveNumber';
+  String get description => 'Par de $pairNumber con $consecutiveNumber (adyacente)';
 
   @override
   Color get accentColor => const Color(0xFFA855F7); // Púrpura
@@ -147,7 +147,7 @@ class VigiaCanto extends Canto {
 }
 
 /// Registro: Exactamente As, Caballo y Rey [1, 11, 12].
-/// Otorga +12 puntos (media partida).
+/// Otorga +8 puntos.
 class RegistroCanto extends Canto {
   const RegistroCanto({required super.cards});
 
@@ -158,7 +158,7 @@ class RegistroCanto extends Canto {
   String get name => '¡Registro!';
 
   @override
-  int get points => 12;
+  int get points => 8;
 
   @override
   int get priority => 3;
@@ -177,7 +177,7 @@ class RegistroCanto extends Canto {
 }
 
 /// Patrulla: Tres cartas consecutivas en la secuencia tradicional (ej: 4, 5, 6 o 6, 7, 10).
-/// Otorga +4 puntos.
+/// Otorga +6 puntos.
 class PatrullaCanto extends Canto {
   final int highestNumber;
 
@@ -193,7 +193,7 @@ class PatrullaCanto extends Canto {
   String get name => '¡Patrulla!';
 
   @override
-  int get points => 4;
+  int get points => 6;
 
   @override
   int get priority => 2;
@@ -212,11 +212,11 @@ class PatrullaCanto extends Canto {
 }
 
 /// Ronda: Dos cartas del mismo número en mano.
-/// Otorga +2 puntos base para números del 1 al 7, y puntos incrementales según figura:
-/// - 1 al 7: +2 pts
-/// - Sota (10): +3 pts
-/// - Caballo (11): +4 pts
-/// - Rey (12): +5 pts
+/// Otorga +1 punto base para números del 1 al 7, y puntos incrementales según figura:
+/// - 1 al 7: +1 pt
+/// - Sota (10): +2 pts
+/// - Caballo (11): +3 pts
+/// - Rey (12): +4 pts
 class RondaCanto extends Canto {
   final int pairNumber;
   final int nominalPoints;

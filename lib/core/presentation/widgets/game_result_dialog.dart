@@ -100,73 +100,50 @@ class GameResultDialog extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                // Fila de botones: Atrás, Lobby, Revancha
+                // Fila de dos botones: Lobby y Revancha
                 Row(
                   children: [
-                    // Botón Atrás
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
-                        onPressed: onBackToMenu,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE11D48), // Rosa intenso
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            side: const BorderSide(color: Colors.white, width: 1.5),
-                          ),
-                          elevation: 3,
-                        ),
-                        child: const Text(
-                          'Atrás',
-                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
                     // Botón Lobby
                     Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
+                      child: ElevatedButton.icon(
                         onPressed: onBackToMenu,
+                        icon: const Icon(Icons.home_rounded, size: 18),
+                        label: const Text(
+                          'Lobby',
+                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                        ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF64748B), // Gris azulado
+                          backgroundColor: const Color(0xFF475569), // Gris azulado elegante
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(16),
                             side: const BorderSide(color: Colors.white, width: 1.5),
                           ),
                           elevation: 3,
                         ),
-                        child: const Text(
-                          'Lobby',
-                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
 
                     // Botón Revancha
                     Expanded(
-                      flex: 3,
-                      child: ElevatedButton(
+                      child: ElevatedButton.icon(
                         onPressed: onRematch,
+                        icon: const Icon(Icons.replay_rounded, size: 18),
+                        label: const Text(
+                          'Revancha',
+                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                        ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF59E0B), // Naranja dorado
+                          backgroundColor: const Color(0xFFF59E0B), // Naranja dorado vibrante
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(16),
                             side: const BorderSide(color: Colors.white, width: 1.5),
                           ),
                           elevation: 4,
-                        ),
-                        child: const Text(
-                          'Revancha',
-                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
                         ),
                       ),
                     ),

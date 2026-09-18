@@ -30,13 +30,13 @@ void main() {
       expect(getRondaCaidaPoints(12), equals(4), reason: 'Rey (12) debe valer 4 puntos');
     });
 
-    test('Mesa Limpia otorga +4 con mazo activo y +2 con manojo vacío', () {
+    test('Mesa Limpia otorga +4 con mazo activo y 0 con manojo vacío', () {
       int getLimpiaPoints({required bool hasCardsInDeck}) {
-        return hasCardsInDeck ? 4 : 2;
+        return hasCardsInDeck ? 4 : 0;
       }
 
       expect(getLimpiaPoints(hasCardsInDeck: true), equals(4));
-      expect(getLimpiaPoints(hasCardsInDeck: false), equals(2));
+      expect(getLimpiaPoints(hasCardsInDeck: false), equals(0));
     });
   });
 
