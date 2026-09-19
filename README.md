@@ -1,18 +1,18 @@
-# 🎴 GME — Compendio de Juegos Tradicionales
+# 🎴 CaidaGO — La Caída Tradicional
 
 <p align="center">
-  <img src="assets/cards/REV-CARD.png" width="120" alt="GME Card Back" />
+  <img src="assets/cards/REV-CARD.png" width="120" alt="CaidaGO Card Back" />
 </p>
 
 <p align="center">
-  <strong>GME</strong> es una aplicación multiplataforma moderna de alto rendimiento desarrollada en <strong>Flutter</strong> y <strong>Dart 3</strong> que rinde tributo a los juegos de mesa y naipes más representativos de la cultura hispana y venezolana: <strong>La Caída (con Baraja Española de 40 naipes)</strong> y el <strong>Dominó Tradicional (Doble 6)</strong>.
+  <strong>CaidaGO</strong> es una experiencia digital moderna de alto rendimiento desarrollada en <strong>Flutter</strong> y <strong>Dart 3</strong> que rinde tributo al juego de naipes más emblemático de la cultura tradicional venezolana e hispana: <strong>La Caída (con Baraja Española de 40 cartas)</strong>.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Flutter-3.29+-02569B?logo=flutter&logoColor=white" alt="Flutter" />
   <img src="https://img.shields.io/badge/Dart-3.7+-0175C2?logo=dart&logoColor=white" alt="Dart" />
   <img src="https://img.shields.io/badge/Plataformas-Android%20%7C%20Windows%20%7C%20Web%20%7C%20macOS%20%7C%20Linux-4CAF50" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-101%20Passed-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-106%20Passed-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/Linter-0%20Issues-brightgreen" alt="Linter" />
   <img src="https://img.shields.io/badge/Licencia-Libre%20%2F%20Cultural-blue" alt="License" />
 </p>
@@ -22,294 +22,272 @@
 ## 📑 Tabla de Contenidos
 
 1. [Novedades y Actualizaciones Recientes](#-novedades-y-actualizaciones-recientes)
-2. [Juegos y Dinámicas Incluidas](#-juegos-y-dinámicas-incluidas)
-   - [1. La Caída Tradicional](#1-la-caída-tradicional-baraja-española-de-40-naipes)
-   - [2. Dominó Tradicional (Doble 6)](#2-dominó-tradicional-doble-6)
-3. [Economía, Niveles y Mesas VIP](#-economía-niveles-y-mesas-vip)
-4. [Tutorial Interactivo (Tour de Novatos)](#-tutorial-interactivo-tour-de-novatos)
-5. [Requisitos del Sistema](#-requisitos-del-sistema)
-6. [Instalación y Configuración Paso a Paso](#-instalación-y-configuración-paso-a-paso)
-7. [Modos de Ejecución y Compilación](#-modos-de-ejecución-y-compilación)
-   - [Modo Web (Navegador)](#1-modo-web-google-chrome--edge)
-   - [Modo Windows Desktop (.exe)](#2-modo-windows-desktop-ejecutable-nativo)
-   - [Modo Android (APK y App Bundle)](#3-modo-dispositivos-android-apk--aab)
-   - [Modo macOS / Linux / iOS](#4-otros-sistemas-macos-linux-e-ios)
-8. [Pruebas Automatizadas y Calidad de Código](#-pruebas-automatizadas-y-calidad-de-código)
-9. [Arquitectura del Proyecto](#-arquitectura-del-proyecto)
-10. [Licencia](#-licencia)
+2. [Entrada Directa y Experiencia Visual](#-entrada-directa-y-experiencia-visual)
+3. [Reglas y Dinámicas de La Caída](#-reglas-y-dinámicas-de-la-caída)
+   - [Jerarquía de Cantos Tradicionales](#-jerarquía-de-cantos-tradicionales)
+   - [Mecánicas de Mesa, Caída y Limpia](#-mecánicas-de-mesa-caída-y-limpia)
+4. [Consola Flotante de Diagnóstico y Bugs (Debug Logger)](#-consola-flotante-de-diagnóstico-y-bugs)
+5. [Economía, Cofres (4 Slots) y Mesas VIP](#-economía-cofres-4-slots-y-mesas-vip)
+6. [Perfiles de Jugador, Marcos y Niveles](#-perfiles-de-jugador-marcos-y-niveles)
+7. [Tutorial Interactivo (Tour de Novatos)](#-tutorial-interactivo-tour-de-novatos)
+8. [Requisitos del Sistema](#-requisitos-del-sistema)
+9. [Instalación y Configuración](#-instalación-y-configuración)
+10. [Modos de Ejecución y Compilación](#-modos-de-ejecución-y-compilación)
+11. [Pruebas Automatizadas y Calidad](#-pruebas-automatizadas-y-calidad)
+12. [Arquitectura del Proyecto](#-arquitectura-del-proyecto)
+13. [Licencia](#-licencia)
 
 ---
 
 ## 🌟 Novedades y Actualizaciones Recientes
 
-* 🎓 **Tutorial Interactivo Paso a Paso (Tour de Novatos)**:
-  * Sistema guiado de 8 misiones consecutivas que enseñan desde la Caída elemental hasta el clímax de Trivilín.
-  * Overlay de foco dinámico (`TutorialSpotlightOverlay`) con fondo oscurecido y halo pulsante sobre la carta o zona a interactuar.
-  * Validación reactiva de jugadas: no permite descartes erróneos durante el entrenamiento.
-  * Recompensa de graduación: **+1000 monedas** y activación de bandera persistente.
-* 💰 **Sistema de Economía y Progresión Persistente**:
-  * Gestión de saldo en **Monedas** y **Tickets Dorados**.
-  * Curva de experiencia (XP) y niveles de jugador con desbloqueo de salas de mayor prestigio.
-  * Reclamación de tickets gratuitos mediante anuncios simulados/videos patrocinados.
-* 🏆 **Mesas y Salas VIP (1v1 y Parejas 2v2)**:
-  * 4 niveles de competición: **Novato**, **Bronce**, **Plata** y **Oro**.
-  * Cálculo dinámico de pozos acumulados y deducción de comisión de la casa (**8%**).
-* 💾 **Persistencia Local Automática (`SharedPreferences`)**:
-  * `UserProfileService`: conserva el nombre de usuario, nivel actual, experiencia y avatar seleccionado (entre más de 20 avatares temáticos).
-  * `StatsRepository`: historial detallado de partidas jugadas, victorias, derrotas, tasa de éxito y cantos ejecutados.
-  * `PlayerSession`: sincronización inmediata de finanzas, tickets y progreso tutorial.
-* 🎵 **Sistema de Sonido y Feedback Háptico**:
-  * Integración con `audioplayers` para efectos de cantos (Ronda, Patrulla, Vigía, Registro, Trivilín), caídas, victorias y derrotas.
-  * Botón de silencio/desilencio reactivo en tiempo real en lobby y mesa de juego.
-* 🎨 **Baraja Española Completa (40 naipes en alta definición)**:
-  * Palos de **Oros**, **Copas**, **Espadas** y **Bastos** (1 al 7, Sota [S], Caballo [C] y Rey [R]).
-  * Reverso oficial con textura clásica azul marino y orla dorada (`REV-CARD.png`).
-  * Descarte orgánico en mesa con dispersión natural, inclinación aleatoria y zonas de aterrizaje anti-solapamiento.
+* 🚀 **Enfoque Exclusivo en CaidaGO**:
+  * Eliminación total del módulo de dominó y del compendio genérico inicial para optimizar el rendimiento, peso y experiencia de juego dedicada al 100% a **La Caída**.
+  * Inicio directo al compilar en la pantalla de bienvenida estilizada con fondo chevrons púrpura, tipografía 3D abombada y navegación fluida hacia el Lobby.
+* 🐞 **Consola Flotante de Diagnóstico y Detección de Bugs en Vivo**:
+  * Botón flotante discreto (`DebugInspectorOverlay`), semi-transparente y libremente arrastrable por la pantalla (ícono 🐞).
+  * Contador reactivo de errores en tiempo real mediante insignia roja.
+  * Consola interactiva (`DebugConsoleModal`) con filtros rápidos (*Todos, Errores ❌, Caída 🃏, Audio 🔊, Sistema ⚙️*), diagnóstico de hardware/sesión, exportación al portapapeles, simulación de excepciones controladas y visor de trazas de pila (*Stack Traces*).
+  * Interceptación global de excepciones no controladas mediante `FlutterError.onError` y `PlatformDispatcher.instance.onError`.
+* 🎁 **Sistema de 4 Slots de Cofres de Recompensa**:
+  * Obtención de cofres tras ganar partidas con temporizador de desbloqueo de 2 minutos.
+  * Función de apertura instantánea canjeando 2 Tickets.
+  * Recompensas balanceadas de monedas de oro y puntos de experiencia (XP).
+* 👤 **Sistema de Perfiles, Niveles y Marcos de Avatar**:
+  * Progresión comenzando en **Nivel 0 con 10 tickets y 0 monedas**.
+  * Marcos estéticos desbloqueables: Madera Rústica, Neón Celeste, Oro VIP y Amatista Mística.
+  * Modal interactivo de perfil con barra de XP animada y estadísticas de victorias.
+* ✨ **Animaciones Espaciales 3D y Vuelo de Cartas**:
+  * Trayectorias balísticas parabólicas con elevación en el eje Z y rotación dinámica (`CardFlightOverlay`).
+  * Marcador dedicado en mesa para la recolección de los 4 Ases.
+* 🎴 **Baraja Española Completa en Alta Definición**:
+  * 40 naipes artesanales para **Oros, Copas, Espadas y Bastos** (1 al 7, Sota [S], Caballo [C] y Rey [R]).
+  * Zonas de aterrizaje en mesa anti-solapamiento con dispersión natural.
 
 ---
 
-## 🎮 Juegos y Dinámicas Incluidas
+## 🎬 Entrada Directa y Experiencia Visual
 
-### 1. La Caída Tradicional (Baraja Española de 40 Naipes)
-Fiel adaptación de las reglas oficiales y populares de La Caída venezolana, gobernada por un motor de reglas desacoplado (`CaidaRulesEngine`).
+Al abrir la aplicación, el usuario es recibido directamente por:
 
-#### 🎴 Jerarquía de Cantos Polimórficos (`sealed class Canto`)
-Al recibir las 3 cartas de cada mano, el sistema evalúa y canta automáticamente según la jerarquía reglamentaria:
+1. **Pantalla de Bienvenida (`CaidaSplashScreen`)**:
+   - Fondo geométrico dinámico con patrón en zigzag (chevrons púrpuras y azul rey).
+   - Logotipo principal **CAIDAGO** con relieve 3D, sombras profundas y rótulo "Tradicional".
+   - Abanico decorativo de cartas y botón pulsante *"TOCAR PARA ENTRAR"*.
+2. **Lobby Principal (`CaidaLobbyScreen`)**:
+   - Barra superior con saldo de monedas, tickets y contador de regeneración (1 ticket cada 20 min).
+   - Acceso al modal de perfil de usuario y marcos de avatar.
+   - Vista de los 4 slots de cofres de recompensa.
+   - Modos de juego: Partida Rápida contra Bot, 2 vs 2 por Parejas, Mesas VIP y Escuela Tutorial.
+
+---
+
+## 🎮 Reglas y Dinámicas de La Caída
+
+El juego sigue estrictamente las reglas oficiales de La Caída tradicional venezolana, implementadas en un motor de reglas desacoplado (`CaidaRulesEngine`).
+
+### 🎴 Jerarquía de Cantos Tradicionales (`sealed class Canto`)
+
+Al repartirse las 3 cartas de cada mano, el sistema evalúa automáticamente los cantos presentes:
 
 | Canto | Combinación Requerida | Puntos | Prioridad |
 | :--- | :--- | :---: | :---: |
-| 🌟 **Trivilín** | 3 cartas del mismo valor nominal | **+24 pts** (Gana la partida) | 5 (Máxima) |
-| 👁️ **Vigía** | 2 cartas iguales + 1 consecutiva | **+8 pts** | 4 |
-| 🎖️ **Registro** | Exactamente As, Caballo y Rey (`[1, 11, 12]`) | **+12 pts** | 3 |
-| 🛡️ **Patrulla** | 3 cartas en escalera consecutiva | **+4 pts** | 2 |
-| 🎴 **Ronda** | 2 cartas del mismo número | **+2 a +5 pts** (`+2` de 1-7, `+3` Sota, `+4` Caballo, `+5` Rey) | 1 |
+| 🌟 **Trivilín** | 3 cartas del mismo número | **+24 pts** (Gana la partida de inmediato) | 5 (Máxima) |
+| 🎖️ **Registro** | Exactamente As, Caballo y Rey (`[1, 11, 12]`) | **+8 pts** | 4 |
+| 👁️ **Vigía** | 2 cartas iguales + 1 correlativa ascendente/descendente | **+7 pts** | 3 |
+| 🛡️ **Patrulla** | 3 cartas en escalera consecutiva | **+6 pts** | 2 |
+| 🎴 **Ronda** | 2 cartas del mismo número | **+1 a +4 pts** (`+1` de 1-7, `+2` Sota, `+3` Caballo, `+4` Rey) | 1 |
 
-* **Resolución y cobro de cantos**: Los cantos se muestran al repartir la mano, pero se resuelven y cobran al agotarse las 3 cartas de cada jugador, aplicando la regla de jerarquía (sólo cobra el canto de mayor rango en la mesa) y proximidad a la Mano en caso de empate.
+* **Regla "Matando Cantos"**: Si ambos bandos tienen cantos, solo cobra los puntos el bando que posea el canto de mayor jerarquía. En caso de empate en rango, cobra quien esté más cerca de la Mano.
 
-#### ⚔️ Mecánicas de Mesa
-* **Canto de Mesa Inicial**: Al arrancar la primera mano con 4 cartas en el tapete, el repartidor canta en dirección **Ascendente** (1 a 4) o **Descendente** (4 a 1). Las coincidencias suman puntos inmediatos al repartidor; cartas repetidas o ausencia total de aciertos otorgan `+1` punto al rival.
-* **Caída**: Responder inmediatamente a la carta del jugador previo con el mismo número otorga puntos según la figura (`+1` cartas 1-7, `+2` Sota, `+3` Caballo, `+4` Rey).
-* **Arrastre y Seguidilla**: Al emparejar con una carta de la mesa, se captura dicha carta más todas las correlativas continuas presentes (`1..7, 10..12`).
-* **Mesa Limpia**: Vaciar por completo la mesa otorga `+4` puntos (durante el mazo) o `+2` puntos (en la última mano).
-* **Conteo por Volumen**: Al vaciar el mazo de 40 naipes, las cartas sobrantes van al último en recoger. Quien supere 20 cartas físicas suma `(Total Cartas - 20)` puntos extra.
+### ⚔️ Mecánicas de Mesa, Caída y Limpia
+
+* **Canto de Mesa Inicial**: El repartidor canta de 1 a 4; las coincidencias suman puntos a su favor, mientras que cartas repetidas o sin aciertos otorgan `+1` punto al rival.
+* **¡Caída!**: Responder a la carta recién tirada por el jugador anterior con el mismo número otorga puntos (`+1` cartas 1-7, `+2` Sota, `+3` Caballo, `+4` Rey).
+* **Arrastre y Seguidilla**: Al emparejar una carta, se recogen dicha carta y todas las consecutivas ascendentes disponibles en el tapete (`1..7, 10..12`).
+* **¡Mesa Limpia!**: Levantar todas las cartas del tapete suma `+4` puntos (durante el transcurso del mazo).
+* **Bono por Volumen de Cartas**: Al agotarse el mazo de 40 cartas, se cuentan las cartas acumuladas; el excedente sobre 20 (en 2 jugadores) se suma como puntos directos.
 * **Meta de Victoria**: 24 puntos oficiales.
 
 ---
 
-### 2. Dominó Tradicional (Doble 6)
-* 28 fichas completas desde la blanca doble `[0|0]` hasta el doble seis `[6|6]`.
-* Modos para 2, 3 o 4 jugadores (individual o por parejas).
-* Apertura oficial con la mula mayor (`[6|6]`).
-* Algoritmo de detección de **Tranque** con sumatoria matemática automática de pintas para dictaminar el bando ganador.
+## 🐞 Consola Flotante de Diagnóstico y Bugs
+
+Para monitorear el estado interno y verificar cualquier anomalía en caliente, la aplicación incorpora una herramienta de diagnóstico en tiempo real:
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Debug%20Inspector-Overlay%20Activo-0284C7" alt="Debug Inspector" />
+  <img src="https://img.shields.io/badge/Logs-Tiempo%20Real-brightgreen" alt="Realtime Logs" />
+</p>
+
+* **Botón Flotante (`DebugInspectorOverlay`)**:
+  * Visible en todas las pantallas y modales.
+  * Arrastrable a cualquier coordenada para evitar interferir con la interfaz de juego.
+  * Cambia de color a rojo e indica la cantidad de errores cuando se registra una falla.
+* **Consola de Registros (`DebugConsoleModal`)**:
+  * **Pestañas de filtrado**: `TODOS`, `ERRORES (❌)`, `CAÍDA (🃏)`, `AUDIO (🔊)`, `SISTEMA (⚙️)`.
+  * **Panel de diagnóstico rápido**: Identificador de jugador, nivel, XP acumulada, saldo de monedas, tickets disponibles y resolución de pantalla.
+  * **Visualizador de Stack Traces**: Trazas de pila expandibles con tipografía monoespaciada para facilitar la depuración inmediata.
+  * **Acciones integradas**:
+    * 📋 **Copiar Logs**: Exporta todo el historial formateado al portapapeles.
+    * ⚡ **Simular Error**: Dispara una excepción de prueba controlada para comprobar la captura en vivo.
+    * 🗑️ **Limpiar Historial**: Reinicia el buffer de logs en memoria.
 
 ---
 
-## 💰 Economía, Niveles y Mesas VIP
+## 💰 Economía, Cofres (4 Slots) y Mesas VIP
 
-El juego integra un bucle económico y de progresión competitivo:
-
-| Nivel de Mesa VIP | Cuota de Entrada | Nivel Requerido | Pozo 1v1 (2 Jugadores) | Pozo Parejas (4 Jugadores) |
+| Nivel de Mesa VIP | Entrada | Nivel Mínimo | Pozo 1v1 (2 Jugadores) | Pozo Parejas (4 Jugadores) |
 | :--- | :---: | :---: | :---: | :---: |
 | 🟢 **Novato** | 100 🪙 | Nivel 1 | 184 🪙 *(92 c/u)* | 368 🪙 *(184 c/u)* |
 | 🥉 **Bronce** | 500 🪙 | Nivel 3 | 920 🪙 *(460 c/u)* | 1,840 🪙 *(920 c/u)* |
 | 🥈 **Plata** | 2,500 🪙 | Nivel 5 | 4,600 🪙 *(2,300 c/u)* | 9,200 🪙 *(4,600 c/u)* |
-| 🥇 **Oro** | 10,000 🪙 | Nivel 10 | 18,400 🪙 *(9200 c/u)* | 36,800 🪙 *(18,400 c/u)* |
+| 🥇 **Oro** | 10,000 🪙 | Nivel 10 | 18,400 🪙 *(9,200 c/u)* | 36,800 🪙 *(18,400 c/u)* |
 
-* *Nota*: Los pozos de premios ya descuentan el **8%** reglamentario de comisión de la casa.
-* Las partidas tradicionales amistosas contra la máquina están siempre disponibles sin costo.
+* *Comisión de la casa*: **8%** deducido automáticamente del pozo acumulado.
+* **Regeneración de Tickets**: 1 ticket cada 20 minutos hasta un tope de 10 tickets.
+* **Cofres de Recompensas**: 4 casillas en el lobby con apertura temporizada (2 min) o desbloqueo exprés (2 Tickets).
+
+---
+
+## 👤 Perfiles de Jugador, Marcos y Niveles
+
+* **Perfil Personalizable**: Edición de nombre y selección entre múltiples avatares temáticos.
+* **Colección de Marcos**:
+  * 🪵 **Madera Rústica**: Marco tradicional de inicio.
+  * 💎 **Neón Celeste**: Borde luminoso de alta tecnología.
+  * 👑 **Oro Imperial**: Exclusivo para campeones de mesas VIP.
+  * 🔮 **Amatista Mística**: Resplandor púrpura de prestigio.
+* **Curva de Experiencia**: Ganancia proporcional de XP tras cada partida jugada, victoria o apertura de cofres.
 
 ---
 
 ## 🎓 Tutorial Interactivo (Tour de Novatos)
 
-El módulo `features/la_caida/tutorial` ofrece una escuela interactiva guiada para aprender a jugar La Caída:
+Un circuito didáctico de 8 etapas guiadas paso a paso con overlay de reflector (`TutorialSpotlightOverlay`):
 
-1. **Etapa 1 - Caída Básica**: Conoce el concepto de tirar la misma carta que el rival inmediato y suma tu primer punto.
-2. **Etapa 2 - Arrastre y Seguidilla**: Aprende a levantar cartas consecutivas en escalera de una sola jugada.
-3. **Etapa 3 - Mesa Limpia**: Descubre el valor estratégico de dejar el tapete vacío (`+4` pts).
-4. **Etapa 4 - Canto de Ronda**: Formación y cobro de una pareja de cartas iguales.
-5. **Etapa 5 - Canto de Patrulla**: Formación de una seguidilla consecutiva de 3 cartas (`+4` pts).
-6. **Etapa 6 - Canto de Vigía**: Par más carta consecutiva (`+8` pts).
-7. **Etapa 7 - Canto de Registro**: Trío real sagrado As, Caballo y Rey (`+12` pts).
-8. **Etapa 8 - Clímax de Trivilín**: 3 cartas idénticas para una victoria fulminante con premio de graduación (+1000 monedas).
+1. **Etapa 1 - Caída Básica**: Jugar el mismo valor del rival para anotar caída.
+2. **Etapa 2 - Arrastre y Seguidilla**: Capturar escaleras consecutivas en la mesa.
+3. **Etapa 3 - Mesa Limpia**: Dejar el tapete vacío (`+4` pts).
+4. **Etapa 4 - Canto de Ronda**: Formación y cobro de parejas.
+5. **Etapa 5 - Canto de Patrulla**: Escalera de 3 naipes (`+6` pts).
+6. **Etapa 6 - Canto de Vigía**: Par más consecutiva (`+7` pts).
+7. **Etapa 7 - Canto de Registro**: As, Caballo y Rey (`+8` pts).
+8. **Etapa 8 - Clímax de Trivilín**: Victoria instantánea y premio de graduación (**+1000 monedas**).
 
 ---
 
 ## 🛠️ Requisitos del Sistema
 
-Antes de comenzar, asegúrate de contar con el siguiente entorno:
-
-* **Flutter SDK**: Versión `3.29.0` o superior (Canal `stable`).
-* **Dart SDK**: Versión `3.7.0` o superior (incluido en Flutter).
-* **Git**: Para clonar y gestionar el repositorio.
-* **Herramientas según la plataforma**:
-  * **Para Web**: Google Chrome, Mozilla Firefox o Microsoft Edge.
-  * **Para Windows Desktop**: Visual Studio 2022 con la carga de trabajo *"Desarrollo para el escritorio con C++"*.
-  * **Para Android**: Android Studio, Android SDK (API 21+) y Java JDK 17+.
-  * **Para macOS / iOS**: Xcode 15+ y CocoaPods (en entornos Apple).
+* **Flutter SDK**: `3.29.0` o superior (Canal `stable`).
+* **Dart SDK**: `3.7.0` o superior.
+* **Git**: Para control de versiones y despliegue.
+* **Plataformas Soportadas**:
+  * **Android**: API 21+ (Lollipop o superior).
+  * **Windows Desktop**: Windows 10/11 con Visual Studio 2022 C++.
+  * **Web**: Chrome, Edge, Firefox, Safari (WASM / CanvasKit / HTML).
+  * **macOS / iOS / Linux**.
 
 ---
 
-## 📥 Instalación y Configuración Paso a Paso
+## 📥 Instalación y Configuración
 
-### Paso 1: Clonar el Repositorio
-Abre tu terminal y clona el código fuente:
 ```bash
-git clone https://github.com/eizy-c/GME.git
+# 1. Clonar el repositorio
+git clone git@github.com:eizy-c/GME.git
 cd GME
-```
 
-### Paso 2: Verificar el Entorno Flutter
-Verifica que las herramientas y dispositivos estén listos:
-```bash
-flutter doctor
-```
-
-### Paso 3: Descargar Paquetes y Dependencias
-Descarga e indexa las dependencias del proyecto:
-```bash
+# 2. Descargar paquetes de dependencias
 flutter pub get
+
+# 3. Verificar estado del entorno
+flutter doctor
 ```
 
 ---
 
 ## 🚀 Modos de Ejecución y Compilación
 
-### 1. Modo Web (Google Chrome / Edge)
-Ideal para probar el juego de forma instantánea sin configuraciones de compiladores nativos.
-
-* **Ejecutar en desarrollo**:
-  ```bash
-  flutter run -d chrome
-  ```
-* **Compilar para producción (HTML/WASM/JS)**:
-  ```bash
-  flutter build web --release
-  ```
-  Los archivos generados se ubicarán en `build/web/`, listos para ser desplegados en Firebase Hosting, Vercel, Netlify o GitHub Pages.
-
----
-
-### 2. Modo Windows Desktop (Ejecutable Nativo)
-Permite correr la aplicación con máximo rendimiento acelerado por GPU en Windows.
-
-* **Ejecutar en desarrollo**:
-  ```bash
-  flutter run -d windows
-  ```
-* **Compilar archivo ejecutable `.exe` para distribución**:
-  ```bash
-  flutter build windows --release
-  ```
-  El binario compilado y sus bibliotecas `.dll` se generarán en:
-  `build/windows/x64/runner/Release/`
-
----
-
-### 3. Modo Dispositivos Android (APK / AAB)
-Permite instalar la aplicación en teléfonos, tablets o emuladores Android.
-
-* **Ejecutar en dispositivo conectado o emulador**:
-  ```bash
-  flutter run -d <id_del_dispositivo>
-  ```
-  *(Puedes listar los dispositivos disponibles con `flutter devices`)*
-
-* **Generar APK instalable universal**:
-  ```bash
-  flutter build apk --release
-  ```
-  El instalador resultante estará en:
-  `build/app/outputs/flutter-apk/app-release.apk`
-
-* **Generar APKs divididos por arquitectura (recomendado para menor peso)**:
-  ```bash
-  flutter build apk --split-per-abi --release
-  ```
-
-* **Generar App Bundle (AAB para Google Play Store)**:
-  ```bash
-  flutter build appbundle --release
-  ```
-  Ubicación: `build/app/outputs/bundle/release/app-release.aab`
-
----
-
-### 4. Otros Sistemas (macOS, Linux e iOS)
-
-* **macOS**:
-  ```bash
-  flutter run -d macos
-  flutter build macos --release
-  ```
-* **Linux**:
-  ```bash
-  flutter run -d linux
-  flutter build linux --release
-  ```
-* **iOS** *(Requiere macOS y Xcode)*:
-  ```bash
-  flutter run -d ios
-  flutter build ipa --release
-  ```
-
----
-
-## 🧪 Pruebas Automatizadas y Calidad de Código
-
-El proyecto se mantiene con altos estándares de ingeniería de software, contando con suites de pruebas unitarias, de integración y widgets que cubren cada regla de negocio y estado de la aplicación.
-
-### Ejecutar las 101 Pruebas Unitarias y de Widgets
+### 1. Modo Web
 ```bash
+# Ejecución en desarrollo
+flutter run -d chrome
+
+# Compilación para producción (Web Release)
+flutter build web --release
+```
+
+### 2. Modo Windows Desktop (.exe)
+```bash
+# Ejecución en desarrollo
+flutter run -d windows
+
+# Compilación ejecutable nativo
+flutter build windows --release
+```
+
+### 3. Modo Android (APK / AAB)
+```bash
+# Ejecución en emulador o dispositivo
+flutter run -d <device-id>
+
+# Generar APK universal
+flutter build apk --release
+
+# Generar App Bundle (Google Play)
+flutter build appbundle --release
+```
+
+---
+
+## 🧪 Pruebas Automatizadas y Calidad
+
+El proyecto cuenta con un blindaje completo de pruebas unitarias, de integración y de widgets que garantizan la integridad de las reglas y la estabilidad de la interfaz:
+
+```bash
+# Ejecutar suite de pruebas completa
 flutter test
 ```
-*Resultado*: **101 tests pasando exitosamente (100% pass rate)**.
+*Resultado*: **106 tests pasando exitosamente (100% pass rate)**.
 
-### Ejecutar Análisis Estático de Código (Linter)
 ```bash
+# Análisis estático de código
 flutter analyze
 ```
-*Resultado*: **0 issues / 0 advertencias**.
+*Resultado*: **0 advertencias / 0 errores**.
 
 ---
 
 ## 📂 Arquitectura del Proyecto
 
-El código está estructurado siguiendo los principios de **Clean Architecture** y organización modular por dominios de juego (*Feature-First*):
-
 ```text
 GME/
 ├── assets/
-│   ├── audio/                 # Efectos sonoros (cantos, victorias, caídas, etc.)
-│   └── cards/                 # Naipes en alta definición
-│       ├── REV-CARD.png       # Reverso oficial azul marino y dorado
-│       ├── BASTON/            # Cartas de Bastos (B-1 a B-R)
-│       ├── COPAS/             # Cartas de Copas (C-1 a C-R)
-│       ├── ESPADAS/           # Cartas de Espadas (E-1 a E-R)
-│       └── OROS/              # Cartas de Oros (O-1 a O-R)
+│   ├── cards/                 # Naipes en alta definición (Oros, Copas, Espadas, Bastos)
+│   │   └── REV-CARD.png       # Reverso oficial azul y dorado
+│   └── sfx/cantos/            # Efectos de sonido (Caída, Limpia, Cantos)
 ├── lib/
 │   ├── core/
-│   │   ├── audio/             # AudioService y control de reproducción
 │   │   ├── models/cards/      # SpanishCard, CardSuit, SpanishDeck
-│   │   ├── presentation/      # SpanishCardView, widgets reutilizables
-│   │   ├── rules/             # GameRulesData y glosario de jugadas
-│   │   ├── services/          # UserProfileService (persistencia SharedPreferences)
-│   │   ├── stats/             # StatsRepository y GameStats
-│   │   └── theme/             # Colores, tipografías y estética de tapete
+│   │   ├── presentation/      # Widgets base, SpanishCardView, diálogos
+│   │   │   └── widgets/       # DebugInspectorOverlay, DebugConsoleModal
+│   │   ├── rules/             # GameRulesData (Reglamento oficial de Caída)
+│   │   ├── services/          # DebugLogger, AudioService, UserProfileService
+│   │   └── stats/             # StatsRepository y GameStats
 │   ├── features/
-│   │   ├── compendium/        # Menú principal y navegación
-│   │   ├── domino/            # Motor y pantalla de Dominó (Doble 6)
 │   │   └── la_caida/
-│   │       ├── domain/        # CaidaRulesEngine y Cantos POO (Trivilin, Vigia, etc.)
-│   │       ├── economy/       # PlayerSession, VipTierOffer y finanzas
-│   │       ├── presentation/  # CaidaScreen, CaidaLobbyScreen, modales y widgets de mesa
-│   │       └── tutorial/      # TutorialEngine, TutorialStep y TutorialScreen
-│   └── main.dart              # Punto de entrada y precarga asíncrona de servicios
-└── test/                      # 101 pruebas unitarias, de reglas, persistencia y widgets
+│   │       ├── controllers/   # GameMatchController (Máquina de estados de partida)
+│   │       ├── domain/        # CaidaRulesEngine y jerarquía de Cantos
+│   │       ├── economy/       # PlayerSession, ChestSlotModel, VipTierOffer
+│   │       ├── presentation/  # CaidaSplashScreen, CaidaLobbyScreen, CaidaScreen
+│   │       │   └── widgets/   # ChestSlotsView, ProfileModal, CardFlightOverlay
+│   │       └── tutorial/      # TutorialEngine, TutorialStep, TutorialScreen
+│   └── main.dart              # Punto de entrada directo en CaidaSplashScreen
+└── test/                      # 106 pruebas unitarias, de reglas, economía y widgets
 ```
 
 ---
 
 ## 📜 Licencia
 
-Desarrollado como una obra lúdica y cultural de libre distribución basada en las tradiciones populares hispanas e iberoamericanas. Las mecánicas tradicionales de Dominó y La Caída forman parte del patrimonio cultural de dominio público. Todos los recursos gráficos y de audio han sido creados o seleccionados bajo licencias libres de derechos comerciales.
+Desarrollado como una obra cultural y lúdica de libre distribución inspirada en las tradiciones populares hispanas e iberoamericanas. Los recursos gráficos y sonoros han sido creados o seleccionados bajo licencias de uso libre.
