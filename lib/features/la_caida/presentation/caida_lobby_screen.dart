@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../core/presentation/widgets/spanish_card_view.dart';
 import '../../../core/rules/game_rules_data.dart';
 import '../../../core/services/user_profile_service.dart';
+import '../domain/models/caida_match_config.dart';
+import '../economy/daily_challenge.dart';
 import '../economy/player_session.dart';
 import '../economy/user_progress.dart';
 import 'caida_screen.dart';
@@ -15,6 +17,9 @@ import 'widgets/user_frame_view.dart';
 import 'widgets/vip_tier_selector_modal.dart';
 import 'widgets/privacy_policy_dialog.dart';
 import '../tutorial/presentation/tutorial_screen.dart';
+
+/// Modo de visualización de navegación del lobby
+enum LobbyViewMode { main, unJugador }
 
 /// Lobby principal de La Caída inspirado en el boceto de referencia:
 /// Barra superior con ajustes, tickets y monedas;
@@ -32,8 +37,8 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
   final _profileService = UserProfileService();
   late PlayerSession _session;
 
-  // Estado del flujo del lobby: 'main' o 'un_jugador'
-  String _currentView = 'main';
+  // Estado del flujo del lobby
+  LobbyViewMode _currentView = LobbyViewMode.main;
 
   // Opciones seleccionadas para la partida
   bool _isMatandoCantos = true;
@@ -91,19 +96,17 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
       session: _session,
       initialIsTeams: initialIsTeams,
       onTierSelected: (tier, isTeams) {
-        final totalPlayers = isTeams ? 4 : 2;
+        final matchConfig = CaidaMatchConfig.vipMatch(
+          tier: tier,
+          isTeams: isTeams,
+          userName: _session.name,
+          botNames: const ['Alejandro', 'Carl', 'Jhonny'],
+          isMatandoCantos: _isMatandoCantos,
+        );
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => CaidaScreen(
-              initialPlayers: totalPlayers,
-              autoStart: true,
-              initialTeams: isTeams,
-              chooseMano: true,
-              userName: _session.name,
-              botNames: const ['Alejandro', 'Carl', 'Jhonny'],
-              vipTier: tier,
-              vipPrizePool: tier.calculatePrizePool(isTeams: isTeams),
-              vipWinnerReward: tier.calculateNetPrizePerWinner(isTeams: isTeams),
+              config: matchConfig,
             ),
           ),
         );
@@ -167,11 +170,9 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildChallengeItem('Gana 1 partida en CaidaGO', '0 / 1', '+250 Monedas  +50 XP', false),
-            _buildChallengeItem('Realiza 2 Caídas en una partida', '0 / 2', '+150 Monedas  +30 XP', false),
-            _buildChallengeItem('Juega en Parejas (2 vs 2)', '0 / 1', '+200 Monedas  +40 XP', false),
-          ],
+          children: DailyChallenge.defaultChallenges
+              .map((c) => _buildChallengeItem(c))
+              .toList(),
         ),
         actions: [
           ElevatedButton(
@@ -188,7 +189,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
     );
   }
 
-  Widget _buildChallengeItem(String title, String progress, String reward, bool isCompleted) {
+  Widget _buildChallengeItem(DailyChallenge challenge) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
@@ -200,8 +201,8 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
       child: Row(
         children: [
           Icon(
-            isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-            color: isCompleted ? const Color(0xFF22C55E) : const Color(0xFFFDE047),
+            challenge.isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            color: challenge.isCompleted ? const Color(0xFF22C55E) : const Color(0xFFFDE047),
             size: 20,
           ),
           const SizedBox(width: 10),
@@ -209,13 +210,13 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                Text(challenge.title, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
-                Text(reward, style: const TextStyle(color: Color(0xFFFDE047), fontSize: 11, fontWeight: FontWeight.w600)),
+                Text(challenge.rewardText, style: const TextStyle(color: Color(0xFFFDE047), fontSize: 11, fontWeight: FontWeight.w600)),
               ],
             ),
           ),
-          Text(progress, style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(challenge.progressText, style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -618,15 +619,17 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
       return;
     }
     _profileService.useTicket();
+    final matchConfig = CaidaMatchConfig.quickMatch(
+      players: _selectedTotalPlayers,
+      isTeams: _selectedTeams,
+      userName: _session.name,
+      botNames: const ['Alejandro', 'Carl', 'Jhonny'],
+      isMatandoCantos: _isMatandoCantos,
+    );
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CaidaScreen(
-          initialPlayers: _selectedTotalPlayers,
-          autoStart: true,
-          initialTeams: _selectedTeams,
-          chooseMano: true,
-          userName: _session.name,
-          botNames: const ['Alejandro', 'Carl', 'Jhonny'],
+          config: matchConfig,
         ),
       ),
     );
@@ -653,7 +656,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
 
               // 2. Contenido dinámico del lobby
               Expanded(
-                child: _currentView == 'main' ? _buildMainSketchLobbyView() : _buildUnJugadorView(),
+                child: _currentView == LobbyViewMode.main ? _buildMainSketchLobbyView() : _buildUnJugadorView(),
               ),
             ],
           ),
@@ -897,7 +900,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
               // Botón JOGAR / JUGAR
               GestureDetector(
                 onTap: () {
-                  setState(() => _currentView = 'un_jugador');
+                  setState(() => _currentView = LobbyViewMode.unJugador);
                 },
                 child: Container(
                   width: double.infinity,
@@ -989,7 +992,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
           child: Row(
             children: [
               GestureDetector(
-                onTap: () => setState(() => _currentView = 'main'),
+                onTap: () => setState(() => _currentView = LobbyViewMode.main),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(

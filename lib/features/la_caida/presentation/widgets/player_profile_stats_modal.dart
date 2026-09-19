@@ -75,10 +75,10 @@ class _PlayerProfileStatsModalState extends State<PlayerProfileStatsModal> {
       animation: Listenable.merge([_session, _stats]),
       builder: (context, _) {
         final progress = UserProgress(totalXp: _session.xp);
-        final level = progress.currentLevel > 0 ? progress.currentLevel : 7;
-        final currentTierXp = progress.currentTierXp > 0 ? progress.currentTierXp : 103;
-        final neededTierXp = progress.neededInCurrentTier > 0 ? progress.neededInCurrentTier : 130;
-        final progressRatio = (currentTierXp / neededTierXp).clamp(0.0, 1.0);
+        final level = progress.currentLevel;
+        final currentTierXp = progress.currentTierXp;
+        final neededTierXp = progress.neededInCurrentTier;
+        final progressRatio = progress.levelProgressPercentage;
 
         return Dialog(
           backgroundColor: Colors.transparent,
@@ -554,7 +554,7 @@ class _PlayerProfileStatsModalState extends State<PlayerProfileStatsModal> {
                   border: Border.all(color: const Color(0xFFD7CCC8), width: 1),
                 ),
                 child: Text(
-                  'Título: "Maestro del Trivilín"',
+                  'Título: "${progress.rankTitle}"',
                   style: const TextStyle(
                     color: Color(0xFF5D3A1A),
                     fontSize: 11,
@@ -778,7 +778,7 @@ class _PlayerProfileStatsModalState extends State<PlayerProfileStatsModal> {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       itemCount: achievements.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final ach = achievements[index];
         final isClaimed = _stats.claimedAchievementIds.contains(ach.id);

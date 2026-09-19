@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../economy/player_session.dart';
+import '../../economy/ticket_shop_offer.dart';
 
 /// Modal de Tienda de Tickets para partidas normales / casuales de La Caída.
 /// Ofrece recarga gratuita mediante video y compra individual o en paquetes con monedas blandas.
@@ -86,6 +87,16 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
       } else {
         _showFeedback('Ya tienes el máximo de tickets disponibles.', isError: true);
       }
+    }
+  }
+
+  void _executeOffer(TicketShopOffer offer) {
+    if (offer.isAd) {
+      _claimAdTicket();
+    } else if (offer.ticketsGranted == 1) {
+      _buySingleTicket();
+    } else {
+      _buyFivePack();
     }
   }
 
@@ -339,54 +350,27 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
 
                 const SizedBox(height: 16),
 
-                // OPCIÓN 1: Ver Video (+1 Gratis)
-                _buildOptionCard(
-                  icon: Icons.play_circle_fill_rounded,
-                  iconColor: const Color(0xFF34D399),
-                  badgeText: 'GRATIS',
-                  badgeColor: const Color(0xFF059669),
-                  title: 'Ver Video Corto',
-                  subtitle: '+1 Ticket de acceso inmediato',
-                  priceLabel: 'Ver Video',
-                  isPriceCoin: false,
-                  isEnabled: !isMaxTickets,
-                  disabledLabel: 'LLENO (10/10)',
-                  onTap: _claimAdTicket,
-                ),
-
-                const SizedBox(height: 10),
-
-                // OPCIÓN 2: 1 Ticket por 400 Monedas
-                _buildOptionCard(
-                  icon: Icons.confirmation_num_rounded,
-                  iconColor: const Color(0xFFF59E0B),
-                  title: 'Pase Individual (1x)',
-                  subtitle: '+1 Ticket para juego casual',
-                  priceLabel: '400',
-                  isPriceCoin: true,
-                  isEnabled: !isMaxTickets && session.coins >= 400,
-                  disabledLabel: session.coins < 400 ? 'SIN MONEDAS' : 'LLENO',
-                  onTap: _buySingleTicket,
-                ),
-
-                const SizedBox(height: 10),
-
-                // OPCIÓN 3: Paquete de 5 Tickets por 1,800 Monedas (Descuento)
-                _buildOptionCard(
-                  icon: Icons.local_activity_rounded,
-                  iconColor: const Color(0xFFFDE047),
-                  badgeText: 'AHORRA 10%',
-                  badgeColor: const Color(0xFFD97706),
-                  title: 'Paquete Aventurero (5x)',
-                  subtitle: '+5 Tickets (200 monedas de ahorro)',
-                  priceLabel: '1,800',
-                  oldPriceLabel: '2,000',
-                  isPriceCoin: true,
-                  isEnabled: !isMaxTickets && session.coins >= 1800,
-                  disabledLabel: session.coins < 1800 ? 'SIN MONEDAS' : 'LLENO',
-                  onTap: _buyFivePack,
-                  isHighlighted: true,
-                ),
+                // Opciones oficiales de la tienda basadas en el objeto TicketShopOffer
+                ...TicketShopOffer.standardOffers.map((offer) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _buildOptionCard(
+                      icon: offer.icon,
+                      iconColor: offer.iconColor,
+                      title: offer.title,
+                      subtitle: offer.subtitle,
+                      priceLabel: offer.priceLabel,
+                      isPriceCoin: offer.isPriceCoin,
+                      isEnabled: offer.isEnabled(isMaxTickets: isMaxTickets, playerCoins: session.coins),
+                      disabledLabel: offer.disabledLabel(isMaxTickets: isMaxTickets, playerCoins: session.coins),
+                      badgeText: offer.badgeText,
+                      badgeColor: offer.badgeColor,
+                      oldPriceLabel: offer.oldPriceLabel,
+                      isHighlighted: offer.isHighlighted,
+                      onTap: () => _executeOffer(offer),
+                    ),
+                  );
+                }),
               ],
             ),
           ),

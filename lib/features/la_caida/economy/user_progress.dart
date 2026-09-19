@@ -94,3 +94,33 @@ class UserProgress {
     }
   }
 }
+
+/// Representa una meta o hito de recompensa por alcanzar un nivel en La Caída.
+class LevelMilestone {
+  final int level;
+  final String title;
+  final String reward;
+
+  const LevelMilestone({
+    required this.level,
+    required this.title,
+    required this.reward,
+  });
+
+  bool isUnlocked(int playerLevel) => playerLevel >= level;
+
+  /// Catálogo oficial de hitos de nivel para La Caída
+  static const List<LevelMilestone> catalog = [
+    LevelMilestone(level: 0, title: 'Nivel 0: Pichón', reward: '10 Tickets de cortesía, Modo Normal, Marco Madera Rústica'),
+    LevelMilestone(level: 1, title: 'Nivel 1: Caimanero', reward: '+150 Monedas, Escuela de Novatos completada'),
+    LevelMilestone(level: 2, title: 'Nivel 2: El Avillao', reward: 'Desbloqueo de Marco Plata Pulida'),
+    LevelMilestone(level: 3, title: 'Nivel 3: Arrastrador', reward: '+250 Monedas, Desbloqueo Mesa VIP Bronce'),
+    LevelMilestone(level: 4, title: 'Nivel 4: Gallo Fino', reward: 'Desbloqueo de Marco Oro Imperial'),
+    LevelMilestone(level: 5, title: 'Nivel 5: El Tigre', reward: '+500 Monedas, Desbloqueo Mesa VIP Plata'),
+    LevelMilestone(level: 6, title: 'Nivel 6: El Baquiano', reward: 'Desbloqueo de Marco Neón Cibernético'),
+    LevelMilestone(level: 7, title: 'Nivel 7: Pana Bravo', reward: '+750 Monedas, Desbloqueo Mesa VIP Oro'),
+    LevelMilestone(level: 8, title: 'Nivel 8: El Caballo', reward: 'Desbloqueo de Marco Llama Ardiente'),
+    LevelMilestone(level: 9, title: 'Nivel 9: El Papá de los Helados', reward: '+1,000 Monedas de bonificación'),
+    LevelMilestone(level: 10, title: 'Nivel 10: Cacique del Trivilín', reward: 'Desbloqueo Marco Diamante Real y Mesa Diamante'),
+  ];
+}

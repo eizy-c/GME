@@ -42,11 +42,12 @@
 
 ## 🌟 Novedades y Actualizaciones Recientes
 
-* 📊 **Modal Oficial de "Perfil del Jugador" y Estadísticas en Vivo (`PlayerProfileStatsModal`)**:
+* 📊 **Modal Oficial de "Perfil del Jugador" y Progresión Dinámica 1 a 1 (`PlayerProfileStatsModal`)**:
   * Diseño fiel 1:1 con marco de madera noble, hoja de pergamino, banner 3D superior y botón circular rojo de cierre `[X]`.
+  * **Línea Base en 0 y Acumulación Real 1 a 1**: Todos los usuarios inician con estadísticas en **0** (0 ganancias, 0 partidas, 0 caídas, 0 cantos, Nivel 0 con 0 XP y rango *"Pichón"*), incrementándose en tiempo real conforme juegan partidas.
   * **Pestaña Perfil**:
     * Identidad del jugador con Avatar, Marco VIP y nivel en esquina, bandera nacional 🇻🇪, nombre y botón de edición.
-    * Nivel actual, estrella dorada, barra de progreso de XP animada y píldora de rango (*"Título: Maestro del Trivilín"*).
+    * Nivel actual, estrella dorada, barra de progreso de XP animada y píldora de rango dinámico criollo (*Pichón, Caimanero, El Avillao, Arrastrador, Gallo Fino, El Tigre, El Baquiano, Pana Bravo, El Caballo, El Papá de los Helados, Cacique del Trivilín*).
     * **Estadísticas Generales**: Ganancias totales en monedas, Partidas jugadas/ganadas, Efectividad de victoria, Racha actual/máxima, Mano a mano (1v1) y Partidas en equipo (2v2).
     * **Jugadas y Mesa (Caída)**: Caídas cantadas (rival cazado), Caídas recibidas, Mesas limpias, Caídas con mesa limpia, Registros / Registrícos y Total de cartas acumuladas.
     * **Cantos Tradicionales**: Rondas, Patrullas, Vigías y Trivilines cantados.

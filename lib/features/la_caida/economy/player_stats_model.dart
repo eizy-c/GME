@@ -6,7 +6,7 @@ import '../../../core/services/debug_logger.dart';
 /// Modelo de estadísticas avanzadas y detalladas del jugador en La Caída.
 /// Registra estadísticas generales, jugadas en mesa (caídas, limpias, registros) y cantos tradicionales.
 class PlayerStatsModel extends ChangeNotifier {
-  static const String storageKey = 'caida_player_game_stats_v2';
+  static const String storageKey = 'caida_player_game_stats_v3';
 
   // --- ESTADÍSTICAS GENERALES ---
   int totalEarnings;
@@ -35,25 +35,25 @@ class PlayerStatsModel extends ChangeNotifier {
   final Set<String> claimedAchievementIds;
 
   PlayerStatsModel({
-    this.totalEarnings = 9400,
-    this.gamesPlayed = 5,
-    this.gamesWon = 3,
-    this.currentStreak = 2,
-    this.maxStreak = 2,
-    this.soloWins = 1,
-    this.teamWins = 2,
-    this.caidasMade = 42,
-    this.caidasReceived = 18,
-    this.mesasLimpias = 14,
-    this.caidasWithLimpia = 4,
-    this.registros = 35,
-    this.totalCardsWon = 1280,
-    this.rondas = 28,
-    this.patrullas = 12,
-    this.vigias = 9,
-    this.trivilines = 3,
+    this.totalEarnings = 0,
+    this.gamesPlayed = 0,
+    this.gamesWon = 0,
+    this.currentStreak = 0,
+    this.maxStreak = 0,
+    this.soloWins = 0,
+    this.teamWins = 0,
+    this.caidasMade = 0,
+    this.caidasReceived = 0,
+    this.mesasLimpias = 0,
+    this.caidasWithLimpia = 0,
+    this.registros = 0,
+    this.totalCardsWon = 0,
+    this.rondas = 0,
+    this.patrullas = 0,
+    this.vigias = 0,
+    this.trivilines = 0,
     Set<String>? claimedAchievementIds,
-  }) : claimedAchievementIds = claimedAchievementIds ?? {'ach_trivilin', 'ach_caidas', 'ach_registro'};
+  }) : claimedAchievementIds = claimedAchievementIds ?? <String>{};
 
   static PlayerStatsModel? _shared;
 
@@ -180,28 +180,52 @@ class PlayerStatsModel extends ChangeNotifier {
     final claimed = (json['claimedAchievementIds'] as List?)
             ?.map((e) => e.toString())
             .toSet() ??
-        {'ach_trivilin', 'ach_caidas', 'ach_registro'};
+        <String>{};
 
     return PlayerStatsModel(
-      totalEarnings: json['totalEarnings'] as int? ?? 9400,
-      gamesPlayed: json['gamesPlayed'] as int? ?? 5,
-      gamesWon: json['gamesWon'] as int? ?? 3,
-      currentStreak: json['currentStreak'] as int? ?? 2,
-      maxStreak: json['maxStreak'] as int? ?? 2,
-      soloWins: json['soloWins'] as int? ?? 1,
-      teamWins: json['teamWins'] as int? ?? 2,
-      caidasMade: json['caidasMade'] as int? ?? 42,
-      caidasReceived: json['caidasReceived'] as int? ?? 18,
-      mesasLimpias: json['mesasLimpias'] as int? ?? 14,
-      caidasWithLimpia: json['caidasWithLimpia'] as int? ?? 4,
-      registros: json['registros'] as int? ?? 35,
-      totalCardsWon: json['totalCardsWon'] as int? ?? 1280,
-      rondas: json['rondas'] as int? ?? 28,
-      patrullas: json['patrullas'] as int? ?? 12,
-      vigias: json['vigias'] as int? ?? 9,
-      trivilines: json['trivilines'] as int? ?? 3,
+      totalEarnings: json['totalEarnings'] as int? ?? 0,
+      gamesPlayed: json['gamesPlayed'] as int? ?? 0,
+      gamesWon: json['gamesWon'] as int? ?? 0,
+      currentStreak: json['currentStreak'] as int? ?? 0,
+      maxStreak: json['maxStreak'] as int? ?? 0,
+      soloWins: json['soloWins'] as int? ?? 0,
+      teamWins: json['teamWins'] as int? ?? 0,
+      caidasMade: json['caidasMade'] as int? ?? 0,
+      caidasReceived: json['caidasReceived'] as int? ?? 0,
+      mesasLimpias: json['mesasLimpias'] as int? ?? 0,
+      caidasWithLimpia: json['caidasWithLimpia'] as int? ?? 0,
+      registros: json['registros'] as int? ?? 0,
+      totalCardsWon: json['totalCardsWon'] as int? ?? 0,
+      rondas: json['rondas'] as int? ?? 0,
+      patrullas: json['patrullas'] as int? ?? 0,
+      vigias: json['vigias'] as int? ?? 0,
+      trivilines: json['trivilines'] as int? ?? 0,
       claimedAchievementIds: claimed,
     );
+  }
+
+  /// Restablece todas las estadísticas a 0 (útil para pruebas y reinicios).
+  void reset() {
+    totalEarnings = 0;
+    gamesPlayed = 0;
+    gamesWon = 0;
+    currentStreak = 0;
+    maxStreak = 0;
+    soloWins = 0;
+    teamWins = 0;
+    caidasMade = 0;
+    caidasReceived = 0;
+    mesasLimpias = 0;
+    caidasWithLimpia = 0;
+    registros = 0;
+    totalCardsWon = 0;
+    rondas = 0;
+    patrullas = 0;
+    vigias = 0;
+    trivilines = 0;
+    claimedAchievementIds.clear();
+    notifyListeners();
+    save();
   }
 
   /// Carga las estadísticas desde SharedPreferences

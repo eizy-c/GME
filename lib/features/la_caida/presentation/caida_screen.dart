@@ -15,7 +15,12 @@ import '../../../core/services/debug_logger.dart';
 import '../../../core/services/user_profile_service.dart';
 import '../domain/caida_models.dart';
 import '../domain/caida_rules_engine.dart';
+import '../domain/models/caida_match_config.dart';
+import '../domain/models/mano_draw_session.dart';
+import '../domain/models/match_play_tracker.dart';
+import '../domain/models/player_callout.dart';
 import '../domain/models/spatial_card_state.dart';
+import '../domain/models/table_landing_zone.dart';
 import '../economy/chest_slot_model.dart';
 import '../economy/player_session.dart';
 import '../economy/player_stats_model.dart';
@@ -26,43 +31,6 @@ import 'widgets/deck_stack_view.dart';
 import 'widgets/table_canto_dialog.dart';
 import 'widgets/privacy_policy_dialog.dart';
 import 'caida_lobby_screen.dart';
-
-/// Candidato para el sorteo interactivo de Mano ("¡ELIGE UNA CARTA!")
-class _ManoCardCandidate {
-  final int id;
-  final SpanishCard card;
-  final double topOffset;
-  final double leftOffset;
-  final double rotation;
-  int? chosenByPlayerIndex;
-  bool isRevealed = false;
-  bool isWinner = false;
-
-  _ManoCardCandidate({
-    required this.id,
-    required this.card,
-    required this.topOffset,
-    required this.leftOffset,
-    required this.rotation,
-  });
-}
-
-/// Naipe colocado sobre el tapete central con posición y rotación orgánicas ("regadas al azar").
-class _PlacedTableCard {
-  final SpanishCard card;
-  final Offset offset;
-  final double rotation;
-  final int zIndex;
-  final int zoneIndex;
-
-  _PlacedTableCard({
-    required this.card,
-    required this.offset,
-    required this.rotation,
-    required this.zIndex,
-    required this.zoneIndex,
-  });
-}
 
 class _PlayerState {
   final String id;
@@ -76,9 +44,26 @@ class _PlayerState {
   int score = 0;
   int cardsWon = 0;
   int totalMatchCardsWon = 0;
-  String? currentCallout;
-  Timer? calloutTimer;
+  PlayerCallout? callout;
   Canto? pendingCanto;
+
+  String? get currentCallout => callout?.text;
+  set currentCallout(String? text) {
+    if (text == null) {
+      callout?.cancel();
+      callout = null;
+    } else {
+      callout?.cancel();
+      callout = PlayerCallout(text: text);
+    }
+  }
+
+  Timer? get calloutTimer => callout?.timer;
+  set calloutTimer(Timer? timer) {
+    if (callout != null) {
+      callout!.timer = timer;
+    }
+  }
 
   _PlayerState({
     required this.id,
@@ -106,6 +91,7 @@ class _PlayerState {
 /// - Acumulación persistente de puntos/trofeos en la sesión.
 /// - Indicador de latencia (ms) visible ÚNICAMENTE en partidas online o red local.
 class CaidaScreen extends StatefulWidget {
+  final CaidaMatchConfig? config;
   final int initialPlayers;
   final bool autoStart;
   final bool animateDealing;
@@ -116,20 +102,33 @@ class CaidaScreen extends StatefulWidget {
   final VipTierOffer? vipTier;
   final int? vipPrizePool;
   final int? vipWinnerReward;
+  final bool isMatandoCantos;
 
   const CaidaScreen({
     super.key,
-    this.initialPlayers = 2,
-    this.autoStart = false,
-    this.animateDealing = true,
-    this.initialTeams = false,
-    this.chooseMano = false,
-    this.userName,
-    this.botNames,
-    this.vipTier,
-    this.vipPrizePool,
-    this.vipWinnerReward,
-  });
+    this.config,
+    int? initialPlayers,
+    bool? autoStart,
+    bool? animateDealing,
+    bool? initialTeams,
+    bool? chooseMano,
+    String? userName,
+    List<String>? botNames,
+    VipTierOffer? vipTier,
+    int? vipPrizePool,
+    int? vipWinnerReward,
+    bool isMatandoCantos = false,
+  })  : initialPlayers = initialPlayers ?? config?.initialPlayers ?? 2,
+        autoStart = autoStart ?? config?.autoStart ?? false,
+        animateDealing = animateDealing ?? config?.animateDealing ?? true,
+        initialTeams = initialTeams ?? config?.initialTeams ?? false,
+        chooseMano = chooseMano ?? config?.chooseMano ?? false,
+        userName = userName ?? config?.userName,
+        botNames = botNames ?? config?.botNames,
+        vipTier = vipTier ?? config?.vipTier,
+        vipPrizePool = vipPrizePool ?? config?.vipPrizePool,
+        vipWinnerReward = vipWinnerReward ?? config?.vipWinnerReward,
+        isMatandoCantos = isMatandoCantos || (config?.isMatandoCantos ?? false);
 
   @override
   State<CaidaScreen> createState() => _CaidaScreenState();
@@ -139,7 +138,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   late SpanishDeck _deck;
   late List<_PlayerState> _players;
   final List<SpanishCard> _tableCards = [];
-  final List<_PlacedTableCard> _placedTableCards = [];
+  final List<PlacedTableCard> _placedTableCards = [];
   int _tableCardZCounter = 0;
   bool _isProcessingPlay = false;
   List<CardFlightTrajectory> _activeTrajectories = [];
@@ -172,24 +171,33 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   // Selección individual de cartas en la mano del usuario
   SpanishCard? _selectedCard;
 
-  // Seguimiento de caída, arrastre y última captura
-  SpanishCard? _lastPlayedCard;
-  int? _lastPlayedPlayerIndex;
-  int? _lastCapturingPlayerIndex;
+  // Seguimiento de jugadas y estadísticas mediante Domain Object
+  final MatchPlayTracker _playTracker = MatchPlayTracker();
+  SpanishCard? get _lastPlayedCard => _playTracker.lastPlayedCard;
+  set _lastPlayedCard(SpanishCard? c) => _playTracker.lastPlayedCard = c;
+  int? get _lastPlayedPlayerIndex => _playTracker.lastPlayedPlayerIndex;
+  set _lastPlayedPlayerIndex(int? i) => _playTracker.lastPlayedPlayerIndex = i;
+  int? get _lastCapturingPlayerIndex => _playTracker.lastCapturingPlayerIndex;
+  set _lastCapturingPlayerIndex(int? i) => _playTracker.lastCapturingPlayerIndex = i;
 
-  // Estadísticas clave de la partida para el modal de fin de juego
-  int _matchUserCaidas = 0;
-  int _matchUserLimpias = 0;
-  int _matchUserCantos = 0;
+  int get _matchUserCaidas => _playTracker.userCaidas;
+  set _matchUserCaidas(int val) => _playTracker.userCaidas = val;
+  int get _matchUserLimpias => _playTracker.userLimpias;
+  set _matchUserLimpias(int val) => _playTracker.userLimpias = val;
+  int get _matchUserCantos => _playTracker.userCantos;
+  set _matchUserCantos(int val) => _playTracker.userCantos = val;
 
   // Canto de Mesa del repartidor
   DealDirection _cantoDirection = DealDirection.ascending;
   String? _pointEventBanner;
 
-  // Sorteo interactivo de Mano ("¡ELIGE UNA CARTA!")
-  bool _isChoosingMano = false;
-  final List<_ManoCardCandidate> _manoCandidates = [];
-  String? _manoAnnouncement;
+  // Sorteo interactivo de Mano ("¡ELIGE UNA CARTA!") encapsulado en Domain Object
+  ManoDrawSession _manoSession = ManoDrawSession();
+  bool get _isChoosingMano => _manoSession.isActive;
+  set _isChoosingMano(bool val) => _manoSession.isActive = val;
+  List<ManoCardCandidate> get _manoCandidates => _manoSession.candidates;
+  String? get _manoAnnouncement => _manoSession.announcement;
+  set _manoAnnouncement(String? val) => _manoSession.announcement = val;
 
   // Temporizadores y animaciones
   late AnimationController _timerController;
@@ -305,16 +313,11 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _tableCards.clear();
     _placedTableCards.clear();
     _tableCardZCounter = 0;
-    _lastPlayedCard = null;
-    _lastPlayedPlayerIndex = null;
-    _lastCapturingPlayerIndex = null;
+    _playTracker.reset();
     _pointEventBanner = null;
     _isGameOver = false;
     _selectedCard = null;
     _roundNumber = 1;
-    _matchUserCaidas = 0;
-    _matchUserLimpias = 0;
-    _matchUserCantos = 0;
     _clearAllCallouts();
 
     _setupPlayers(
@@ -333,41 +336,13 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   }
 
   void _startManoSelection({bool animate = true}) async {
-    _manoCandidates.clear();
-    _manoAnnouncement = 'Sorteo de Mano: Toca una carta para ver quién sale';
+    _manoSession = ManoDrawSession.startNew(
+      initialAnnouncement: 'Sorteo de Mano: Toca una carta para ver quién sale',
+    );
     _pointEventBanner = '¡BIENVENIDOS A LA MESA DE CAÍDA!';
     DebugLogger.instance.logGame('Iniciando sorteo interactivo de Mano');
-    final tempDeck = SpanishDeck()..shuffle();
 
-    // 10 posiciones orgánicas y naturales sobre el tapete de madera
-    final positions = [
-      const Offset(-70, -70),
-      const Offset(15, -75),
-      const Offset(85, -70),
-      const Offset(-35, -20),
-      const Offset(55, -15),
-      const Offset(-75, 30),
-      const Offset(5, 35),
-      const Offset(75, 35),
-      const Offset(-40, 80),
-      const Offset(45, 75),
-    ];
-    final rotations = [-0.06, 0.04, -0.05, 0.08, -0.04, 0.05, -0.07, 0.06, -0.03, 0.05];
-
-    for (int i = 0; i < 10; i++) {
-      final card = tempDeck.draw()!;
-      _manoCandidates.add(_ManoCardCandidate(
-        id: i,
-        card: card,
-        topOffset: positions[i].dy,
-        leftOffset: positions[i].dx,
-        rotation: rotations[i],
-      ));
-    }
-
-    setState(() {
-      _isChoosingMano = true;
-    });
+    setState(() {});
 
     if (animate) {
       final spreadFlights = <CardFlightTrajectory>[];
@@ -399,13 +374,12 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     }
   }
 
-  void _onCandidateCardTapped(_ManoCardCandidate userChoice) async {
+  void _onCandidateCardTapped(ManoCardCandidate userChoice) async {
     if (userChoice.chosenByPlayerIndex != null || !_isChoosingMano) return;
 
     // 1. Revelar la carta del usuario de inmediato
     setState(() {
-      userChoice.chosenByPlayerIndex = 0; // Usuario
-      userChoice.isRevealed = true;
+      _manoSession.pickCard(userChoice, 0);
       _manoAnnouncement = 'Tú sacas: ${userChoice.card.displayName}';
     });
 
@@ -413,7 +387,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     if (!mounted || !_isChoosingMano) return;
 
     // 2. Cada bot elige de forma visible y secuencial
-    final unchosen = _manoCandidates.where((c) => c.chosenByPlayerIndex == null).toList();
+    final unchosen = _manoSession.unchosenCandidates;
     unchosen.shuffle();
 
     for (int i = 1; i < _players.length; i++) {
@@ -426,8 +400,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
         final botPick = unchosen.removeLast();
         setState(() {
-          botPick.chosenByPlayerIndex = i;
-          botPick.isRevealed = true;
+          _manoSession.pickCard(botPick, i);
           _manoAnnouncement = '${_players[i].name} sacó: ${botPick.card.displayName}';
         });
         await _safeDelay(const Duration(milliseconds: 650));
@@ -436,19 +409,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     }
 
     // 3. Determinar la carta mayor entre los jugadores
-    final chosenEntries = _manoCandidates
-        .where((c) => c.chosenByPlayerIndex != null)
-        .toList();
-
-    chosenEntries.sort((a, b) {
-      if (a.card.number != b.card.number) {
-        return b.card.number.compareTo(a.card.number);
-      }
-      return b.card.suit.index.compareTo(a.card.suit.index);
-    });
-
-    final winnerChoice = chosenEntries.first;
-    winnerChoice.isWinner = true;
+    final winnerChoice = _manoSession.determineWinner()!;
     final winnerIndex = winnerChoice.chosenByPlayerIndex!;
     final winner = _players[winnerIndex];
 
@@ -972,6 +933,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         _addPoints(p, canto.points);
         if (p.id == 'user' || (_isTeams && p.teamId == _players[0].teamId)) {
           _matchUserCantos++;
+          PlayerStatsModel.shared.recordCanto(canto.name);
         }
         final detail = canto is RondaCanto
             ? 'Ronda de ${canto.pairNumber}'
@@ -1112,12 +1074,25 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       });
 
       await _safeDelay(const Duration(milliseconds: 440));
-      if (!mounted || _isGameOver) return;
-
       if (eval.didCapture) {
         final isUserSide = player.id == 'user' || (_isTeams && player.teamId == _players[0].teamId);
-        if (eval.isCaida && isUserSide) _matchUserCaidas++;
-        if (eval.isLimpia && isUserSide) _matchUserLimpias++;
+        if (eval.isCaida) {
+          if (isUserSide) {
+            _matchUserCaidas++;
+            PlayerStatsModel.shared.recordCaidaMade(withLimpia: eval.isLimpia);
+          } else {
+            final lastPlayedPlayer = (_lastPlayedPlayerIndex != null && _lastPlayedPlayerIndex! >= 0 && _lastPlayedPlayerIndex! < _players.length)
+                ? _players[_lastPlayedPlayerIndex!]
+                : null;
+            final lastWasUserSide = lastPlayedPlayer != null && (lastPlayedPlayer.id == 'user' || (_isTeams && lastPlayedPlayer.teamId == _players[0].teamId));
+            if (lastWasUserSide) {
+              PlayerStatsModel.shared.recordCaidaReceived();
+            }
+          }
+        } else if (eval.isLimpia && isUserSide) {
+          _matchUserLimpias++;
+          PlayerStatsModel.shared.recordMesaLimpia();
+        }
 
         // Sonidos de Caída / Limpia al impactar
         if (eval.isCaida) AudioService().playCaida();
@@ -1199,8 +1174,23 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
       if (eval.didCapture) {
         final isUserSide = player.id == 'user' || (_isTeams && player.teamId == _players[0].teamId);
-        if (eval.isCaida && isUserSide) _matchUserCaidas++;
-        if (eval.isLimpia && isUserSide) _matchUserLimpias++;
+        if (eval.isCaida) {
+          if (isUserSide) {
+            _matchUserCaidas++;
+            PlayerStatsModel.shared.recordCaidaMade(withLimpia: eval.isLimpia);
+          } else {
+            final lastPlayedPlayer = (_lastPlayedPlayerIndex != null && _lastPlayedPlayerIndex! >= 0 && _lastPlayedPlayerIndex! < _players.length)
+                ? _players[_lastPlayedPlayerIndex!]
+                : null;
+            final lastWasUserSide = lastPlayedPlayer != null && (lastPlayedPlayer.id == 'user' || (_isTeams && lastPlayedPlayer.teamId == _players[0].teamId));
+            if (lastWasUserSide) {
+              PlayerStatsModel.shared.recordCaidaReceived();
+            }
+          }
+        } else if (eval.isLimpia && isUserSide) {
+          _matchUserLimpias++;
+          PlayerStatsModel.shared.recordMesaLimpia();
+        }
         _addCardsWon(player, eval.capturedCards.length);
         _lastCapturingPlayerIndex = _currentTurnIndex;
       }
@@ -1339,9 +1329,6 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       isTeams: _isTeams,
       coinsWon: vipCoinsWon,
       cardsWon: _players[0].totalMatchCardsWon,
-      caidas: _matchUserCaidas,
-      limpias: _matchUserLimpias,
-      cantos: _matchUserCantos,
     );
 
     final finalLevel = session.level;
@@ -2481,107 +2468,12 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     );
   }
 
-  /// Zonas fijas de aterrizaje en tapete central para dispersión orgánica y amplia.
-  /// Distribuidas para aprovechar al máximo la mesa de madera evitando solapamiento total.
-  static const List<Offset> _tableLandingZones = [
-    // 0..3: Cuadrantes amplios para el reparto inicial de 4 cartas
-    Offset(-68, -80), // 0: Cuadrante Superior Izquierdo
-    Offset(68, -80),  // 1: Cuadrante Superior Derecho
-    Offset(-68, 75),  // 2: Cuadrante Inferior Izquierdo
-    Offset(68, 75),   // 3: Cuadrante Inferior Derecho
-
-    // 4..8: Zonas centrales e intermedias despejadas
-    Offset(0, 0),     // 4: Centro absoluto de la mesa
-    Offset(-82, -2),  // 5: Flanco Izquierdo central
-    Offset(82, -2),   // 6: Flanco Derecho central
-    Offset(0, -96),   // 7: Centro Superior
-    Offset(0, 96),    // 8: Centro Inferior
-
-    // 9..12: Anillo intermedio diagonal
-    Offset(-40, -42), // 9: Intermedio Superior Izquierdo
-    Offset(40, -42),  // 10: Intermedio Superior Derecho
-    Offset(-40, 42),  // 11: Intermedio Inferior Izquierdo
-    Offset(40, 42),   // 12: Intermedio Inferior Derecho
-
-    // 13..16: Flancos exteriores diagonales
-    Offset(-84, -45), // 13: Exterior Izquierdo Alto
-    Offset(84, -45),  // 14: Exterior Derecho Alto
-    Offset(-84, 45),  // 15: Exterior Izquierdo Bajo
-    Offset(84, 45),   // 16: Exterior Derecho Bajo
-  ];
-
-  static const List<double> _tableLandingRotations = [
-    -0.08, // 0
-     0.07, // 1
-     0.09, // 2
-    -0.06, // 3
-     0.03, // 4
-    -0.07, // 5
-     0.08, // 6
-    -0.05, // 7
-     0.06, // 8
-     0.08, // 9
-    -0.07, // 10
-    -0.06, // 11
-     0.07, // 12
-    -0.09, // 13
-     0.08, // 14
-     0.06, // 15
-    -0.08, // 16
-  ];
-
-  _PlacedTableCard _computePlacementForCard(SpanishCard card) {
-    final occupiedZones = _placedTableCards.map((p) => p.zoneIndex).toSet();
-    int chosenZone = -1;
-
-    // Para las 4 cartas iniciales, asignar los cuadrantes 0..3 si están disponibles
-    if (_placedTableCards.length < 4 && !occupiedZones.contains(_placedTableCards.length)) {
-      chosenZone = _placedTableCards.length;
-    } else {
-      double maxMinDist = -1;
-      for (int z = 0; z < _tableLandingZones.length; z++) {
-        if (occupiedZones.contains(z)) continue;
-        final candidateOffset = _tableLandingZones[z];
-
-        if (_placedTableCards.isEmpty) {
-          chosenZone = z;
-          break;
-        }
-
-        double minDistToPlaced = double.infinity;
-        for (final placed in _placedTableCards) {
-          final d = (candidateOffset - placed.offset).distance;
-          if (d < minDistToPlaced) {
-            minDistToPlaced = d;
-          }
-        }
-
-        if (minDistToPlaced > maxMinDist) {
-          maxMinDist = minDistToPlaced;
-          chosenZone = z;
-        }
-      }
-
-      if (chosenZone == -1) {
-        chosenZone = _tableCardZCounter % _tableLandingZones.length;
-      }
-    }
-
-    final baseOffset = _tableLandingZones[chosenZone];
-    final baseRot = _tableLandingRotations[chosenZone];
-
-    // Micro-jitter determinista por carta (±3.6 px y ±0.02 rad) para aspecto natural
-    final jitterX = ((card.number * 7 + card.suit.index * 13) % 7 - 3) * 1.2;
-    final jitterY = ((card.number * 11 + card.suit.index * 19) % 7 - 3) * 1.2;
-    final jitterRot = ((card.number * 13 + card.suit.index * 17) % 5 - 2) * 0.01;
-
+  PlacedTableCard _computePlacementForCard(SpanishCard card) {
     _tableCardZCounter++;
-    return _PlacedTableCard(
+    return PlacedTableCard.computePlacementForCard(
       card: card,
-      offset: Offset(baseOffset.dx + jitterX, baseOffset.dy + jitterY),
-      rotation: baseRot + jitterRot,
-      zIndex: _tableCardZCounter,
-      zoneIndex: chosenZone,
+      currentPlacedCards: _placedTableCards,
+      zCounter: _tableCardZCounter,
     );
   }
 
