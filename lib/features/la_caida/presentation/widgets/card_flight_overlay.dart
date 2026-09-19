@@ -79,10 +79,11 @@ class _CardFlightOverlayState extends State<CardFlightOverlay>
     final progress = _controller.value;
 
     return IgnorePointer(
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: widget.activeTrajectories.map((trajectory) {
+      child: RepaintBoundary(
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: widget.activeTrajectories.map((trajectory) {
           final pos = trajectory.positionAt(progress);
           final rot = trajectory.rotationAt(progress);
           final scale = trajectory.scaleAt(progress);
@@ -167,7 +168,8 @@ class _CardFlightOverlayState extends State<CardFlightOverlay>
               ),
             ),
           );
-        }).toList(),
+          }).toList(),
+        ),
       ),
     );
   }

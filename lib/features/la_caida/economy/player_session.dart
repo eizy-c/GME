@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/debug_logger.dart';
 import 'chest_slot_model.dart';
 import 'user_progress.dart';
 
@@ -219,6 +220,10 @@ class PlayerSession extends ChangeNotifier {
     }
 
     _tickets -= 1;
+    DebugLogger.instance.log(
+      'Ticket consumido para partida. Tickets restantes: $_tickets/$_maxTickets',
+      category: 'Economía',
+    );
     notifyListeners();
     save();
     return true;
@@ -291,6 +296,10 @@ class PlayerSession extends ChangeNotifier {
     }
 
     _coins -= amount;
+    DebugLogger.instance.log(
+      'Entrada a mesa VIP deducida: -$amount monedas. Balance restante: $_coins',
+      category: 'Economía',
+    );
     notifyListeners();
     save();
     return true;
@@ -303,6 +312,10 @@ class PlayerSession extends ChangeNotifier {
     _coins += amount;
     final int gainedXp = xpGain ?? (amount ~/ 4).clamp(25, 2000);
     _addXpInternal(gainedXp);
+    DebugLogger.instance.log(
+      'Recompensa de partida acreditada: +$amount monedas, +$gainedXp XP. Nivel actual: $_level (Total XP: $_xp)',
+      category: 'Economía',
+    );
 
     notifyListeners();
     save();

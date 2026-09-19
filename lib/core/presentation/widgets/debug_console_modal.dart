@@ -12,6 +12,7 @@ class DebugConsoleModal extends StatefulWidget {
     final navContext = CaidaGoApp.navigatorKey.currentContext ?? context;
     return showModalBottomSheet(
       context: navContext,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const DebugConsoleModal(),

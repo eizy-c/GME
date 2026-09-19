@@ -244,17 +244,50 @@ class TablePlayerBadge extends StatelessWidget {
           ),
         ),
 
-        // Bocadillo flotante de cantos
+        // Bocadillo flotante de cantos / pensamientos que emerge de la foto del avatar
         if (calloutMessage != null && calloutMessage!.isNotEmpty)
-          Positioned(
-            top: position == PlayerPositionOnTable.top ? 85 : -52,
-            child: SpeechBubble(
-              text: calloutMessage!,
-              pointsDown: position != PlayerPositionOnTable.top,
-            ),
-          ),
+          _buildCalloutBubble(),
       ],
     );
+  }
+
+  Widget _buildCalloutBubble() {
+    switch (position) {
+      case PlayerPositionOnTable.left:
+        return Positioned(
+          left: 58,
+          top: 6,
+          child: SpeechBubble.directional(
+            text: calloutMessage!,
+            arrowDirection: BubbleArrowDirection.left,
+          ),
+        );
+      case PlayerPositionOnTable.right:
+        return Positioned(
+          right: 58,
+          top: 6,
+          child: SpeechBubble.directional(
+            text: calloutMessage!,
+            arrowDirection: BubbleArrowDirection.right,
+          ),
+        );
+      case PlayerPositionOnTable.top:
+        return Positioned(
+          top: 76,
+          child: SpeechBubble.directional(
+            text: calloutMessage!,
+            arrowDirection: BubbleArrowDirection.up,
+          ),
+        );
+      case PlayerPositionOnTable.bottom:
+        return Positioned(
+          bottom: 76,
+          child: SpeechBubble.directional(
+            text: calloutMessage!,
+            arrowDirection: BubbleArrowDirection.down,
+          ),
+        );
+    }
   }
 
   /// Cápsula izquierda: Puntos (★)

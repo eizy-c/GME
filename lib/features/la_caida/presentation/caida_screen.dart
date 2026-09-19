@@ -11,6 +11,7 @@ import '../../../core/presentation/widgets/spanish_card_view.dart';
 import '../../../core/presentation/widgets/table_player_badge.dart';
 import '../../../core/presentation/widgets/wood_table_background.dart';
 import '../../../core/services/audio_service.dart';
+import '../../../core/services/debug_logger.dart';
 import '../../../core/services/user_profile_service.dart';
 import '../domain/caida_models.dart';
 import '../domain/caida_rules_engine.dart';
@@ -33,6 +34,7 @@ class _ManoCardCandidate {
   final double rotation;
   int? chosenByPlayerIndex;
   bool isRevealed = false;
+  bool isWinner = false;
 
   _ManoCardCandidate({
     required this.id,
@@ -70,6 +72,7 @@ class _PlayerState {
   List<SpanishCard> hand = [];
   int score = 0;
   int cardsWon = 0;
+  int totalMatchCardsWon = 0;
   String? currentCallout;
   Timer? calloutTimer;
   Canto? pendingCanto;
@@ -190,6 +193,19 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   Timer? _botTimer;
   Timer? _finishTimer;
   final List<Timer> _cantoAudioTimers = [];
+  final List<Timer> _pendingAsyncTimers = [];
+
+  Future<void> _safeDelay(Duration duration) {
+    if (!mounted) return Future.value();
+    final completer = Completer<void>();
+    late Timer timer;
+    timer = Timer(duration, () {
+      _pendingAsyncTimers.remove(timer);
+      if (!completer.isCompleted) completer.complete();
+    });
+    _pendingAsyncTimers.add(timer);
+    return completer.future;
+  }
 
   @override
   void initState() {
@@ -246,6 +262,10 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
   @override
   void dispose() {
+    for (final t in _pendingAsyncTimers) {
+      t.cancel();
+    }
+    _pendingAsyncTimers.clear();
     _timerController.dispose();
     _dealingController.dispose();
     _botTimer?.cancel();
@@ -267,6 +287,10 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   }
 
   void _initMatch(int count, bool teams, String userName, {bool? animate, bool startWithManoSelection = false}) {
+    for (final t in _pendingAsyncTimers) {
+      t.cancel();
+    }
+    _pendingAsyncTimers.clear();
     _botTimer?.cancel();
     _finishTimer?.cancel();
     _timerController.stop();
@@ -306,7 +330,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
   void _startManoSelection() {
     _manoCandidates.clear();
-    _manoAnnouncement = null;
+    _manoAnnouncement = 'Elige tu carta para ver quién sale';
+    DebugLogger.instance.logGame('Iniciando sorteo interactivo de Mano');
     final tempDeck = SpanishDeck()..shuffle();
 
     // 10 posiciones orgánicas y naturales sobre el tapete de madera
@@ -343,26 +368,40 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   void _onCandidateCardTapped(_ManoCardCandidate userChoice) async {
     if (userChoice.chosenByPlayerIndex != null || !_isChoosingMano) return;
 
+    // 1. Revelar la carta del usuario de inmediato
     setState(() {
       userChoice.chosenByPlayerIndex = 0; // Usuario
       userChoice.isRevealed = true;
+      _manoAnnouncement = 'Tú sacas: ${userChoice.card.displayName}';
     });
 
-    // Los bots escogen entre las cartas restantes sin revelar inmediatamente
+    await _safeDelay(const Duration(milliseconds: 650));
+    if (!mounted || !_isChoosingMano) return;
+
+    // 2. Cada bot elige de forma visible y secuencial
     final unchosen = _manoCandidates.where((c) => c.chosenByPlayerIndex == null).toList();
     unchosen.shuffle();
 
     for (int i = 1; i < _players.length; i++) {
       if (unchosen.isNotEmpty) {
+        setState(() {
+          _manoAnnouncement = '${_players[i].name} está eligiendo...';
+        });
+        await _safeDelay(const Duration(milliseconds: 450));
+        if (!mounted || !_isChoosingMano) return;
+
         final botPick = unchosen.removeLast();
-        botPick.chosenByPlayerIndex = i;
-        botPick.isRevealed = true;
+        setState(() {
+          botPick.chosenByPlayerIndex = i;
+          botPick.isRevealed = true;
+          _manoAnnouncement = '${_players[i].name} sacó: ${botPick.card.displayName}';
+        });
+        await _safeDelay(const Duration(milliseconds: 650));
+        if (!mounted || !_isChoosingMano) return;
       }
     }
 
-    setState(() {});
-
-    // Determinar la carta mayor entre los jugadores
+    // 3. Determinar la carta mayor entre los jugadores
     final chosenEntries = _manoCandidates
         .where((c) => c.chosenByPlayerIndex != null)
         .toList();
@@ -375,30 +414,65 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     });
 
     final winnerChoice = chosenEntries.first;
+    winnerChoice.isWinner = true;
     final winnerIndex = winnerChoice.chosenByPlayerIndex!;
     final winner = _players[winnerIndex];
 
     setState(() {
       _manoIndex = winnerIndex;
-      _manoAnnouncement = '¡${winner.name} saca el ${winnerChoice.card.number} y es MANO! ✋';
+      _manoAnnouncement = '¡${winner.name} saca el ${winnerChoice.card.number} y es MANO! 👑';
     });
 
-    await Future.delayed(const Duration(milliseconds: 2400));
+    await _safeDelay(const Duration(milliseconds: 2200));
     if (!mounted) return;
+
+    // 4. Cinemática: Todas las cartas del sorteo se van en manojo hacia la estación del ganador
+    final winnerAnchor = SpatialCardAnchor.playerStationAnchor(
+      playerIndex: winnerIndex,
+      totalPlayers: _players.length,
+    );
+
+    final collectFlights = <CardFlightTrajectory>[];
+    for (final cand in _manoCandidates.where((c) => c.chosenByPlayerIndex != null)) {
+      collectFlights.add(CardFlightTrajectory(
+        id: 'mano_bundle_${cand.id}_${DateTime.now().millisecondsSinceEpoch}',
+        card: cand.card,
+        startAnchor: SpatialCardAnchor(
+          offset: Offset(cand.leftOffset, cand.topOffset),
+          rotation: cand.rotation,
+        ),
+        targetAnchor: winnerAnchor,
+        duration: const Duration(milliseconds: 520),
+        curve: Curves.easeInOutCubic,
+        isFaceUp: false,
+      ));
+    }
 
     setState(() {
       _isChoosingMano = false;
       _manoAnnouncement = null;
+      _manoCandidates.clear();
+      _activeTrajectories = collectFlights;
     });
 
-    // Si el usuario es el repartidor / Mano, se le ofrece elegir Canto de Mesa
+    await _safeDelay(const Duration(milliseconds: 560));
+    if (!mounted) return;
+
+    setState(() {
+      _activeTrajectories.clear();
+    });
+
+    // 5. Si el usuario es la Mano, SIEMPRE se le ofrece elegir Canto de Mesa (1 o 4) en modal atenuado
     if (_manoIndex == 0) {
       final dir = await TableCantoDialog.show(context);
       if (dir != null && mounted) {
         setState(() => _cantoDirection = dir);
       }
+    } else {
+      _cantoDirection = DealDirection.ascending;
     }
 
+    // 6. Iniciar el reparto en sentido de las agujas del reloj
     _startDeal(isFirstRound: true, animate: true);
   }
 
@@ -472,10 +546,12 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       for (final p in _players) {
         if (p.teamId == player.teamId) {
           p.cardsWon += count;
+          p.totalMatchCardsWon += count;
         }
       }
     } else {
       player.cardsWon += count;
+      player.totalMatchCardsWon += count;
     }
   }
 
@@ -488,11 +564,62 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     return false;
   }
 
-  void _startDeal({required bool isFirstRound, required bool animate}) {
+  void _startDeal({required bool isFirstRound, required bool animate}) async {
     _clearAllCallouts();
     _timerController.stop();
     _isFirstRoundDealing = isFirstRound;
 
+    if (!animate) {
+      // Modo instantáneo para pruebas automatizadas
+      if (isFirstRound) {
+        _tableCards.clear();
+        _placedTableCards.clear();
+        _tableCardZCounter = 0;
+        _lastCapturingPlayerIndex = null;
+        _lastPlayedCard = null;
+        _lastPlayedPlayerIndex = null;
+
+        final dealer = _players[_manoIndex];
+        final opponent = _players[(_manoIndex + 1) % _players.length];
+
+        final dealResult = CaidaRulesEngine.dealInitialTable(
+          direction: _cantoDirection,
+          deck: _deck,
+          dealerId: dealer.id,
+          opponentId: opponent.id,
+        );
+
+        _tableCards.addAll(dealResult.tableCards);
+        _syncPlacedCards();
+
+        if (dealResult.dealerPoints > 0) {
+          _addPoints(dealer, dealResult.dealerPoints);
+          _triggerCallout(dealer, 'Canto de Mesa (+${dealResult.dealerPoints} pts)');
+        }
+        if (dealResult.opponentPoints > 0) {
+          _addPoints(opponent, dealResult.opponentPoints);
+          _triggerCallout(opponent, '+${dealResult.opponentPoints} pt (Mesa)');
+        }
+
+        if (_checkGameOver()) return;
+      }
+
+      for (final p in _players) {
+        p.hand.clear();
+        p.pendingCanto = null;
+        for (int i = 0; i < 3; i++) {
+          final c = _deck.draw();
+          if (c != null) p.hand.add(c);
+        }
+      }
+
+      _isDealing = false;
+      _onDealingCompleted();
+      return;
+    }
+
+    // Modo animado: repartir 3 cartas a cada jugador en orden horario y al final 4 a la mesa
+    _isDealing = true;
     if (isFirstRound) {
       _tableCards.clear();
       _placedTableCards.clear();
@@ -500,7 +627,64 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       _lastCapturingPlayerIndex = null;
       _lastPlayedCard = null;
       _lastPlayedPlayerIndex = null;
+    }
 
+    for (final p in _players) {
+      p.hand.clear();
+      p.pendingCanto = null;
+    }
+    setState(() {});
+
+    final dealerAnchor = SpatialCardAnchor.playerStationAnchor(
+      playerIndex: _manoIndex,
+      totalPlayers: _players.length,
+    );
+
+    // 1. Repartir 3 cartas a cada jugador en sentido de las agujas del reloj desde el repartidor
+    for (int step = 0; step < _players.length; step++) {
+      final pIndex = (_manoIndex + 1 + step) % _players.length;
+      final player = _players[pIndex];
+
+      final cardsForPlayer = <SpanishCard>[];
+      for (int i = 0; i < 3; i++) {
+        final drawn = _deck.draw();
+        if (drawn != null) cardsForPlayer.add(drawn);
+      }
+
+      final targetStation = SpatialCardAnchor.playerStationAnchor(
+        playerIndex: pIndex,
+        totalPlayers: _players.length,
+      );
+
+      if (cardsForPlayer.isNotEmpty) {
+        setState(() {
+          _activeTrajectories = [
+            CardFlightTrajectory(
+              id: 'deal_hand_${pIndex}_${DateTime.now().millisecondsSinceEpoch}',
+              card: cardsForPlayer.first,
+              startAnchor: dealerAnchor,
+              targetAnchor: targetStation,
+              duration: const Duration(milliseconds: 380),
+              curve: Curves.easeOutCubic,
+              isFaceUp: pIndex == 0,
+            ),
+          ];
+        });
+
+        await _safeDelay(const Duration(milliseconds: 400));
+        if (!mounted) return;
+
+        setState(() {
+          _activeTrajectories.clear();
+          player.hand.addAll(cardsForPlayer);
+        });
+        await _safeDelay(const Duration(milliseconds: 120));
+        if (!mounted) return;
+      }
+    }
+
+    // 2. Al finalizar con los jugadores, repartir las 4 cartas a la mesa con animación y canto
+    if (isFirstRound) {
       final dealer = _players[_manoIndex];
       final opponent = _players[(_manoIndex + 1) % _players.length];
 
@@ -511,41 +695,57 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         opponentId: opponent.id,
       );
 
-      _tableCards.addAll(dealResult.tableCards);
-      _syncPlacedCards();
+      for (int i = 0; i < dealResult.tableCards.length; i++) {
+        final tableCard = dealResult.tableCards[i];
+        final placement = _computePlacementForCard(tableCard);
+
+        setState(() {
+          _activeTrajectories = [
+            CardFlightTrajectory(
+              id: 'deal_table_${i}_${DateTime.now().millisecondsSinceEpoch}',
+              card: tableCard,
+              startAnchor: dealerAnchor,
+              targetAnchor: SpatialCardAnchor(
+                card: tableCard,
+                offset: placement.offset,
+                rotation: placement.rotation,
+              ),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOutCubic,
+              isFaceUp: true,
+            ),
+          ];
+        });
+
+        await _safeDelay(const Duration(milliseconds: 420));
+        if (!mounted) return;
+
+        setState(() {
+          _activeTrajectories.clear();
+          _tableCards.add(tableCard);
+          _placedTableCards.add(placement);
+        });
+
+        await _safeDelay(const Duration(milliseconds: 180));
+        if (!mounted) return;
+      }
 
       if (dealResult.dealerPoints > 0) {
         _addPoints(dealer, dealResult.dealerPoints);
         _triggerCallout(dealer, 'Canto de Mesa (+${dealResult.dealerPoints} pts)');
+        await _safeDelay(const Duration(milliseconds: 600));
       }
       if (dealResult.opponentPoints > 0) {
         _addPoints(opponent, dealResult.opponentPoints);
         _triggerCallout(opponent, '+${dealResult.opponentPoints} pt (Mesa)');
+        await _safeDelay(const Duration(milliseconds: 600));
       }
 
       if (_checkGameOver()) return;
     }
 
-    for (final p in _players) {
-      p.hand.clear();
-      p.pendingCanto = null;
-      for (int i = 0; i < 3; i++) {
-        final c = _deck.draw();
-        if (c != null) p.hand.add(c);
-      }
-    }
-
-    if (!animate) {
-      _isDealing = false;
-      _onDealingCompleted();
-      return;
-    }
-
-    _isDealing = true;
-    setState(() {});
-
-    _dealingController.reset();
-    _dealingController.forward();
+    _isDealing = false;
+    _onDealingCompleted();
   }
 
   void _onDealingCompleted() {
@@ -578,7 +778,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _onRoundFinished();
   }
 
-  void _onRoundFinished() {
+  void _onRoundFinished() async {
     // Si ya no quedan suficientes cartas para otra mano de 3 por jugador
     if (_deck.remainingCount < _players.length * 3) {
       final playerStates = _players.map((p) => CaidaPlayerState(
@@ -647,6 +847,16 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         p.cardsWon = 0;
       }
 
+      // Consulta obligatoria si le toca ser Mano al usuario en modal atenuado
+      if (_manoIndex == 0 && mounted) {
+        final dir = await TableCantoDialog.show(context);
+        if (dir != null && mounted) {
+          setState(() => _cantoDirection = dir);
+        }
+      } else {
+        _cantoDirection = DealDirection.ascending;
+      }
+
       _startDeal(isFirstRound: true, animate: widget.animateDealing);
       return;
     }
@@ -669,7 +879,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
       if (_checkGameOver()) return;
 
-      await Future.delayed(const Duration(milliseconds: 1800));
+      await _safeDelay(const Duration(milliseconds: 1800));
       if (!mounted || _isGameOver) return;
     }
 
@@ -819,6 +1029,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
           );
 
     SpatialCardAnchor targetAnchor;
+    _PlacedTableCard? plannedPlacement;
     if (eval.didCapture) {
       final matchedPlaced = _placedTableCards.where((p) => p.card.number == card.number).firstOrNull;
       if (matchedPlaced != null) {
@@ -832,18 +1043,11 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         targetAnchor = const SpatialCardAnchor(offset: Offset(0, 0));
       }
     } else {
-      final occupiedZones = _placedTableCards.map((p) => p.zoneIndex).toSet();
-      int chosenZone = 0;
-      for (int z = 0; z < _tableLandingZones.length; z++) {
-        if (!occupiedZones.contains(z)) {
-          chosenZone = z;
-          break;
-        }
-      }
+      plannedPlacement = _computePlacementForCard(card);
       targetAnchor = SpatialCardAnchor(
         card: card,
-        offset: _tableLandingZones[chosenZone],
-        rotation: _tableLandingRotations[chosenZone],
+        offset: plannedPlacement.offset,
+        rotation: plannedPlacement.rotation,
         scale: 1.0,
       );
     }
@@ -859,14 +1063,14 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             card: card,
             startAnchor: startAnchor,
             targetAnchor: targetAnchor,
-            duration: const Duration(milliseconds: 280),
+            duration: const Duration(milliseconds: 420),
             curve: Curves.easeOutCubic,
             isCaidaImpact: eval.isCaida,
           ),
         ];
       });
 
-      await Future.delayed(const Duration(milliseconds: 300));
+      await _safeDelay(const Duration(milliseconds: 440));
       if (!mounted || _isGameOver) return;
 
       if (eval.didCapture) {
@@ -877,12 +1081,12 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         // Sonidos de Caída / Limpia al impactar
         if (eval.isCaida) AudioService().playCaida();
         if (eval.isLimpia) {
-          Future.delayed(const Duration(milliseconds: 400), () {
-            AudioService().playMesaLimpia();
+          _safeDelay(const Duration(milliseconds: 400)).then((_) {
+            if (mounted) AudioService().playMesaLimpia();
           });
         }
 
-        // 2. Vuelo de recogida: todas las cartas capturadas vuelan hacia el avatar del jugador
+        // 2. Vuelo de recogida: todas las cartas capturadas vuelan suavemente hacia el avatar del jugador
         final returnAnchor = SpatialCardAnchor.playerStationAnchor(
           playerIndex: playerIdx,
           totalPlayers: _players.length,
@@ -901,8 +1105,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
               card: capCard,
               startAnchor: capOrigin,
               targetAnchor: returnAnchor,
-              duration: const Duration(milliseconds: 320),
-              curve: Curves.easeInOutQuad,
+              duration: const Duration(milliseconds: 520),
+              curve: Curves.easeInOutCubic,
             ),
           );
         }
@@ -914,7 +1118,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
           _syncPlacedCards();
         });
 
-        await Future.delayed(const Duration(milliseconds: 340));
+        await _safeDelay(const Duration(milliseconds: 560));
         if (!mounted || _isGameOver) return;
 
         setState(() {
@@ -931,11 +1135,14 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
           _triggerCallout(player, eval.breakdownMessage);
         }
       } else {
-        // No hubo captura: la carta se asienta sobre la mesa
+        // No hubo captura: la carta se asienta sobre la mesa exactamente donde aterrizó el vuelo
         setState(() {
           _activeTrajectories.clear();
           _tableCards.clear();
           _tableCards.addAll(eval.newTableCards);
+          if (plannedPlacement != null && !_placedTableCards.any((p) => p.card == plannedPlacement!.card)) {
+            _placedTableCards.add(plannedPlacement);
+          }
           _syncPlacedCards();
         });
       }
@@ -1042,8 +1249,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     final session = PlayerSession.shared;
     final initialLevel = session.level;
     final int rawXpGained = userWon
-        ? (60 + (_players[0].cardsWon * 2) + (_matchUserCaidas * 10) + (_matchUserLimpias * 15))
-        : (20 + (_players[0].cardsWon * 1));
+        ? (60 + (_players[0].totalMatchCardsWon * 2) + (_matchUserCaidas * 10) + (_matchUserLimpias * 15))
+        : (20 + (_players[0].totalMatchCardsWon * 1));
     final int xpGained = widget.vipTier != null ? (rawXpGained * 1.25).round() : rawXpGained;
 
     if (userWon) {
@@ -1094,8 +1301,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     final userTeamScore = userTeamPlayers.isNotEmpty ? userTeamPlayers.map((p) => p.score).reduce(math.max) : _players[0].score;
     final oppTeamScore = oppTeamPlayers.isNotEmpty ? oppTeamPlayers.map((p) => p.score).reduce(math.max) : (sorted.length > 1 ? sorted[1].score : 0);
 
-    final userTeamCards = userTeamPlayers.isNotEmpty ? userTeamPlayers.map((p) => p.cardsWon).reduce(math.max) : _players[0].cardsWon;
-    final oppTeamCards = oppTeamPlayers.isNotEmpty ? oppTeamPlayers.map((p) => p.cardsWon).reduce(math.max) : (sorted.length > 1 ? sorted[1].cardsWon : 0);
+    final userTeamCards = userTeamPlayers.isNotEmpty ? userTeamPlayers.map((p) => p.totalMatchCardsWon).reduce(math.max) : _players[0].totalMatchCardsWon;
+    final oppTeamCards = oppTeamPlayers.isNotEmpty ? oppTeamPlayers.map((p) => p.totalMatchCardsWon).reduce(math.max) : (sorted.length > 1 ? sorted[1].totalMatchCardsWon : 0);
 
     setState(() {});
 
@@ -2017,7 +2224,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
           children: [
             // Banner superior "¡ELIGE UNA CARTA!" limpio sobre la madera
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               decoration: BoxDecoration(
                 color: const Color(0xFF1E1B4B).withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(16),
@@ -2030,15 +2237,32 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                   ),
                 ],
               ),
-              child: Text(
-                _manoAnnouncement ?? '¡ELIGE UNA CARTA!',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFFFDE047),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    '¡ELIGE UNA CARTA!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFFFDE047),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  if (_manoAnnouncement != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _manoAnnouncement!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
             const SizedBox(height: 12),
@@ -2065,15 +2289,50 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             cand.isRevealed
-                                ? SpanishCardView(
-                                    card: cand.card,
-                                    width: 52,
-                                    isSelected: cand.chosenByPlayerIndex == 0,
+                                ? Container(
+                                    decoration: cand.isWinner
+                                        ? BoxDecoration(
+                                            borderRadius: BorderRadius.circular(8),
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                color: Color(0xFFFDE047),
+                                                blurRadius: 16,
+                                                spreadRadius: 3,
+                                              ),
+                                            ],
+                                          )
+                                        : null,
+                                    child: SpanishCardView(
+                                      card: cand.card,
+                                      width: 52,
+                                      isSelected: cand.chosenByPlayerIndex == 0 || cand.isWinner,
+                                    ),
                                   )
                                 : const SpanishCardView.back(
                                     width: 52,
                                   ),
-                            if (player != null)
+                            if (cand.isWinner)
+                              Container(
+                                margin: const EdgeInsets.only(top: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(colors: [Color(0xFFFDE047), Color(0xFFF59E0B)]),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.white, width: 1),
+                                  boxShadow: const [
+                                    BoxShadow(color: Colors.black45, blurRadius: 4),
+                                  ],
+                                ),
+                                child: const Text(
+                                  '¡MANO! 👑',
+                                  style: TextStyle(
+                                    color: Color(0xFF713F12),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              )
+                            else if (player != null)
                               Container(
                                 margin: const EdgeInsets.only(top: 2),
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -2157,73 +2416,70 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     -0.08, // 16
   ];
 
+  _PlacedTableCard _computePlacementForCard(SpanishCard card) {
+    final occupiedZones = _placedTableCards.map((p) => p.zoneIndex).toSet();
+    int chosenZone = -1;
+
+    // Para las 4 cartas iniciales, asignar los cuadrantes 0..3 si están disponibles
+    if (_placedTableCards.length < 4 && !occupiedZones.contains(_placedTableCards.length)) {
+      chosenZone = _placedTableCards.length;
+    } else {
+      double maxMinDist = -1;
+      for (int z = 0; z < _tableLandingZones.length; z++) {
+        if (occupiedZones.contains(z)) continue;
+        final candidateOffset = _tableLandingZones[z];
+
+        if (_placedTableCards.isEmpty) {
+          chosenZone = z;
+          break;
+        }
+
+        double minDistToPlaced = double.infinity;
+        for (final placed in _placedTableCards) {
+          final d = (candidateOffset - placed.offset).distance;
+          if (d < minDistToPlaced) {
+            minDistToPlaced = d;
+          }
+        }
+
+        if (minDistToPlaced > maxMinDist) {
+          maxMinDist = minDistToPlaced;
+          chosenZone = z;
+        }
+      }
+
+      if (chosenZone == -1) {
+        chosenZone = _tableCardZCounter % _tableLandingZones.length;
+      }
+    }
+
+    final baseOffset = _tableLandingZones[chosenZone];
+    final baseRot = _tableLandingRotations[chosenZone];
+
+    // Micro-jitter determinista por carta (±3.6 px y ±0.02 rad) para aspecto natural
+    final jitterX = ((card.number * 7 + card.suit.index * 13) % 7 - 3) * 1.2;
+    final jitterY = ((card.number * 11 + card.suit.index * 19) % 7 - 3) * 1.2;
+    final jitterRot = ((card.number * 13 + card.suit.index * 17) % 5 - 2) * 0.01;
+
+    _tableCardZCounter++;
+    return _PlacedTableCard(
+      card: card,
+      offset: Offset(baseOffset.dx + jitterX, baseOffset.dy + jitterY),
+      rotation: baseRot + jitterRot,
+      zIndex: _tableCardZCounter,
+      zoneIndex: chosenZone,
+    );
+  }
+
   void _syncPlacedCards() {
     // 1. Eliminar cartas capturadas que ya no están en mesa
     _placedTableCards.removeWhere((placed) => !_tableCards.contains(placed.card));
 
-    // 2. Obtener conjunto de zonas actualmente ocupadas
-    final occupiedZones = _placedTableCards.map((p) => p.zoneIndex).toSet();
-
-    // 3. Colocar nuevas cartas manteniendo estabilidad de las ya existentes
-    for (int i = 0; i < _tableCards.length; i++) {
-      final card = _tableCards[i];
+    // 2. Colocar nuevas cartas manteniendo estabilidad de las ya existentes
+    for (final card in _tableCards) {
       final alreadyPlaced = _placedTableCards.any((p) => p.card == card);
       if (!alreadyPlaced) {
-        int chosenZone = -1;
-
-        // Para las 4 cartas iniciales, asignar los cuadrantes 0..3 si están disponibles
-        if (i < 4 && !occupiedZones.contains(i)) {
-          chosenZone = i;
-        } else {
-          // Seleccionar la zona libre que maximice la distancia mínima a todas las cartas ya colocadas
-          double maxMinDist = -1;
-          for (int z = 0; z < _tableLandingZones.length; z++) {
-            if (occupiedZones.contains(z)) continue;
-            final candidateOffset = _tableLandingZones[z];
-
-            if (_placedTableCards.isEmpty) {
-              chosenZone = z;
-              break;
-            }
-
-            double minDistToPlaced = double.infinity;
-            for (final placed in _placedTableCards) {
-              final d = (candidateOffset - placed.offset).distance;
-              if (d < minDistToPlaced) {
-                minDistToPlaced = d;
-              }
-            }
-
-            if (minDistToPlaced > maxMinDist) {
-              maxMinDist = minDistToPlaced;
-              chosenZone = z;
-            }
-          }
-
-          // Fallback de seguridad si todas las zonas estuvieran ocupadas (>17 cartas)
-          if (chosenZone == -1) {
-            chosenZone = _tableCardZCounter % _tableLandingZones.length;
-          }
-        }
-
-        occupiedZones.add(chosenZone);
-
-        final baseOffset = _tableLandingZones[chosenZone];
-        final baseRot = _tableLandingRotations[chosenZone];
-
-        // Micro-jitter determinista por carta (±3.6 px y ±0.02 rad) para aspecto natural
-        final jitterX = ((card.number * 7 + card.suit.index * 13) % 7 - 3) * 1.2;
-        final jitterY = ((card.number * 11 + card.suit.index * 19) % 7 - 3) * 1.2;
-        final jitterRot = ((card.number * 13 + card.suit.index * 17) % 5 - 2) * 0.01;
-
-        _tableCardZCounter++;
-        _placedTableCards.add(_PlacedTableCard(
-          card: card,
-          offset: Offset(baseOffset.dx + jitterX, baseOffset.dy + jitterY),
-          rotation: baseRot + jitterRot,
-          zIndex: _tableCardZCounter,
-          zoneIndex: chosenZone,
-        ));
+        _placedTableCards.add(_computePlacementForCard(card));
       }
     }
   }
@@ -2238,9 +2494,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       _syncPlacedCards();
     }
 
-    final cardsToShow = (_isDealing && _isFirstRoundDealing)
-        ? _tableCards.take(((_dealingController.value) * 6).clamp(1, 4).toInt()).toList()
-        : _tableCards;
+    final cardsToShow = _tableCards;
 
     final spokenSeq = _cantoDirection.sequence;
 
@@ -2288,45 +2542,34 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
               offset: placed.offset,
               child: Transform.rotate(
                 angle: placed.rotation,
-                child: TweenAnimationBuilder<double>(
-                  key: ValueKey('scale_${card.suit.index}_${card.number}'),
-                  duration: const Duration(milliseconds: 250),
-                  tween: Tween<double>(begin: 0.5, end: 1.0),
-                  builder: (context, scale, child) {
-                    return Transform.scale(
-                      scale: scale,
-                      child: child,
-                    );
-                  },
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Número cantado durante el Canto de Mesa (estampado en madera con sombra pura)
-                      if (_isDealing && _isFirstRoundDealing && spokenNum != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 2),
-                          child: Text(
-                            isHit ? '¡$spokenNum! ⭐' : '$spokenNum',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              color: isHit ? const Color(0xFFFDE047) : Colors.white,
-                              shadows: [
-                                Shadow(
-                                  color: isHit ? const Color(0xFFCA8A04) : Colors.black87,
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Número cantado durante el Canto de Mesa (estampado en madera con sombra pura)
+                    if (_isDealing && _isFirstRoundDealing && spokenNum != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Text(
+                          isHit ? '¡$spokenNum! ⭐' : '$spokenNum',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: isHit ? const Color(0xFFFDE047) : Colors.white,
+                            shadows: [
+                              Shadow(
+                                color: isHit ? const Color(0xFFCA8A04) : Colors.black87,
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
                         ),
-                      SpanishCardView(
-                        card: card,
-                        width: 58,
                       ),
-                    ],
-                  ),
+                    SpanishCardView(
+                      card: card,
+                      width: 58,
+                    ),
+                  ],
                 ),
               ),
             );
