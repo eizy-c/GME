@@ -13,6 +13,7 @@ class GameTableHeader extends StatelessWidget implements PreferredSizeWidget {
   final int? playerLevel;
   final bool isMuted;
   final VoidCallback? onToggleMute;
+  final bool showTrophies;
 
   const GameTableHeader({
     super.key,
@@ -26,6 +27,7 @@ class GameTableHeader extends StatelessWidget implements PreferredSizeWidget {
     this.playerLevel,
     this.isMuted = false,
     this.onToggleMute,
+    this.showTrophies = true,
   });
 
   @override
@@ -109,17 +111,34 @@ class GameTableHeader extends StatelessWidget implements PreferredSizeWidget {
             const SizedBox(width: 10),
 
             // Título breve o logo
+            // Título breve o logo con botón discreto de opciones
             Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.3,
-                ),
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                  if (onSettings != null) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined, color: Colors.white70, size: 18),
+                      tooltip: 'Opciones de mesa',
+                      onPressed: onSettings,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    ),
+                  ],
+                ],
               ),
             ),
 
@@ -185,36 +204,37 @@ class GameTableHeader extends StatelessWidget implements PreferredSizeWidget {
               ),
             ],
 
-            // Píldora de Trofeos / Puntos
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF261358),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF7C4DFF), width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF7C4DFF).withValues(alpha: 0.3),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.emoji_events_rounded, color: Color(0xFFFBBF24), size: 16),
-                  const SizedBox(width: 5),
-                  Text(
-                    _formatNumber(trophies),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
+            // Píldora de Trofeos / Puntos (solo si showTrophies es true)
+            if (showTrophies)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF261358),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF7C4DFF), width: 1.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF7C4DFF).withValues(alpha: 0.3),
+                      blurRadius: 4,
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.emoji_events_rounded, color: Color(0xFFFBBF24), size: 16),
+                    const SizedBox(width: 5),
+                    Text(
+                      _formatNumber(trophies),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

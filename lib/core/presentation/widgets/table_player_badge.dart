@@ -25,6 +25,7 @@ class TablePlayerBadge extends StatelessWidget {
   final Color avatarColor;
   final bool isMano;
   final int? avatarId;
+  final int? playerLevel;
   final VoidCallback? onTap;
 
   const TablePlayerBadge({
@@ -42,6 +43,7 @@ class TablePlayerBadge extends StatelessWidget {
     this.avatarColor = const Color(0xFF6366F1),
     this.isMano = false,
     this.avatarId,
+    this.playerLevel,
     this.onTap,
   }) : assert(scoreOrCards != null || score != null, 'Debe especificarse score o scoreOrCards');
 
@@ -218,6 +220,26 @@ class TablePlayerBadge extends StatelessWidget {
                   children: [
                     if (isBot) ...[
                       const Icon(Icons.smart_toy_rounded, size: 10, color: Color(0xFF2DD4BF)),
+                      const SizedBox(width: 3),
+                    ] else if (playerLevel != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0D9488), Color(0xFF0F766E)],
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFF2DD4BF), width: 0.8),
+                        ),
+                        child: Text(
+                          'Nv. $playerLevel',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 3),
                     ],
                     Text(

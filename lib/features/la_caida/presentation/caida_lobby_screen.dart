@@ -12,6 +12,7 @@ import 'widgets/four_aces_display_view.dart';
 import 'widgets/profile_and_level_modal.dart';
 import 'widgets/user_frame_view.dart';
 import 'widgets/vip_tier_selector_modal.dart';
+import 'widgets/privacy_policy_dialog.dart';
 import '../tutorial/presentation/tutorial_screen.dart';
 
 /// Lobby principal de La Caída inspirado en el boceto de referencia:
@@ -312,6 +313,43 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                     Navigator.of(ctx).pop();
                     _openLearnRulesDialog();
                   },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.privacy_tip_rounded, color: Color(0xFF38BDF8)),
+                  title: const Text('Política de Privacidad', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white54, size: 14),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    PrivacyPolicyDialog.show(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.verified_user_rounded, color: Color(0xFF34D399)),
+                  title: const Text('Licencias y Software Libre', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white54, size: 14),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    showLicensePage(
+                      context: context,
+                      applicationName: 'CaidaGO',
+                      applicationVersion: '1.0.0',
+                      applicationLegalese: '© 2026 CaidaGO • Desarrollado por Eizy Systems\nTodos los derechos reservados.',
+                    );
+                  },
+                ),
+                const Divider(color: Colors.white12),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    'CaidaGO v1.0.0\nDesarrollado por Eizy Systems • 2026\n© 2026 CaidaGO. Todos los derechos reservados.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 11,
+                      height: 1.35,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               ],
             ),

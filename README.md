@@ -41,6 +41,12 @@
 
 ## 🌟 Novedades y Actualizaciones Recientes
 
+* 🎴 **Reparto Tradicional Secuencial de 1 en 1 en Sentido Horario**:
+  * Distribución carta por carta (1 a 1) en orden de las manecillas del reloj iniciando estrictamente desde el jugador que es **Mano**, completando 3 vueltas hasta entregar 3 naipes a cada participante.
+  * Colocación animada e individual de las 4 cartas iniciales en el tapete de juego con trayectoria balística 3D (`CardFlightOverlay`) y evaluación de Cantos de Mesa sin apariciones abruptas.
+* 🏆 **Presentación y Bienvenida a la Partida en Mesa**:
+  * Banner dorado prominente `¡BIENVENIDOS A LA MESA DE CAÍDA!` al iniciar la partida y durante el sorteo interactivo de Mano.
+  * Animación de vuelo y dispersión parabólica de las 10 cartas candidatas desde el mazo hacia el tapete de madera en el Sorteo de Mano (*¡ELIGE UNA CARTA!*).
 * 🚀 **Enfoque Exclusivo en CaidaGO**:
   * Eliminación total del módulo de dominó y del compendio genérico inicial para optimizar el rendimiento, peso y experiencia de juego dedicada al 100% a **La Caída**.
   * Inicio directo al compilar en la pantalla de bienvenida estilizada con fondo chevrons púrpura, tipografía 3D abombada y navegación fluida hacia el Lobby.

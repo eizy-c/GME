@@ -23,6 +23,7 @@ import 'widgets/caida_game_over_modal.dart';
 import 'widgets/card_flight_overlay.dart';
 import 'widgets/deck_stack_view.dart';
 import 'widgets/table_canto_dialog.dart';
+import 'widgets/privacy_policy_dialog.dart';
 import 'caida_lobby_screen.dart';
 
 /// Candidato para el sorteo interactivo de Mano ("¡ELIGE UNA CARTA!")
@@ -69,6 +70,7 @@ class _PlayerState {
   final Color color;
   final int teamId;
   final int avatarId;
+  final int? level;
   List<SpanishCard> hand = [];
   int score = 0;
   int cardsWon = 0;
@@ -84,6 +86,7 @@ class _PlayerState {
     required this.color,
     this.teamId = 0,
     this.avatarId = 2,
+    this.level,
   });
 }
 
@@ -320,7 +323,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     );
 
     if (startWithManoSelection) {
-      _startManoSelection();
+      _startManoSelection(animate: animate ?? widget.animateDealing);
     } else {
       _manoIndex = 0;
       final shouldAnimate = animate ?? widget.animateDealing;
@@ -328,9 +331,10 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     }
   }
 
-  void _startManoSelection() {
+  void _startManoSelection({bool animate = true}) async {
     _manoCandidates.clear();
-    _manoAnnouncement = 'Elige tu carta para ver quién sale';
+    _manoAnnouncement = 'Sorteo de Mano: Toca una carta para ver quién sale';
+    _pointEventBanner = '¡BIENVENIDOS A LA MESA DE CAÍDA!';
     DebugLogger.instance.logGame('Iniciando sorteo interactivo de Mano');
     final tempDeck = SpanishDeck()..shuffle();
 
@@ -363,6 +367,35 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     setState(() {
       _isChoosingMano = true;
     });
+
+    if (animate) {
+      final spreadFlights = <CardFlightTrajectory>[];
+      for (final cand in _manoCandidates) {
+        spreadFlights.add(CardFlightTrajectory(
+          id: 'mano_spread_${cand.id}_${DateTime.now().millisecondsSinceEpoch}',
+          card: cand.card,
+          startAnchor: SpatialCardAnchor.deckAnchor,
+          targetAnchor: SpatialCardAnchor(
+            offset: Offset(cand.leftOffset, cand.topOffset),
+            rotation: cand.rotation,
+          ),
+          duration: const Duration(milliseconds: 380),
+          curve: Curves.easeOutBack,
+          isFaceUp: false,
+        ));
+      }
+
+      setState(() {
+        _activeTrajectories = spreadFlights;
+      });
+
+      await _safeDelay(const Duration(milliseconds: 400));
+      if (!mounted) return;
+
+      setState(() {
+        _activeTrajectories.clear();
+      });
+    }
   }
 
   void _onCandidateCardTapped(_ManoCardCandidate userChoice) async {
@@ -495,6 +528,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       color: const Color(0xFF38BDF8),
       teamId: teams ? 1 : 0,
       avatarId: profileService.avatarId,
+      level: _userLevel,
     ));
 
     // Nombres y avatares según bots configurados o por defecto
@@ -607,9 +641,14 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       for (final p in _players) {
         p.hand.clear();
         p.pendingCanto = null;
-        for (int i = 0; i < 3; i++) {
+      }
+
+      // Reparto de 1 en 1 en sentido horario desde la Mano (3 vueltas = 3 cartas cada uno)
+      for (int round = 0; round < 3; round++) {
+        for (int step = 0; step < _players.length; step++) {
+          final pIndex = (_manoIndex + step) % _players.length;
           final c = _deck.draw();
-          if (c != null) p.hand.add(c);
+          if (c != null) _players[pIndex].hand.add(c);
         }
       }
 
@@ -618,7 +657,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       return;
     }
 
-    // Modo animado: repartir 3 cartas a cada jugador en orden horario y al final 4 a la mesa
+    // Modo animado
     _isDealing = true;
     if (isFirstRound) {
       _tableCards.clear();
@@ -627,6 +666,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       _lastCapturingPlayerIndex = null;
       _lastPlayedCard = null;
       _lastPlayedPlayerIndex = null;
+      _pointEventBanner = '¡BIENVENIDOS A LA MESA DE CAÍDA!';
     }
 
     for (final p in _players) {
@@ -635,55 +675,55 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     }
     setState(() {});
 
-    final dealerAnchor = SpatialCardAnchor.playerStationAnchor(
-      playerIndex: _manoIndex,
-      totalPlayers: _players.length,
-    );
+    if (isFirstRound) {
+      await _safeDelay(const Duration(milliseconds: 800));
+      if (!mounted) return;
+      setState(() {
+        _pointEventBanner = null;
+      });
+    }
 
-    // 1. Repartir 3 cartas a cada jugador en sentido de las agujas del reloj desde el repartidor
-    for (int step = 0; step < _players.length; step++) {
-      final pIndex = (_manoIndex + 1 + step) % _players.length;
-      final player = _players[pIndex];
-
-      final cardsForPlayer = <SpanishCard>[];
-      for (int i = 0; i < 3; i++) {
+    // 1. Repartir 1 carta a la vez en sentido horario comenzando desde el jugador que es Mano (3 vueltas)
+    for (int round = 0; round < 3; round++) {
+      for (int step = 0; step < _players.length; step++) {
+        final pIndex = (_manoIndex + step) % _players.length;
+        final player = _players[pIndex];
         final drawn = _deck.draw();
-        if (drawn != null) cardsForPlayer.add(drawn);
-      }
+        if (drawn == null) continue;
 
-      final targetStation = SpatialCardAnchor.playerStationAnchor(
-        playerIndex: pIndex,
-        totalPlayers: _players.length,
-      );
+        final targetStation = SpatialCardAnchor.playerStationAnchor(
+          playerIndex: pIndex,
+          totalPlayers: _players.length,
+        );
 
-      if (cardsForPlayer.isNotEmpty) {
         setState(() {
           _activeTrajectories = [
             CardFlightTrajectory(
-              id: 'deal_hand_${pIndex}_${DateTime.now().millisecondsSinceEpoch}',
-              card: cardsForPlayer.first,
-              startAnchor: dealerAnchor,
+              id: 'deal_hand_${round}_${pIndex}_${DateTime.now().millisecondsSinceEpoch}',
+              card: drawn,
+              startAnchor: SpatialCardAnchor.deckAnchor,
               targetAnchor: targetStation,
-              duration: const Duration(milliseconds: 380),
+              duration: const Duration(milliseconds: 260),
               curve: Curves.easeOutCubic,
               isFaceUp: pIndex == 0,
             ),
           ];
         });
 
-        await _safeDelay(const Duration(milliseconds: 400));
+        await _safeDelay(const Duration(milliseconds: 270));
         if (!mounted) return;
 
         setState(() {
           _activeTrajectories.clear();
-          player.hand.addAll(cardsForPlayer);
+          player.hand.add(drawn);
         });
-        await _safeDelay(const Duration(milliseconds: 120));
+
+        await _safeDelay(const Duration(milliseconds: 70));
         if (!mounted) return;
       }
     }
 
-    // 2. Al finalizar con los jugadores, repartir las 4 cartas a la mesa con animación y canto
+    // 2. Si es la primera ronda, repartir las 4 cartas a la mesa de 1 en 1 con animación y Canto de Mesa
     if (isFirstRound) {
       final dealer = _players[_manoIndex];
       final opponent = _players[(_manoIndex + 1) % _players.length];
@@ -704,20 +744,20 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             CardFlightTrajectory(
               id: 'deal_table_${i}_${DateTime.now().millisecondsSinceEpoch}',
               card: tableCard,
-              startAnchor: dealerAnchor,
+              startAnchor: SpatialCardAnchor.deckAnchor,
               targetAnchor: SpatialCardAnchor(
                 card: tableCard,
                 offset: placement.offset,
                 rotation: placement.rotation,
               ),
-              duration: const Duration(milliseconds: 400),
+              duration: const Duration(milliseconds: 320),
               curve: Curves.easeOutCubic,
               isFaceUp: true,
             ),
           ];
         });
 
-        await _safeDelay(const Duration(milliseconds: 420));
+        await _safeDelay(const Duration(milliseconds: 330));
         if (!mounted) return;
 
         setState(() {
@@ -726,19 +766,19 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
           _placedTableCards.add(placement);
         });
 
-        await _safeDelay(const Duration(milliseconds: 180));
+        await _safeDelay(const Duration(milliseconds: 140));
         if (!mounted) return;
       }
 
       if (dealResult.dealerPoints > 0) {
         _addPoints(dealer, dealResult.dealerPoints);
         _triggerCallout(dealer, 'Canto de Mesa (+${dealResult.dealerPoints} pts)');
-        await _safeDelay(const Duration(milliseconds: 600));
+        await _safeDelay(const Duration(milliseconds: 500));
       }
       if (dealResult.opponentPoints > 0) {
         _addPoints(opponent, dealResult.opponentPoints);
         _triggerCallout(opponent, '+${dealResult.opponentPoints} pt (Mesa)');
-        await _safeDelay(const Duration(milliseconds: 600));
+        await _safeDelay(const Duration(milliseconds: 500));
       }
 
       if (_checkGameOver()) return;
@@ -1434,6 +1474,41 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                   GameRulesDialog.show(context, 'la_caida');
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.privacy_tip_rounded, color: Color(0xFF38BDF8)),
+                title: const Text('Política de Privacidad', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  PrivacyPolicyDialog.show(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.verified_user_rounded, color: Color(0xFF34D399)),
+                title: const Text('Licencias y Software Libre', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  showLicensePage(
+                    context: context,
+                    applicationName: 'CaidaGO',
+                    applicationVersion: '1.0.0',
+                    applicationLegalese: '© 2026 CaidaGO • Desarrollado por Eizy Systems\nTodos los derechos reservados.',
+                  );
+                },
+              ),
+              const Divider(color: Colors.white12),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  'CaidaGO v1.0.0\nDesarrollado por Eizy Systems • 2026\n© 2026 CaidaGO. Todos los derechos reservados.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 11,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -1460,8 +1535,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         },
         onOpenRules: () => GameRulesDialog.show(context, 'la_caida'),
         onSettings: _openMatchSettings,
-        trophies: _sessionTrophies,
-        playerLevel: _userLevel,
+        showTrophies: false,
+        playerLevel: null,
         // Los ms SOLO se muestran en partidas por internet o red local
         showPing: _isMultiplayerNetwork,
         pingMs: 55,
@@ -2064,6 +2139,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             score: rival.score,
             cardsWon: rival.cardsWon,
             isBot: rival.isBot,
+            playerLevel: rival.isBot ? null : rival.level,
             isCurrentTurn: _currentTurnIndex == 1,
             turnProgress: 1.0 - _timerController.value,
             position: PlayerPositionOnTable.top,
@@ -2088,6 +2164,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             score: rival1.score,
             cardsWon: rival1.cardsWon,
             isBot: rival1.isBot,
+            playerLevel: rival1.isBot ? null : rival1.level,
             isCurrentTurn: _currentTurnIndex == 1,
             turnProgress: 1.0 - _timerController.value,
             position: PlayerPositionOnTable.left,
@@ -2109,6 +2186,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             score: rival2.score,
             cardsWon: rival2.cardsWon,
             isBot: rival2.isBot,
+            playerLevel: rival2.isBot ? null : rival2.level,
             isCurrentTurn: _currentTurnIndex == 2,
             turnProgress: 1.0 - _timerController.value,
             position: PlayerPositionOnTable.right,
@@ -2135,6 +2213,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             score: rival1.score,
             cardsWon: rival1.cardsWon,
             isBot: rival1.isBot,
+            playerLevel: rival1.isBot ? null : rival1.level,
             isCurrentTurn: _currentTurnIndex == 1,
             turnProgress: 1.0 - _timerController.value,
             position: PlayerPositionOnTable.left,
@@ -2156,6 +2235,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             score: rival2.score,
             cardsWon: rival2.cardsWon,
             isBot: rival2.isBot,
+            playerLevel: rival2.isBot ? null : rival2.level,
             isCurrentTurn: _currentTurnIndex == 2,
             turnProgress: 1.0 - _timerController.value,
             position: PlayerPositionOnTable.top,
@@ -2178,6 +2258,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             score: rival3.score,
             cardsWon: rival3.cardsWon,
             isBot: rival3.isBot,
+            playerLevel: rival3.isBot ? null : rival3.level,
             isCurrentTurn: _currentTurnIndex == 3,
             turnProgress: 1.0 - _timerController.value,
             position: PlayerPositionOnTable.right,
@@ -2203,6 +2284,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         score: user.score,
         cardsWon: user.cardsWon,
         isBot: false,
+        playerLevel: _userLevel,
         isCurrentTurn: _currentTurnIndex == 0,
         turnProgress: 1.0 - _timerController.value,
         position: PlayerPositionOnTable.bottom,
@@ -2240,6 +2322,17 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const Text(
+                    '¡BIENVENIDOS A LA MESA DE CAÍDA!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
                   const Text(
                     '¡ELIGE UNA CARTA!',
                     textAlign: TextAlign.center,
