@@ -20,33 +20,17 @@ class CardFlightOverlay extends StatefulWidget {
 }
 
 class _CardFlightOverlayState extends State<CardFlightOverlay>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _initController();
-  }
-
-  void _initController() {
-    if (widget.activeTrajectories.isEmpty) {
-      _controller = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 360),
-      );
-      return;
-    }
-
-    final maxDuration = widget.activeTrajectories
-        .map((t) => t.duration)
-        .reduce((a, b) => a > b ? a : b);
-
     _controller = AnimationController(
       vsync: this,
-      duration: maxDuration,
+      duration: const Duration(milliseconds: 360),
     )..addListener(() {
-        setState(() {});
+        if (mounted) setState(() {});
       })..addStatusListener((status) {
         if (status == AnimationStatus.completed) {
           for (final trajectory in widget.activeTrajectories) {
@@ -56,6 +40,18 @@ class _CardFlightOverlayState extends State<CardFlightOverlay>
         }
       });
 
+    if (widget.activeTrajectories.isNotEmpty) {
+      _startFlight();
+    }
+  }
+
+  void _startFlight() {
+    if (widget.activeTrajectories.isEmpty) return;
+    final maxDuration = widget.activeTrajectories
+        .map((t) => t.duration)
+        .reduce((a, b) => a > b ? a : b);
+
+    _controller.duration = maxDuration;
     _controller.forward(from: 0.0);
   }
 
@@ -64,8 +60,7 @@ class _CardFlightOverlayState extends State<CardFlightOverlay>
     super.didUpdateWidget(oldWidget);
     if (widget.activeTrajectories != oldWidget.activeTrajectories &&
         widget.activeTrajectories.isNotEmpty) {
-      _controller.dispose();
-      _initController();
+      _startFlight();
     }
   }
 

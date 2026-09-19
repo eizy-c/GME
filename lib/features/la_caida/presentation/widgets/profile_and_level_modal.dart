@@ -385,12 +385,17 @@ class _ProfileAndLevelModalState extends State<ProfileAndLevelModal> with Single
           const SizedBox(height: 10),
 
           // Lista de metas
-          _buildMilestone(0, 'Nivel 0: Novato', '10 Tickets de cortesía, Modo Normal, Marco Madera', currentLevel >= 0),
-          _buildMilestone(1, 'Nivel 1: Aprendiz', '+500 Monedas, Desbloqueo Marco Plata Pulida', currentLevel >= 1),
-          _buildMilestone(3, 'Nivel 3: Aficionado', '+1,000 Monedas, Desbloqueo Marco Oro Imperial y Mesa VIP Bronce', currentLevel >= 3),
-          _buildMilestone(5, 'Nivel 5: Estratega', '+2,000 Monedas, Desbloqueo Marco Neón Cian y Mesa VIP Plata', currentLevel >= 5),
-          _buildMilestone(7, 'Nivel 7: Maestro', '+3,500 Monedas, Desbloqueo Marco Fuego Carmesí y Mesa VIP Oro', currentLevel >= 7),
-          _buildMilestone(10, 'Nivel 10: Leyenda Criolla', '+5,000 Monedas, Desbloqueo Marco Diamante Mítico y Mesa Diamante', currentLevel >= 10),
+          _buildMilestone(0, 'Nivel 0: Pichón', '10 Tickets de cortesía, Modo Normal, Marco Madera Rústica', currentLevel >= 0),
+          _buildMilestone(1, 'Nivel 1: Caimanero', '+150 Monedas, Escuela de Novatos completada', currentLevel >= 1),
+          _buildMilestone(2, 'Nivel 2: El Avillao', 'Desbloqueo de Marco Plata Pulida 🥈', currentLevel >= 2),
+          _buildMilestone(3, 'Nivel 3: Arrastrador', '+250 Monedas, Desbloqueo Mesa VIP Bronce', currentLevel >= 3),
+          _buildMilestone(4, 'Nivel 4: Gallo Fino', 'Desbloqueo de Marco Oro Imperial 🥇', currentLevel >= 4),
+          _buildMilestone(5, 'Nivel 5: El Tigre', '+500 Monedas, Desbloqueo Mesa VIP Plata', currentLevel >= 5),
+          _buildMilestone(6, 'Nivel 6: El Baquiano', 'Desbloqueo de Marco Neón Cibernético ⚡', currentLevel >= 6),
+          _buildMilestone(7, 'Nivel 7: Pana Bravo', '+750 Monedas, Desbloqueo Mesa VIP Oro', currentLevel >= 7),
+          _buildMilestone(8, 'Nivel 8: El Caballo', 'Desbloqueo de Marco Llama Ardiente 🔥', currentLevel >= 8),
+          _buildMilestone(9, 'Nivel 9: El Papá de los Helados', '+1,000 Monedas de bonificación', currentLevel >= 9),
+          _buildMilestone(10, 'Nivel 10: Cacique del Trivilín', 'Desbloqueo Marco Diamante Real 💎 y Mesa Diamante', currentLevel >= 10),
         ],
       ),
     );

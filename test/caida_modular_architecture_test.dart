@@ -110,13 +110,28 @@ void main() {
     test('UserProgress calcula progresión exponencial correctamente', () {
       const prog0 = UserProgress(totalXp: 0);
       expect(prog0.currentLevel, equals(0));
+      expect(prog0.rankTitle, equals('Pichón'));
 
       const prog1 = UserProgress(totalXp: 100);
       expect(prog1.currentLevel, equals(1));
+      expect(prog1.rankTitle, equals('Caimanero'));
 
-      // Nivel 2 requiere 100 * (2^1.5) = 282 XP
+      // Nivel 2 requiere 300 XP
       const prog2 = UserProgress(totalXp: 300);
       expect(prog2.currentLevel, equals(2));
+      expect(prog2.rankTitle, equals('El Avillao'));
+
+      const prog5 = UserProgress(totalXp: 1850);
+      expect(prog5.currentLevel, equals(5));
+      expect(prog5.rankTitle, equals('El Tigre'));
+
+      const prog6 = UserProgress(totalXp: 2800);
+      expect(prog6.currentLevel, equals(6));
+      expect(prog6.rankTitle, equals('El Baquiano'));
+
+      const prog10 = UserProgress(totalXp: 10000);
+      expect(prog10.currentLevel, equals(10));
+      expect(prog10.rankTitle, equals('Cacique del Trivilín'));
 
       expect(prog2.levelProgressPercentage, inInclusiveRange(0.0, 1.0));
     });

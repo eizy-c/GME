@@ -15,8 +15,10 @@ import '../../../core/services/user_profile_service.dart';
 import '../domain/caida_models.dart';
 import '../domain/caida_rules_engine.dart';
 import '../domain/models/spatial_card_state.dart';
+import '../economy/chest_slot_model.dart';
 import '../economy/player_session.dart';
 import '../economy/vip_tier.dart';
+import 'widgets/caida_game_over_modal.dart';
 import 'widgets/card_flight_overlay.dart';
 import 'widgets/deck_stack_view.dart';
 import 'widgets/table_canto_dialog.dart';
@@ -168,6 +170,11 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   int? _lastPlayedPlayerIndex;
   int? _lastCapturingPlayerIndex;
 
+  // Estadísticas clave de la partida para el modal de fin de juego
+  int _matchUserCaidas = 0;
+  int _matchUserLimpias = 0;
+  int _matchUserCantos = 0;
+
   // Canto de Mesa del repartidor
   DealDirection _cantoDirection = DealDirection.ascending;
   String? _pointEventBanner;
@@ -277,6 +284,9 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _isGameOver = false;
     _selectedCard = null;
     _roundNumber = 1;
+    _matchUserCaidas = 0;
+    _matchUserLimpias = 0;
+    _matchUserCantos = 0;
     _clearAllCallouts();
 
     _setupPlayers(
@@ -709,6 +719,9 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       final canto = resolved[p.id];
       if (canto != null) {
         _addPoints(p, canto.points);
+        if (p.id == 'user' || (_isTeams && p.teamId == _players[0].teamId)) {
+          _matchUserCantos++;
+        }
         final detail = canto is RondaCanto
             ? 'Ronda de ${canto.pairNumber}'
             : canto.name.replaceAll('¡', '').replaceAll('!', '');
@@ -857,6 +870,10 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       if (!mounted || _isGameOver) return;
 
       if (eval.didCapture) {
+        final isUserSide = player.id == 'user' || (_isTeams && player.teamId == _players[0].teamId);
+        if (eval.isCaida && isUserSide) _matchUserCaidas++;
+        if (eval.isLimpia && isUserSide) _matchUserLimpias++;
+
         // Sonidos de Caída / Limpia al impactar
         if (eval.isCaida) AudioService().playCaida();
         if (eval.isLimpia) {
@@ -933,6 +950,9 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       });
 
       if (eval.didCapture) {
+        final isUserSide = player.id == 'user' || (_isTeams && player.teamId == _players[0].teamId);
+        if (eval.isCaida && isUserSide) _matchUserCaidas++;
+        if (eval.isLimpia && isUserSide) _matchUserLimpias++;
         _addCardsWon(player, eval.capturedCards.length);
         _lastCapturingPlayerIndex = _currentTurnIndex;
       }
@@ -1019,82 +1039,107 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     final userWon = winner.id == 'user' || (_isTeams && winner.teamId == _players[0].teamId);
 
     // Acumulación persistente de puntos/trofeos y nivel
-    bool didLevelUp = false;
-    final int xpGained = userWon ? 500 + (_players[0].cardsWon * 10) : 100 + (_players[0].cardsWon * 5);
+    final session = PlayerSession.shared;
+    final initialLevel = session.level;
+    final int rawXpGained = userWon
+        ? (60 + (_players[0].cardsWon * 2) + (_matchUserCaidas * 10) + (_matchUserLimpias * 15))
+        : (20 + (_players[0].cardsWon * 1));
+    final int xpGained = widget.vipTier != null ? (rawXpGained * 1.25).round() : rawXpGained;
+
     if (userWon) {
       _sessionTrophies += 2000 + (_players[0].score * 50);
     } else {
       _sessionTrophies = math.max(0, _sessionTrophies - 500 + (_players[0].score * 20));
     }
     _userXp += xpGained;
-    while (_userXp >= _xpToNextLevel) {
-      _userXp -= _xpToNextLevel;
-      _userLevel++;
-      _xpToNextLevel = _userLevel * 600;
-      didLevelUp = true;
-    }
+    _userLevel = session.level;
 
     // Recompensas del sistema de economía de Fase 2 (PlayerSession)
     int vipCoinsWon = 0;
+    bool chestAwarded = false;
+    int? chestSlotIndex;
+
     if (widget.vipTier != null) {
       if (userWon) {
         vipCoinsWon = widget.vipWinnerReward ?? widget.vipTier!.calculateNetPrizePerWinner(isTeams: widget.initialTeams);
-        PlayerSession.shared.rewardCoins(vipCoinsWon, xpGain: xpGained);
-        PlayerSession.shared.addChestOnWin();
+        session.rewardCoins(vipCoinsWon, xpGain: xpGained);
+        chestAwarded = session.addChestOnWin();
+        if (chestAwarded) {
+          chestSlotIndex = session.chests.indexWhere((c) => c.getState() == ChestState.unlocking);
+          if (chestSlotIndex == -1) chestSlotIndex = 0;
+        }
       } else {
-        PlayerSession.shared.addXp(xpGained);
+        session.addXp(xpGained);
       }
     } else {
       if (userWon) {
-        PlayerSession.shared.rewardCoins(150, xpGain: xpGained);
-        PlayerSession.shared.addChestOnWin();
+        vipCoinsWon = 150;
+        session.rewardCoins(150, xpGain: xpGained);
+        chestAwarded = session.addChestOnWin();
+        if (chestAwarded) {
+          chestSlotIndex = session.chests.indexWhere((c) => c.getState() == ChestState.unlocking);
+          if (chestSlotIndex == -1) chestSlotIndex = 0;
+        }
       } else {
-        PlayerSession.shared.addXp(xpGained);
+        session.addXp(xpGained);
       }
     }
 
-    final resultEntries = _players.map((p) {
-      final isWin = p.id == winner.id || (_isTeams && p.teamId == winner.teamId);
-      final change = isWin
-          ? (widget.vipTier != null ? vipCoinsWon : 2000)
-          : (widget.vipTier != null ? -(widget.vipTier!.entryFee) : -1000);
-      return GameResultEntry(
-        name: p.name,
-        scoreChange: change,
-        isWinner: isWin,
-        isUser: p.id == 'user',
-      );
-    }).toList();
+    final finalLevel = session.level;
+    final didLevelUp = finalLevel > initialLevel;
+
+    final userTeamPlayers = _isTeams ? _players.where((p) => p.teamId == _players[0].teamId).toList() : [_players[0]];
+    final oppTeamPlayers = _isTeams ? _players.where((p) => p.teamId != _players[0].teamId).toList() : _players.where((p) => p.id != 'user').toList();
+
+    final userTeamScore = userTeamPlayers.isNotEmpty ? userTeamPlayers.map((p) => p.score).reduce(math.max) : _players[0].score;
+    final oppTeamScore = oppTeamPlayers.isNotEmpty ? oppTeamPlayers.map((p) => p.score).reduce(math.max) : (sorted.length > 1 ? sorted[1].score : 0);
+
+    final userTeamCards = userTeamPlayers.isNotEmpty ? userTeamPlayers.map((p) => p.cardsWon).reduce(math.max) : _players[0].cardsWon;
+    final oppTeamCards = oppTeamPlayers.isNotEmpty ? oppTeamPlayers.map((p) => p.cardsWon).reduce(math.max) : (sorted.length > 1 ? sorted[1].cardsWon : 0);
 
     setState(() {});
 
     _finishTimer?.cancel();
     _finishTimer = Timer(const Duration(milliseconds: 600), () {
       if (mounted) {
-        String customSubtitle;
+        String? customSubtitle;
         if (widget.vipTier != null) {
           customSubtitle = userWon
               ? '👑 ¡VICTORIA VIP EN MESA ${widget.vipTier!.name.toUpperCase()}!\nPremio obtenido: +🪙 $vipCoinsWon monedas (+$xpGained XP)'
               : 'Mesa ${widget.vipTier!.name}: Ganó ${winner.name} con ${winner.score} pts (+$xpGained XP)';
-        } else {
-          customSubtitle = didLevelUp
-              ? '🎉 ¡SUBISTE AL NIVEL $_userLevel! (+$xpGained XP)\nPuntuación final: ${winner.name} con ${winner.score} pts'
-              : 'Puntuación final: ${winner.name} con ${winner.score} pts (+$xpGained XP • Nv. $_userLevel)';
         }
 
-        GameResultDialog.show(
-          context,
+        final matchSummary = CaidaMatchSummary(
           userWon: userWon,
-          subtitle: customSubtitle,
-          entries: resultEntries,
+          userTeamScore: userTeamScore,
+          opponentTeamScore: oppTeamScore,
+          userTeamCardsWon: userTeamCards,
+          opponentTeamCardsWon: oppTeamCards,
+          caidasCount: _matchUserCaidas,
+          limpiasCount: _matchUserLimpias,
+          cantosCount: _matchUserCantos,
+          coinsWon: userWon ? vipCoinsWon : 0,
+          xpWon: xpGained,
+          chestAwarded: chestAwarded,
+          chestSlotIndex: chestSlotIndex,
+          didLevelUp: didLevelUp,
+          initialLevel: initialLevel,
+          finalLevel: finalLevel,
+          customSubtitle: customSubtitle,
+          isTeams: _isTeams,
+        );
+
+        CaidaGameOverModal.show(
+          context,
+          summary: matchSummary,
           onRematch: () {
             Navigator.pop(context);
             _initMatch(_playerCount, _isTeams, _players[0].name);
           },
           onBackToMenu: () {
-            Navigator.pop(context); // Cierra el modal de GameResultDialog
+            Navigator.pop(context);
             if (Navigator.canPop(context)) {
-              Navigator.pop(context); // Regresa al lobby principal de La Caída
+              Navigator.pop(context);
             } else {
               Navigator.pushReplacement(
                 context,
