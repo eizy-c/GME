@@ -1,5 +1,3 @@
-import 'dart:math';
-
 /// Cálculo matemático puro de nivel y progreso porcentual mediante curva exponencial.
 /// Todos los jugadores inician formalmente en Nivel 0 (0 XP).
 class UserProgress {

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/cards/spanish_card.dart';
 import '../../../core/models/cards/spanish_deck.dart';
-import '../../../core/presentation/widgets/game_result_dialog.dart';
 import '../../../core/presentation/widgets/game_rules_dialog.dart';
 import '../../../core/presentation/widgets/game_table_header.dart';
 import '../../../core/presentation/widgets/spanish_card_view.dart';
@@ -12,6 +11,7 @@ import '../../../core/presentation/widgets/table_player_badge.dart';
 import '../../../core/presentation/widgets/wood_table_background.dart';
 import '../../../core/services/audio_service.dart';
 import '../../../core/services/debug_logger.dart';
+import '../../../core/services/feedback_service.dart';
 import '../../../core/services/user_profile_service.dart';
 import '../domain/caida_models.dart';
 import '../domain/caida_rules_engine.dart';
@@ -107,28 +107,18 @@ class CaidaScreen extends StatefulWidget {
   const CaidaScreen({
     super.key,
     this.config,
-    int? initialPlayers,
-    bool? autoStart,
-    bool? animateDealing,
-    bool? initialTeams,
-    bool? chooseMano,
-    String? userName,
-    List<String>? botNames,
-    VipTierOffer? vipTier,
-    int? vipPrizePool,
-    int? vipWinnerReward,
-    bool isMatandoCantos = false,
-  })  : initialPlayers = initialPlayers ?? config?.initialPlayers ?? 2,
-        autoStart = autoStart ?? config?.autoStart ?? false,
-        animateDealing = animateDealing ?? config?.animateDealing ?? true,
-        initialTeams = initialTeams ?? config?.initialTeams ?? false,
-        chooseMano = chooseMano ?? config?.chooseMano ?? false,
-        userName = userName ?? config?.userName,
-        botNames = botNames ?? config?.botNames,
-        vipTier = vipTier ?? config?.vipTier,
-        vipPrizePool = vipPrizePool ?? config?.vipPrizePool,
-        vipWinnerReward = vipWinnerReward ?? config?.vipWinnerReward,
-        isMatandoCantos = isMatandoCantos || (config?.isMatandoCantos ?? false);
+    this.initialPlayers = 2,
+    this.autoStart = false,
+    this.animateDealing = true,
+    this.initialTeams = false,
+    this.chooseMano = false,
+    this.userName,
+    this.botNames,
+    this.vipTier,
+    this.vipPrizePool,
+    this.vipWinnerReward,
+    this.isMatandoCantos = false,
+  });
 
   @override
   State<CaidaScreen> createState() => _CaidaScreenState();
@@ -156,10 +146,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   int _manoIndex = 0; // Índice del jugador que es Mano (juega primero)
   int _roundNumber = 1; // Contador de rondas de la partida
 
-  // Sistema de Nivel y Experiencia (XP)
+  // Sistema de Nivel
   int _userLevel = 1;
-  int _userXp = 250;
-  int _xpToNextLevel = 600;
 
   // Estado de reparto animado
   bool _isDealing = false;
@@ -219,13 +207,25 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     return completer.future;
   }
 
+  int get _effectivePlayers => widget.config?.initialPlayers ?? widget.initialPlayers;
+  bool get _effectiveAutoStart => widget.config?.autoStart ?? widget.autoStart;
+  bool get _effectiveAnimateDealing => widget.config?.animateDealing ?? widget.animateDealing;
+  bool get _effectiveTeams => widget.config?.initialTeams ?? widget.initialTeams;
+  bool get _effectiveChooseMano => widget.config?.chooseMano ?? widget.chooseMano;
+  String? get _effectiveUserName => widget.config?.userName ?? widget.userName;
+  List<String>? get _effectiveBotNames => widget.config?.botNames ?? widget.botNames;
+  VipTierOffer? get _vipTier => widget.config?.vipTier ?? widget.vipTier;
+  int? get _vipPrizePool => widget.config?.vipPrizePool ?? widget.vipPrizePool;
+  int? get _vipWinnerReward => widget.config?.vipWinnerReward ?? widget.vipWinnerReward;
+  bool get _effectiveIsMatandoCantos => widget.config?.isMatandoCantos ?? widget.isMatandoCantos;
+
   @override
   void initState() {
     super.initState();
-    _playerCount = widget.initialPlayers.clamp(2, 4);
+    _playerCount = _effectivePlayers.clamp(2, 4);
     _botCount = (_playerCount - 1).clamp(1, 3);
-    _hasGameStarted = widget.autoStart;
-    _isTeams = widget.initialTeams;
+    _hasGameStarted = _effectiveAutoStart;
+    _isTeams = _effectiveTeams;
 
     _timerController = AnimationController(
       vsync: this,
@@ -248,7 +248,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       });
 
     // Inicializar jugadores mínimos para evitar excepciones de índice antes de iniciar
-    final initialUserName = widget.userName ?? 'Tú';
+    final initialUserName = _effectiveUserName ?? 'Tú';
     _setupPlayers(
       totalPlayers: _playerCount,
       userName: initialUserName,
@@ -260,8 +260,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         _playerCount,
         _isTeams,
         initialUserName,
-        animate: widget.animateDealing,
-        startWithManoSelection: widget.chooseMano,
+        animate: _effectiveAnimateDealing,
+        startWithManoSelection: _effectiveChooseMano,
       );
     }
   }
@@ -497,7 +497,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     final defaultBotNames = [
       for (int i = 1; i < totalPlayers; i++) 'Player $i'
     ];
-    final effectiveBotNames = widget.botNames ?? defaultBotNames;
+    final effectiveBotNames = _effectiveBotNames ?? defaultBotNames;
     const botAvatars = [1, 14, 5];
     const botColors = [
       Color(0xFFF43F5E), // Izquierda / Rival 1 (Rojo)
@@ -1032,7 +1032,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
           );
 
     SpatialCardAnchor targetAnchor;
-    _PlacedTableCard? plannedPlacement;
+    PlacedTableCard? plannedPlacement;
     if (eval.didCapture) {
       final matchedPlaced = _placedTableCards.where((p) => p.card.number == card.number).firstOrNull;
       if (matchedPlaced != null) {
@@ -1282,14 +1282,13 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     final int rawXpGained = userWon
         ? (60 + (_players[0].totalMatchCardsWon * 2) + (_matchUserCaidas * 10) + (_matchUserLimpias * 15))
         : (20 + (_players[0].totalMatchCardsWon * 1));
-    final int xpGained = widget.vipTier != null ? (rawXpGained * 1.25).round() : rawXpGained;
+    final int xpGained = _vipTier != null ? (rawXpGained * 1.25).round() : rawXpGained;
 
     if (userWon) {
       _sessionTrophies += 2000 + (_players[0].score * 50);
     } else {
       _sessionTrophies = math.max(0, _sessionTrophies - 500 + (_players[0].score * 20));
     }
-    _userXp += xpGained;
     _userLevel = session.level;
 
     // Recompensas del sistema de economía de Fase 2 (PlayerSession)
@@ -1297,9 +1296,9 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     bool chestAwarded = false;
     int? chestSlotIndex;
 
-    if (widget.vipTier != null) {
+    if (_vipTier != null) {
       if (userWon) {
-        vipCoinsWon = widget.vipWinnerReward ?? widget.vipTier!.calculateNetPrizePerWinner(isTeams: widget.initialTeams);
+        vipCoinsWon = _vipWinnerReward ?? _vipTier!.calculateNetPrizePerWinner(isTeams: _isTeams);
         session.rewardCoins(vipCoinsWon, xpGain: xpGained);
         chestAwarded = session.addChestOnWin();
         if (chestAwarded) {
@@ -1349,10 +1348,10 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _finishTimer = Timer(const Duration(milliseconds: 600), () {
       if (mounted) {
         String? customSubtitle;
-        if (widget.vipTier != null) {
+        if (_vipTier != null) {
           customSubtitle = userWon
-              ? '¡VICTORIA VIP EN MESA ${widget.vipTier!.name.toUpperCase()}!\nPremio obtenido: +$vipCoinsWon monedas (+$xpGained XP)'
-              : 'Mesa ${widget.vipTier!.name}: Ganó ${winner.name} con ${winner.score} pts (+$xpGained XP)';
+              ? '¡VICTORIA VIP EN MESA ${_vipTier!.name.toUpperCase()}!\nPremio obtenido: +$vipCoinsWon monedas (+$xpGained XP)'
+              : 'Mesa ${_vipTier!.name}: Ganó ${winner.name} con ${winner.score} pts (+$xpGained XP)';
         }
 
         final matchSummary = CaidaMatchSummary(
@@ -1463,6 +1462,16 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                       MaterialPageRoute(builder: (_) => const CaidaLobbyScreen()),
                     );
                   }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.feedback_rounded, color: Color(0xFFF59E0B)),
+                title: const Text('Buzón de Sugerencias', style: TextStyle(color: Colors.white)),
+                subtitle: const Text('Comparte tus ideas o reportes con el equipo', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                trailing: const Icon(Icons.open_in_new_rounded, color: Colors.white54, size: 16),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  FeedbackService.openFeedbackForm(context: context);
                 },
               ),
               ListTile(
@@ -1994,20 +2003,20 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
             ),
 
             // 6. Indicador de Mesa VIP en la parte superior si aplica
-            if (widget.vipTier != null)
+            if (_vipTier != null)
               Positioned(
                 top: 8,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [widget.vipTier!.accentColor, const Color(0xFF0F172A)],
+                      colors: [_vipTier!.accentColor, const Color(0xFF0F172A)],
                     ),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: widget.vipTier!.accentColor, width: 1.2),
+                    border: Border.all(color: _vipTier!.accentColor, width: 1.2),
                     boxShadow: [
                       BoxShadow(
-                        color: widget.vipTier!.accentColor.withValues(alpha: 0.4),
+                        color: _vipTier!.accentColor.withValues(alpha: 0.4),
                         blurRadius: 8,
                       ),
                     ],
@@ -2018,7 +2027,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                       const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFDE047), size: 14),
                       const SizedBox(width: 5),
                       Text(
-                        'Mesa ${widget.vipTier!.name} • Pozo: ${widget.vipPrizePool ?? widget.vipTier!.calculatePrizePool(isTeams: widget.initialTeams)}',
+                        'Mesa ${_vipTier!.name} • Pozo: ${_vipPrizePool ?? _vipTier!.calculatePrizePool(isTeams: _isTeams)}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,

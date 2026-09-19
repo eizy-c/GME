@@ -34,14 +34,20 @@ class CaidaMatchConfig {
     required String userName,
     int players = 2,
     bool teams = false,
+    bool? isTeams,
     bool chooseMano = true,
+    List<String> botNames = const ['Alejandro', 'Carl', 'Jhonny'],
+    bool isMatandoCantos = true,
   }) {
+    final effectiveTeams = isTeams ?? teams;
     return CaidaMatchConfig(
       initialPlayers: players,
-      initialTeams: teams,
+      initialTeams: effectiveTeams,
       autoStart: true,
       chooseMano: chooseMano,
       userName: userName,
+      botNames: botNames,
+      isMatandoCantos: isMatandoCantos,
     );
   }
 
@@ -50,6 +56,8 @@ class CaidaMatchConfig {
     required String userName,
     required VipTierOffer tier,
     required bool isTeams,
+    List<String> botNames = const ['Alejandro', 'Carl', 'Jhonny'],
+    bool isMatandoCantos = true,
   }) {
     return CaidaMatchConfig(
       initialPlayers: isTeams ? 4 : 2,
@@ -57,9 +65,11 @@ class CaidaMatchConfig {
       autoStart: true,
       chooseMano: true,
       userName: userName,
+      botNames: botNames,
       vipTier: tier,
       vipPrizePool: tier.calculatePrizePool(isTeams: isTeams),
       vipWinnerReward: tier.calculateNetPrizePerWinner(isTeams: isTeams),
+      isMatandoCantos: isMatandoCantos,
     );
   }
 

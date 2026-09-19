@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../core/presentation/widgets/spanish_card_view.dart';
 import '../../../core/rules/game_rules_data.dart';
+import '../../../core/services/feedback_service.dart';
 import '../../../core/services/user_profile_service.dart';
 import '../domain/models/caida_match_config.dart';
 import '../economy/daily_challenge.dart';
 import '../economy/player_session.dart';
-import '../economy/user_progress.dart';
 import 'caida_screen.dart';
-import 'widgets/avatar_view.dart';
 import 'widgets/buy_tickets_modal.dart';
 import 'widgets/chest_slots_view.dart';
 import 'widgets/four_aces_display_view.dart';
@@ -136,19 +135,6 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
     PlayerProfileStatsModal.show(context, session: _session);
   }
 
-  Widget _buildStatRow(String label, String value, Color valueColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-          Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.bold, fontSize: 13)),
-        ],
-      ),
-    );
-  }
-
   void _openChallengesDialog() {
     showDialog(
       context: context,
@@ -243,13 +229,17 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                 ),
               ],
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            content: SizedBox(
+              width: 480,
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                 SwitchListTile(
                   title: const Text('Efectos de Sonido', style: TextStyle(color: Colors.white, fontSize: 14)),
                   value: _soundEnabled,
-                  activeColor: const Color(0xFF818CF8),
+                  activeThumbColor: const Color(0xFF818CF8),
                   onChanged: (val) {
                     setDialogState(() => _soundEnabled = val);
                     setState(() => _soundEnabled = val);
@@ -258,13 +248,23 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                 SwitchListTile(
                   title: const Text('Vibración Háptica', style: TextStyle(color: Colors.white, fontSize: 14)),
                   value: _vibrationEnabled,
-                  activeColor: const Color(0xFF818CF8),
+                  activeThumbColor: const Color(0xFF818CF8),
                   onChanged: (val) {
                     setDialogState(() => _vibrationEnabled = val);
                     setState(() => _vibrationEnabled = val);
                   },
                 ),
                 const Divider(color: Colors.white12),
+                ListTile(
+                  leading: const Icon(Icons.feedback_rounded, color: Color(0xFFF59E0B)),
+                  title: const Text('Buzón de Sugerencias', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Envíanos tus ideas, mejoras o comentarios', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                  trailing: const Icon(Icons.open_in_new_rounded, color: Color(0xFF818CF8), size: 16),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    FeedbackService.openFeedbackForm(context: context);
+                  },
+                ),
                 ListTile(
                   leading: const Icon(Icons.menu_book_rounded, color: Color(0xFFFDE047)),
                   title: const Text('Reglas de CaidaGO', style: TextStyle(color: Colors.white, fontSize: 14)),
@@ -312,6 +312,8 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                   ),
                 ),
               ],
+                ),
+              ),
             ),
             actions: [
               TextButton(
@@ -678,7 +680,44 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
           // Engranaje de Ajustes
           IconButton(
             icon: const Icon(Icons.settings_rounded, color: Colors.white, size: 26),
+            tooltip: 'Ajustes',
             onPressed: _openSettingsDialog,
+          ),
+          const SizedBox(width: 4),
+
+          // Botón de Sugerencias (Google Forms)
+          InkWell(
+            onTap: () => FeedbackService.openFeedbackForm(context: context),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4F46E5), Color(0xFF4338CA)],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF818CF8), width: 1.2),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 2)),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lightbulb_rounded, color: Color(0xFFFDE047), size: 15),
+                  SizedBox(width: 5),
+                  Text(
+                    'Sugerencias',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           const Spacer(),
 

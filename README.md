@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.29+-02569B?logo=flutter&logoColor=white" alt="Flutter" />
   <img src="https://img.shields.io/badge/Dart-3.7+-0175C2?logo=dart&logoColor=white" alt="Dart" />
   <img src="https://img.shields.io/badge/Plataformas-Android%20%7C%20Windows%20%7C%20Web%20%7C%20macOS%20%7C%20Linux-4CAF50" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-114%20Passed-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-117%20Passed-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/Linter-0%20Issues-brightgreen" alt="Linter" />
   <img src="https://img.shields.io/badge/Licencia-Libre%20%2F%20Cultural-blue" alt="License" />
 </p>
@@ -28,19 +28,26 @@
    - [Mecánicas de Mesa, Caída y Limpia](#-mecánicas-de-mesa-caída-y-limpia)
 4. [Modal de Perfil del Jugador y Estadísticas Detalladas](#-modal-de-perfil-del-jugador-y-estadísticas-detalladas)
 5. [Consola Flotante de Diagnóstico y Bugs (Debug Logger)](#-consola-flotante-de-diagnóstico-y-bugs)
-6. [Economía, Cofres (4 Slots) y Mesas VIP](#-economía-cofres-4-slots-y-mesas-vip)
-7. [Perfiles de Jugador, Marcos y Niveles](#-perfiles-de-jugador-marcos-y-niveles)
-8. [Tutorial Interactivo (Tour de Novatos)](#-tutorial-interactivo-tour-de-novatos)
-9. [Requisitos del Sistema](#-requisitos-del-sistema)
-10. [Instalación y Configuración](#-instalación-y-configuración)
-11. [Modos de Ejecución y Compilación](#-modos-de-ejecución-y-compilación)
-12. [Pruebas Automatizadas y Calidad](#-pruebas-automatizadas-y-calidad)
-13. [Arquitectura del Proyecto](#-arquitectura-del-proyecto)
-14. [Licencia](#-licencia)
+6. [Buzón de Sugerencias y Retroalimentación](#-buzón-de-sugerencias-y-retroalimentación)
+7. [Economía, Cofres (4 Slots) y Mesas VIP](#-economía-cofres-4-slots-y-mesas-vip)
+8. [Perfiles de Jugador, Marcos y Niveles](#-perfiles-de-jugador-marcos-y-niveles)
+9. [Tutorial Interactivo (Tour de Novatos)](#-tutorial-interactivo-tour-de-novatos)
+10. [Requisitos del Sistema](#-requisitos-del-sistema)
+11. [Instalación y Configuración](#-instalación-y-configuración)
+12. [Modos de Ejecución y Compilación](#-modos-de-ejecución-y-compilación)
+13. [Pruebas Automatizadas y Calidad](#-pruebas-automatizadas-y-calidad)
+14. [Arquitectura del Proyecto](#-arquitectura-del-proyecto)
+15. [Licencia](#-licencia)
 
 ---
 
 ## 🌟 Novedades y Actualizaciones Recientes
+
+* 💡 **Buzón Oficial de Sugerencias y Feedback (`FeedbackService`)**:
+  * Botón destacado en la barra superior del Lobby (`💡 Sugerencias`) con degradado índigo y resplandor dorado.
+  * Conexión directa y segura con el formulario oficial de Google Forms ([Formulario de Sugerencias](https://forms.gle/YDJAVHHS3rsA6o4w8)) mediante `url_launcher`.
+  * Acceso complementario en los diálogos de **Ajustes del Lobby** y **Opciones de Partida**.
+  * Manejo robusto de errores con registro en `DebugLogger` y notificación contextual (*SnackBar*).
 
 * 📊 **Modal Oficial de "Perfil del Jugador" y Progresión Dinámica 1 a 1 (`PlayerProfileStatsModal`)**:
   * Diseño fiel 1:1 con marco de madera noble, hoja de pergamino, banner 3D superior y botón circular rojo de cierre `[X]`.
@@ -267,7 +274,7 @@ El proyecto cuenta con un blindaje completo de pruebas unitarias, de integració
 # Ejecutar suite de pruebas completa
 flutter test
 ```
-*Resultado*: **106 tests pasando exitosamente (100% pass rate)**.
+*Resultado*: **117 tests pasando exitosamente (100% pass rate)**.
 
 ```bash
 # Análisis estático de código

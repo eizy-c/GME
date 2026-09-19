@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../economy/player_session.dart';
 import '../../economy/player_stats_model.dart';
 import '../../economy/user_progress.dart';
-import 'avatar_view.dart';
 import 'profile_options_dialog.dart';
 import 'user_frame_view.dart';
 
