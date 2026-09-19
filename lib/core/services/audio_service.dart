@@ -1,7 +1,9 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 /// Servicio singleton para reproducción de efectos de sonido (SFX) y cantos tradicionales.
+/// Utiliza BytesSource cargado en memoria desde rootBundle para evitar descargas en navegadores web.
 class AudioService {
   static final AudioService _instance = AudioService._internal();
   factory AudioService() => _instance;
@@ -9,7 +11,9 @@ class AudioService {
   AudioService._internal();
 
   final AudioPlayer _player = AudioPlayer();
+  final Map<String, Uint8List> _audioCache = {};
   bool _isMuted = false;
+  bool _isPreloading = false;
 
   bool get isMuted => _isMuted;
   set isMuted(bool val) {
@@ -23,31 +27,65 @@ class AudioService {
     isMuted = !isMuted;
   }
 
+  /// Pre-carga todos los audios en memoria para reproducción instantánea sin descargas ni retardos.
+  Future<void> preloadAudios() async {
+    if (_isPreloading) return;
+    _isPreloading = true;
+    final soundPaths = [
+      'assets/sfx/cantos/sfx_caida.mp3',
+      'assets/sfx/cantos/sfx_mesa-limpia.mp3',
+      'assets/sfx/cantos/sfx_patrulla.mp3',
+      'assets/sfx/cantos/sfx_registro.mp3',
+      'assets/sfx/cantos/sfx_ronda.mp3',
+      'assets/sfx/cantos/sfx_vigia.mp3',
+    ];
+
+    for (final path in soundPaths) {
+      try {
+        if (!_audioCache.containsKey(path)) {
+          final data = await rootBundle.load(path);
+          _audioCache[path] = data.buffer.asUint8List();
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('AudioService preload error for $path: $e');
+        }
+      }
+    }
+  }
+
   /// Reproduce el efecto de sonido según el nombre del canto o evento de juego.
   Future<void> playCanto(String name) async {
     if (_isMuted) return;
 
     final lower = name.toLowerCase();
-    String? assetSubpath;
+    String? assetPath;
 
     if (lower.contains('ronda')) {
-      assetSubpath = 'sfx/cantos/sfx_ronda.mp3';
+      assetPath = 'assets/sfx/cantos/sfx_ronda.mp3';
     } else if (lower.contains('patrulla')) {
-      assetSubpath = 'sfx/cantos/sfx_patrulla.mp3';
+      assetPath = 'assets/sfx/cantos/sfx_patrulla.mp3';
     } else if (lower.contains('vigi') || lower.contains('vigí')) {
-      assetSubpath = 'sfx/cantos/sfx_vigia.mp3';
+      assetPath = 'assets/sfx/cantos/sfx_vigia.mp3';
     } else if (lower.contains('registro')) {
-      assetSubpath = 'sfx/cantos/sfx_registro.mp3';
+      assetPath = 'assets/sfx/cantos/sfx_registro.mp3';
     } else if (lower.contains('limpia')) {
-      assetSubpath = 'sfx/cantos/sfx_mesa-limpia.mp3';
+      assetPath = 'assets/sfx/cantos/sfx_mesa-limpia.mp3';
     } else if (lower.contains('caida') || lower.contains('caída')) {
-      assetSubpath = 'sfx/cantos/sfx_caida.mp3';
+      assetPath = 'assets/sfx/cantos/sfx_caida.mp3';
     }
 
-    if (assetSubpath != null) {
+    if (assetPath != null) {
       try {
+        Uint8List? bytes = _audioCache[assetPath];
+        if (bytes == null) {
+          final data = await rootBundle.load(assetPath);
+          bytes = data.buffer.asUint8List();
+          _audioCache[assetPath] = bytes;
+        }
+
         await _player.stop();
-        await _player.play(AssetSource(assetSubpath), mode: PlayerMode.lowLatency);
+        await _player.play(BytesSource(bytes));
       } catch (e) {
         if (kDebugMode) {
           print('AudioService info (ignorable en pruebas): $e');

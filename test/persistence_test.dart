@@ -60,7 +60,7 @@ void main() {
       // Sesión de novato: inicia con 0 monedas y tutorial pendiente
       final session = PlayerSession.createDefault(name: 'Novato', coins: 0, hasCompletedTutorial: false);
       expect(session.coins, 0);
-      expect(session.tickets, 3);
+      expect(session.tickets, 10);
       expect(session.hasCompletedTutorial, false);
       expect(session.isFirstTime, true);
       await session.save();

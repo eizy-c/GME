@@ -16,7 +16,7 @@ void main() {
     expect(find.text('Compendio de Juegos'), findsOneWidget);
     expect(find.text('100% OFFLINE'), findsOneWidget);
     expect(find.text('Dominó (Doble 6)'), findsOneWidget);
-    expect(find.text('La Caída Tradicional'), findsOneWidget);
+    expect(find.text('CaidaGO'), findsOneWidget);
   });
 
   testWidgets('Apertura del diálogo de reglas "¿Cómo jugar?"', (WidgetTester tester) async {

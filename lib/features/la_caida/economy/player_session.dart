@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'chest_slot_model.dart';
 import 'user_progress.dart';
 
 /// Modelo y gestor de sesión local persistente del jugador para La Caída.
-/// Implementa regeneración pasiva por tiempo (1 ticket cada 20 min) y arquitectura reactiva.
+/// Implementa regeneración pasiva por tiempo (1 ticket cada 20 min), personalización (fondos, marcos, avatares),
+/// sistema de nivel iniciando en Nivel 0 con 10 tickets y 0 monedas, y gestión de 4 cofres de recompensa.
 class PlayerSession extends ChangeNotifier {
-  static const String storageKey = 'caida_player_session_v2';
+  static const String storageKey = 'caida_player_session_v3';
   static const int defaultMaxTickets = 10;
   static const int ticketRegenIntervalMinutes = 20;
   static const int ticketStandardCostCoins = 400;
@@ -14,6 +16,8 @@ class PlayerSession extends ChangeNotifier {
   String _id;
   String _name;
   int _avatarIndex;
+  String _selectedFrameId;
+  String _selectedThemeId;
   int _coins;
   int _tickets;
   int _maxTickets;
@@ -22,36 +26,43 @@ class PlayerSession extends ChangeNotifier {
   DateTime _lastTicketRegen;
   bool _hasCompletedTutorial;
   bool _isFirstTime;
+  List<ChestSlotModel> _chests;
 
   PlayerSession({
     required this._id,
     required this._name,
-    this._avatarIndex = 0,
+    this._avatarIndex = 2,
+    this._selectedFrameId = 'wood',
+    this._selectedThemeId = 'royal_blue',
     this._coins = 0,
-    int tickets = 3,
+    int tickets = defaultMaxTickets,
     this._maxTickets = defaultMaxTickets,
     this._xp = 0,
-    this._level = 1,
+    this._level = 0,
     DateTime? lastTicketRegen,
     this._hasCompletedTutorial = false,
     this._isFirstTime = true,
+    List<ChestSlotModel>? chests,
   })  : _tickets = tickets.clamp(0, _maxTickets),
-        _lastTicketRegen = (lastTicketRegen ?? DateTime.now()).toUtc();
+        _lastTicketRegen = (lastTicketRegen ?? DateTime.now()).toUtc(),
+        _chests = chests ?? List.generate(4, (i) => ChestSlotModel.empty(i));
 
   static PlayerSession? _shared;
 
   /// Instancia compartida en memoria para acceso unificado en toda la UI.
   static PlayerSession get shared =>
-      _shared ??= PlayerSession.createDefault(name: 'Eizy', avatarIndex: 2, coins: 6000, tickets: defaultMaxTickets);
+      _shared ??= PlayerSession.createDefault(name: 'Eizy', avatarIndex: 2, coins: 0, tickets: defaultMaxTickets);
 
   /// Permite establecer o restablecer la instancia compartida (útil para pruebas).
   static void setShared(PlayerSession session) => _shared = session;
 
-  /// Factory para crear una sesión nueva con valores por defecto equilibrados.
-  /// Para novatos: 0 monedas, 3 tickets de prueba y tutorial pendiente.
+  /// Factory para crear una sesión nueva para novatos:
+  /// Todos comienzan formalmente en Nivel 0 con 10 tickets y 0 monedas.
   factory PlayerSession.createDefault({
     String? name,
     int? avatarIndex,
+    String? selectedFrameId,
+    String? selectedThemeId,
     int? coins,
     int? tickets,
     bool hasCompletedTutorial = false,
@@ -59,16 +70,19 @@ class PlayerSession extends ChangeNotifier {
   }) {
     return PlayerSession(
       id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-      name: name ?? 'Jugador',
+      name: name ?? 'Eizy',
       avatarIndex: avatarIndex ?? 2,
-      coins: coins ?? (hasCompletedTutorial ? 3000 : 0),
-      tickets: tickets ?? (hasCompletedTutorial ? defaultMaxTickets : 3),
+      selectedFrameId: selectedFrameId ?? 'wood',
+      selectedThemeId: selectedThemeId ?? 'royal_blue',
+      coins: coins ?? 0,
+      tickets: tickets ?? defaultMaxTickets,
       maxTickets: defaultMaxTickets,
       xp: 0,
-      level: 1,
+      level: 0,
       lastTicketRegen: DateTime.now().toUtc(),
       hasCompletedTutorial: hasCompletedTutorial,
       isFirstTime: isFirstTime,
+      chests: List.generate(4, (i) => ChestSlotModel.empty(i)),
     );
   }
 
@@ -76,6 +90,8 @@ class PlayerSession extends ChangeNotifier {
   String get id => _id;
   String get name => _name;
   int get avatarIndex => _avatarIndex;
+  String get selectedFrameId => _selectedFrameId;
+  String get selectedThemeId => _selectedThemeId;
   int get coins => _coins;
   int get tickets => _tickets;
   int get maxTickets => _maxTickets;
@@ -84,14 +100,26 @@ class PlayerSession extends ChangeNotifier {
   DateTime get lastTicketRegen => _lastTicketRegen;
   bool get hasCompletedTutorial => _hasCompletedTutorial;
   bool get isFirstTime => _isFirstTime;
+  List<ChestSlotModel> get chests => List.unmodifiable(_chests);
 
-  // Setters de perfil
-  void updateProfile({String? name, int? avatarIndex}) {
+  // Setters de personalización
+  void updateCustomization({
+    String? name,
+    int? avatarIndex,
+    String? frameId,
+    String? themeId,
+  }) {
     if (name != null) _name = name;
     if (avatarIndex != null) _avatarIndex = avatarIndex;
+    if (frameId != null) _selectedFrameId = frameId;
+    if (themeId != null) _selectedThemeId = themeId;
     _isFirstTime = false;
     notifyListeners();
     save();
+  }
+
+  void updateProfile({String? name, int? avatarIndex}) {
+    updateCustomization(name: name, avatarIndex: avatarIndex);
   }
 
   void markNotFirstTime() {
@@ -294,6 +322,71 @@ class PlayerSession extends ChangeNotifier {
     _level = progress.currentLevel;
   }
 
+  // --- GESTIÓN DE COFRES DE RECOMPENSA (4 SLOTS) ---
+
+  /// Asigna un cofre de recompensa tras ganar una partida.
+  /// Regla: solo se asigna si hay un slot libre y ningún otro cofre está en proceso de abrirse (2 min).
+  bool addChestOnWin({DateTime? nowUtc}) {
+    final hasUnlocking = _chests.any((c) => c.getState(nowUtc: nowUtc) == ChestState.unlocking);
+    if (hasUnlocking) {
+      return false;
+    }
+
+    final emptyIndex = _chests.indexWhere((c) => c.isEmpty);
+    if (emptyIndex == -1) {
+      return false;
+    }
+
+    final newChest = ChestSlotModel.newWonChest(emptyIndex, nowUtc: nowUtc);
+    _chests[emptyIndex] = newChest;
+    notifyListeners();
+    save();
+    return true;
+  }
+
+  /// Desbloquea instantáneamente un cofre consumiendo 2 tickets.
+  bool unlockChestInstant(int slotIndex, {DateTime? nowUtc}) {
+    if (slotIndex < 0 || slotIndex >= _chests.length) return false;
+    final chest = _chests[slotIndex];
+    if (chest.getState(nowUtc: nowUtc) != ChestState.unlocking) return false;
+
+    if (_tickets < ChestSlotModel.instantTicketCost) {
+      return false;
+    }
+
+    _tickets -= ChestSlotModel.instantTicketCost;
+    _chests[slotIndex] = ChestSlotModel(
+      slotIndex: slotIndex,
+      id: chest.id,
+      rarity: chest.rarity,
+      unlockStartedAtUtc: DateTime.now().toUtc().subtract(Duration(seconds: chest.durationSeconds + 10)),
+      durationSeconds: chest.durationSeconds,
+      isOpened: false,
+    );
+
+    notifyListeners();
+    save();
+    return true;
+  }
+
+  /// Reclama la recompensa del cofre (entre 50 y 2500 monedas + XP) y vacía el slot.
+  int? claimChestReward(int slotIndex, {DateTime? nowUtc}) {
+    if (slotIndex < 0 || slotIndex >= _chests.length) return null;
+    final chest = _chests[slotIndex];
+    if (chest.getState(nowUtc: nowUtc) != ChestState.ready) return null;
+
+    final coinsReward = chest.generateRewardCoins();
+    final xpReward = chest.generateRewardXp();
+
+    _coins += coinsReward;
+    _addXpInternal(xpReward);
+
+    _chests[slotIndex] = ChestSlotModel.empty(slotIndex);
+    notifyListeners();
+    save();
+    return coinsReward;
+  }
+
   // --- SERIALIZACIÓN JSON Y PERSISTENCIA ---
 
   Map<String, dynamic> toJson() {
@@ -301,6 +394,8 @@ class PlayerSession extends ChangeNotifier {
       'id': _id,
       'name': _name,
       'avatarIndex': _avatarIndex,
+      'selectedFrameId': _selectedFrameId,
+      'selectedThemeId': _selectedThemeId,
       'coins': _coins,
       'tickets': _tickets,
       'maxTickets': _maxTickets,
@@ -309,6 +404,7 @@ class PlayerSession extends ChangeNotifier {
       'lastTicketRegen': _lastTicketRegen.toIso8601String(),
       'hasCompletedTutorial': _hasCompletedTutorial,
       'isFirstTime': _isFirstTime,
+      'chests': _chests.map((c) => c.toJson()).toList(),
     };
   }
 
@@ -320,18 +416,32 @@ class PlayerSession extends ChangeNotifier {
         ? DateTime.tryParse(regenString)?.toUtc() ?? DateTime.now().toUtc()
         : DateTime.now().toUtc();
 
+    List<ChestSlotModel> parsedChests = List.generate(4, (i) => ChestSlotModel.empty(i));
+    if (json['chests'] is List) {
+      final list = json['chests'] as List;
+      parsedChests = List.generate(4, (i) {
+        if (i < list.length && list[i] is Map<String, dynamic>) {
+          return ChestSlotModel.fromJson(list[i] as Map<String, dynamic>);
+        }
+        return ChestSlotModel.empty(i);
+      });
+    }
+
     return PlayerSession(
       id: json['id'] as String? ?? 'user_${DateTime.now().millisecondsSinceEpoch}',
-      name: json['name'] as String? ?? 'Jugador',
+      name: json['name'] as String? ?? 'Eizy',
       avatarIndex: json['avatarIndex'] as int? ?? 2,
+      selectedFrameId: json['selectedFrameId'] as String? ?? 'wood',
+      selectedThemeId: json['selectedThemeId'] as String? ?? 'royal_blue',
       coins: json['coins'] as int? ?? 0,
       tickets: parsedTickets,
       maxTickets: parsedMaxTickets,
       xp: json['xp'] as int? ?? 0,
-      level: json['level'] as int? ?? 1,
+      level: json['level'] as int? ?? 0,
       lastTicketRegen: parsedRegen,
       hasCompletedTutorial: json['hasCompletedTutorial'] as bool? ?? false,
       isFirstTime: json['isFirstTime'] as bool? ?? false,
+      chests: parsedChests,
     );
   }
 
@@ -363,7 +473,7 @@ class PlayerSession extends ChangeNotifier {
     // Si no hay datos guardados o hubo un error, inicializar por defecto para novatos
     final newSession = PlayerSession.createDefault(
       coins: 0,
-      tickets: 3,
+      tickets: defaultMaxTickets,
       hasCompletedTutorial: false,
       isFirstTime: true,
     );

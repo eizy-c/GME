@@ -77,79 +77,58 @@ class SpanishCardView extends StatelessWidget {
     return cardWidget;
   }
 
-  Widget _buildFront(BuildContext context, double w, double h) {
-    final candidates = _getCandidateAssetPaths();
-    return _buildFrontWithCandidates(context, w, h, candidates, 0);
+  /// Ruta canónica y determinista del asset para el reverso ornamental tradicional.
+  static const String backAssetPath = 'assets/cards/REV-CARD.png';
+
+  /// Obtiene la ruta exacta e inequívoca del archivo PNG de la carta en el bundle de assets.
+  static String getCardAssetPath(SpanishCard card) {
+    final folderName = switch (card.suit) {
+      CardSuit.bastos => 'BASTON',
+      CardSuit.oros => 'OROS',
+      CardSuit.copas => 'COPAS',
+      CardSuit.espadas => 'ESPADAS',
+    };
+    final suitPrefix = switch (card.suit) {
+      CardSuit.bastos => 'B',
+      CardSuit.oros => 'O',
+      CardSuit.copas => 'C',
+      CardSuit.espadas => 'E',
+    };
+    final rankChar = switch (card.number) {
+      10 => 'S',
+      11 => 'C',
+      12 => 'R',
+      _ => '${card.number}',
+    };
+    return 'assets/cards/$folderName/$suitPrefix-$rankChar-CARD.png';
   }
 
-  Widget _buildFrontWithCandidates(
-    BuildContext context,
-    double w,
-    double h,
-    List<String> candidates,
-    int index,
-  ) {
-    if (index >= candidates.length) {
-      return _buildVectorFront(context, w, h);
+  /// Precarga todos los 40 naipes de la baraja y el reverso en la memoria GPU (ImageCache de Flutter).
+  /// Esto asegura que el renderizado de cartas y las animaciones de vuelo no tengan retraso ni tirones.
+  static Future<void> precacheAllCards(BuildContext context) async {
+    final futures = <Future>[];
+    futures.add(precacheImage(const AssetImage(backAssetPath), context));
+    for (final suit in CardSuit.values) {
+      for (int n = 1; n <= 12; n++) {
+        if (n == 8 || n == 9) continue;
+        final card = SpanishCard(number: n, suit: suit);
+        futures.add(precacheImage(AssetImage(getCardAssetPath(card)), context));
+      }
     }
+    await Future.wait(futures);
+  }
+
+  Widget _buildFront(BuildContext context, double w, double h) {
+    final assetPath = getCardAssetPath(card);
     return Image.asset(
-      candidates[index],
+      assetPath,
       width: w,
       height: h,
       fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        return _buildFrontWithCandidates(context, w, h, candidates, index + 1);
-      },
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.medium,
+      errorBuilder: (context, error, stackTrace) => _buildVectorFront(context, w, h),
     );
-  }
-
-  List<String> _getCandidateAssetPaths() {
-    String suitPrefix;
-    String folderName;
-    switch (card.suit) {
-      case CardSuit.bastos:
-        suitPrefix = 'B';
-        folderName = 'BASTON';
-        break;
-      case CardSuit.oros:
-        suitPrefix = 'O';
-        folderName = 'OROS';
-        break;
-      case CardSuit.copas:
-        suitPrefix = 'C';
-        folderName = 'COPAS';
-        break;
-      case CardSuit.espadas:
-        suitPrefix = 'E';
-        folderName = 'ESPADAS';
-        break;
-    }
-
-    String rankChar;
-    switch (card.number) {
-      case 10:
-        rankChar = 'S';
-        break;
-      case 11:
-        rankChar = 'C';
-        break;
-      case 12:
-        rankChar = 'R';
-        break;
-      default:
-        rankChar = '${card.number}';
-    }
-
-    return [
-      // 1. Convención del usuario con carpeta: assets/cards/BASTON/B-1-CARD.png, B-S-CARD.png
-      'assets/cards/$folderName/$suitPrefix-$rankChar-CARD.png',
-      'assets/cards/$folderName/$suitPrefix-${card.number}-CARD.png',
-      // 2. Variante directa en assets/cards/
-      'assets/cards/$suitPrefix-$rankChar-CARD.png',
-      'assets/cards/$suitPrefix-${card.number}-CARD.png',
-      // 3. Convención estándar bastos_1.png
-      'assets/cards/${card.suit.name.toLowerCase()}_${card.number}.png',
-    ];
   }
 
   Widget _buildVectorFront(BuildContext context, double w, double h) {
@@ -426,30 +405,14 @@ class SpanishCardView extends StatelessWidget {
   }
 
   Widget _buildBack(double w, double h) {
-    const backCandidates = [
-      'assets/cards/REV-CARD.png',
-      'assets/cards/rev-card.png',
-      'assets/cards/reverso.png',
-      'assets/cards/REVERSO.png',
-      'assets/cards/back.png',
-      'assets/cards/CARD-BACK.png',
-      'assets/cards/reverso-card.png',
-      'assets/cards/BASTON/reverso.png',
-      'assets/cards/BASTON/REV-CARD.png',
-    ];
-    return _buildBackWithCandidates(w, h, backCandidates, 0);
-  }
-
-  Widget _buildBackWithCandidates(double w, double h, List<String> candidates, int index) {
-    if (index >= candidates.length) {
-      return _buildVectorBack(w, h);
-    }
     return Image.asset(
-      candidates[index],
+      backAssetPath,
       width: w,
       height: h,
       fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => _buildBackWithCandidates(w, h, candidates, index + 1),
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.medium,
+      errorBuilder: (context, error, stackTrace) => _buildVectorBack(w, h),
     );
   }
 

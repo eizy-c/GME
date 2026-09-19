@@ -108,7 +108,10 @@ void main() {
 
   group('Arquitectura Modular - Economía y Progresión', () {
     test('UserProgress calcula progresión exponencial correctamente', () {
-      const prog1 = UserProgress(totalXp: 0);
+      const prog0 = UserProgress(totalXp: 0);
+      expect(prog0.currentLevel, equals(0));
+
+      const prog1 = UserProgress(totalXp: 100);
       expect(prog1.currentLevel, equals(1));
 
       // Nivel 2 requiere 100 * (2^1.5) = 282 XP

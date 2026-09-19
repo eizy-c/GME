@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../../core/presentation/widgets/spanish_card_view.dart';
 import '../../../core/services/user_profile_service.dart';
 import '../economy/player_session.dart';
 import 'caida_lobby_screen.dart';
@@ -25,6 +26,12 @@ class _CaidaSplashScreenState extends State<CaidaSplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    SpanishCardView.precacheAllCards(context);
   }
 
   @override
@@ -96,9 +103,9 @@ class _CaidaSplashScreenState extends State<CaidaSplashScreen>
                       Transform.translate(
                         offset: const Offset(4, 8),
                         child: Text(
-                          'CAÍDA',
+                          'CAIDAGO',
                           style: TextStyle(
-                            fontSize: 72,
+                            fontSize: 60,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 2.0,
                             foreground: Paint()
@@ -115,9 +122,9 @@ class _CaidaSplashScreenState extends State<CaidaSplashScreen>
                           colors: [Color(0xFF38BDF8), Color(0xFF0284C7), Color(0xFF0369A1)],
                         ).createShader(bounds),
                         child: Text(
-                          'CAÍDA',
+                          'CAIDAGO',
                           style: TextStyle(
-                            fontSize: 72,
+                            fontSize: 60,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 2.0,
                             foreground: Paint()
@@ -128,9 +135,9 @@ class _CaidaSplashScreenState extends State<CaidaSplashScreen>
                         ),
                       ),
                       const Text(
-                        'CAÍDA',
+                        'CAIDAGO',
                         style: TextStyle(
-                          fontSize: 72,
+                          fontSize: 60,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 2.0,
                           color: Color(0xFF38BDF8),

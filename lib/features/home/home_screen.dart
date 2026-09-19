@@ -239,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(width: 8),
               _buildCategoryChip(
-                label: 'La Caída (Cartas)',
+                label: 'CaidaGO (Cartas)',
                 filter: GameCategoryFilter.cards,
                 icon: Icons.style_rounded,
               ),
@@ -358,11 +358,11 @@ class _HomeScreenState extends State<HomeScreen> {
       cards.add(const SizedBox(height: 12));
     }
 
-    // 2. La Caída Tradicional (¡ACTIVO!)
+    // 2. CaidaGO (¡ACTIVO!)
     if (showCaida) {
       cards.add(
         _buildGameCard(
-          title: 'La Caída Tradicional',
+          title: 'CaidaGO',
           subtitle: 'Mesa tradicional, cantos de Ronda, Patrulla, Trivilín, Limpia y niveles',
           badgeText: 'JUGABLE AHORA',
           badgeColor: const Color(0xFF10B981),

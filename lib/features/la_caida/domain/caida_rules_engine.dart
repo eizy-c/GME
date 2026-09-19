@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import '../../../core/models/cards/spanish_card.dart';
 import '../../../core/models/cards/spanish_deck.dart';
 import 'caida_models.dart';
@@ -427,19 +428,35 @@ class CaidaRulesEngine {
       volumeBonusPoints[p.id] = 0;
     }
 
-    // 1. Adjudicar cartas sobrantes de mesa al último jugador que levantó
+    // 1. Adjudicar cartas sobrantes de mesa al último jugador/equipo que levantó
     final awardedTable = List<SpanishCard>.from(remainingTable);
-    if (awardedTable.isNotEmpty && lastCapturingPlayerId != null && totalCardsWon.containsKey(lastCapturingPlayerId)) {
-      totalCardsWon[lastCapturingPlayerId] = (totalCardsWon[lastCapturingPlayerId] ?? 0) + awardedTable.length;
-      events.add('Las ${awardedTable.length} cartas sobrantes en mesa se las lleva el último capturador.');
+    if (awardedTable.isNotEmpty && lastCapturingPlayerId != null) {
+      if (isTeams) {
+        final lastCapturer = players.where((p) => p.id == lastCapturingPlayerId).firstOrNull;
+        if (lastCapturer != null) {
+          for (final p in players.where((pl) => pl.teamId == lastCapturer.teamId)) {
+            totalCardsWon[p.id] = (totalCardsWon[p.id] ?? 0) + awardedTable.length;
+          }
+          events.add('Las ${awardedTable.length} cartas sobrantes en mesa se las lleva el equipo del último capturador (${lastCapturer.name}).');
+        }
+      } else if (totalCardsWon.containsKey(lastCapturingPlayerId)) {
+        totalCardsWon[lastCapturingPlayerId] = (totalCardsWon[lastCapturingPlayerId] ?? 0) + awardedTable.length;
+        events.add('Las ${awardedTable.length} cartas sobrantes en mesa se las lleva el último capturador.');
+      }
     }
 
     // 2. Conteo físico de naipes por jugador o bando
     if (isTeams) {
       // Agrupar por bando (umbral 20)
+      // Como cada jugador del equipo comparte el conteo acumulado de su equipo, tomamos el valor unificado:
       final teamCards = <int, int>{};
       for (final p in players) {
-        teamCards[p.teamId] = (teamCards[p.teamId] ?? 0) + (totalCardsWon[p.id] ?? 0);
+        teamCards[p.teamId] = math.max(teamCards[p.teamId] ?? 0, totalCardsWon[p.id] ?? 0);
+      }
+
+      // Asegurar que todos los miembros del equipo tengan exactamente el mismo total de cartas recogidas
+      for (final p in players) {
+        totalCardsWon[p.id] = teamCards[p.teamId] ?? (totalCardsWon[p.id] ?? 0);
       }
 
       for (final entry in teamCards.entries) {
@@ -453,6 +470,15 @@ class CaidaRulesEngine {
             updatedScores[p.id] = (updatedScores[p.id] ?? 0) + bonus;
           }
         }
+      }
+
+      // Asegurar que todos los miembros del equipo tengan exactamente los mismos puntos
+      final teamScores = <int, int>{};
+      for (final p in players) {
+        teamScores[p.teamId] = math.max(teamScores[p.teamId] ?? 0, updatedScores[p.id] ?? 0);
+      }
+      for (final p in players) {
+        updatedScores[p.id] = teamScores[p.teamId] ?? (updatedScores[p.id] ?? 0);
       }
     } else {
       // Individual: cada jugador contabiliza sus cartas según número de jugadores

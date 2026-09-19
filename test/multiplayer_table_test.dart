@@ -166,7 +166,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('LA CAÍDA TRADICIONAL'), findsOneWidget);
+      expect(find.text('CAIDAGO'), findsOneWidget);
       expect(find.text('¿Deseas comenzar a jugar?'), findsOneWidget);
       expect(find.text('Contra Bot'), findsOneWidget);
       expect(find.text('Multijugador'), findsOneWidget);
@@ -194,7 +194,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('La Caída Tradicional'), findsOneWidget);
+      expect(find.text('CaidaGO'), findsOneWidget);
       expect(find.text('3 Jug.'), findsOneWidget);
       expect(find.text('Tú'), findsOneWidget);
       expect(find.text('Player 1'), findsOneWidget);

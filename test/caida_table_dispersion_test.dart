@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gme/core/presentation/widgets/spanish_card_view.dart';
 import 'package:gme/features/la_caida/presentation/caida_screen.dart';
@@ -15,7 +15,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: CaidaScreen(initialPlayers: 2, autoStart: true),
+          home: CaidaScreen(initialPlayers: 2, autoStart: true, animateDealing: false),
         ),
       );
       await tester.pump();
@@ -74,7 +74,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: CaidaScreen(initialPlayers: 2, autoStart: true),
+          home: CaidaScreen(initialPlayers: 2, autoStart: true, animateDealing: false),
         ),
       );
       await tester.pump();

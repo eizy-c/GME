@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
+import '../../../core/presentation/widgets/spanish_card_view.dart';
 import '../../../core/rules/game_rules_data.dart';
 import '../../../core/services/user_profile_service.dart';
 import '../economy/player_session.dart';
+import '../economy/user_progress.dart';
 import 'caida_screen.dart';
 import 'widgets/avatar_view.dart';
 import 'widgets/buy_tickets_modal.dart';
-import 'widgets/profile_options_dialog.dart';
+import 'widgets/chest_slots_view.dart';
+import 'widgets/four_aces_display_view.dart';
+import 'widgets/profile_and_level_modal.dart';
+import 'widgets/user_frame_view.dart';
 import 'widgets/vip_tier_selector_modal.dart';
 import '../tutorial/presentation/tutorial_screen.dart';
 
-/// Lobby principal de La Caída inspirado en las capturas de referencia:
-/// Barra superior con saldo de monedas y tickets, tarjetas coloridas de modos,
-/// sub-pantalla de "Un Jugador" y modal de "Preferencias de juego".
+/// Lobby principal de La Caída inspirado en el boceto de referencia:
+/// Barra superior con ajustes, tickets y monedas;
+/// Sub-cabecera con Logo del juego, botones de Estadística y Desafíos, y Perfil con Marco y Nivel 0;
+/// Centro con abanico de los 4 Ases de la baraja y botones grandes de JUGAR y TUTORIAL;
+/// Barra inferior con los 4 slots de cofres de recompensa (2 min de apertura).
 class CaidaLobbyScreen extends StatefulWidget {
   const CaidaLobbyScreen({super.key});
 
@@ -30,6 +37,10 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
   bool _isMatandoCantos = true;
   int _selectedTotalPlayers = 2;
   bool _selectedTeams = false;
+
+  // Configuración de audio y efectos
+  bool _soundEnabled = true;
+  bool _vibrationEnabled = true;
 
   @override
   void initState() {
@@ -52,6 +63,12 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    SpanishCardView.precacheAllCards(context);
+  }
+
+  @override
   void dispose() {
     _session.removeListener(_onProfileChanged);
     _profileService.removeListener(_onProfileChanged);
@@ -62,8 +79,8 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
     if (mounted) setState(() {});
   }
 
-  void _openProfileDialog() {
-    ProfileOptionsDialog.show(context);
+  void _openProfileAndLevelModal({int initialTabIndex = 0}) {
+    ProfileAndLevelModal.show(context, session: _session, initialTabIndex: initialTabIndex);
   }
 
   void _openVipModal({bool initialIsTeams = false}) {
@@ -110,29 +127,202 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
     });
   }
 
-  void _showComingSoonToast(String message) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
+  void _openStatisticsDialog() {
+    final progress = UserProgress(totalXp: _session.xp);
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: Color(0xFF38BDF8), width: 1.5),
+        ),
+        title: const Row(
           children: [
-            const Icon(Icons.lock_clock_rounded, color: Color(0xFFFDE047), size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-              ),
+            Icon(Icons.bar_chart_rounded, color: Color(0xFF38BDF8), size: 28),
+            SizedBox(width: 10),
+            Text(
+              'Estadísticas del Jugador',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17),
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF0F172A),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: Color(0xFFF59E0B), width: 1.2),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildStatRow('Nivel Actual', '${progress.currentLevel} (${progress.rankTitle})', const Color(0xFFFDE047)),
+            _buildStatRow('Experiencia Total', '${_session.xp} XP', const Color(0xFF38BDF8)),
+            _buildStatRow('Saldo de Monedas', '${_session.coins} 🪙', const Color(0xFFFBBF24)),
+            _buildStatRow('Tickets Disponibles', '${_session.tickets} / ${_session.maxTickets} 🎫', const Color(0xFF4ADE80)),
+            _buildStatRow('Tutorial de Novatos', _session.hasCompletedTutorial ? 'Completado (100%)' : 'Pendiente', Colors.white70),
+          ],
         ),
-        duration: const Duration(seconds: 2),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF38BDF8),
+              foregroundColor: const Color(0xFF0F172A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatRow(String label, String value, Color valueColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+          Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.bold, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  void _openChallengesDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: Color(0xFFF59E0B), width: 1.5),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.emoji_events_rounded, color: Color(0xFFFDE047), size: 28),
+            SizedBox(width: 10),
+            Text(
+              'Desafíos Diarios',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildChallengeItem('Gana 1 partida en CaidaGO', '0 / 1', '+250 🪙  +50 XP', false),
+            _buildChallengeItem('Realiza 2 Caídas en una partida', '0 / 2', '+150 🪙  +30 XP', false),
+            _buildChallengeItem('Juega en Parejas (2 vs 2)', '0 / 1', '+200 🪙  +40 XP', false),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF59E0B),
+              foregroundColor: const Color(0xFF0F172A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Aceptar', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChallengeItem(String title, String progress, String reward, bool isCompleted) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white12, width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            color: isCompleted ? const Color(0xFF22C55E) : const Color(0xFFFDE047),
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 2),
+                Text(reward, style: const TextStyle(color: Color(0xFFFDE047), fontSize: 11, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          Text(progress, style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  void _openSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF0F172A),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.settings_rounded, color: Color(0xFF818CF8), size: 26),
+                SizedBox(width: 10),
+                Text(
+                  'Ajustes del Juego',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  title: const Text('Efectos de Sonido', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  value: _soundEnabled,
+                  activeColor: const Color(0xFF818CF8),
+                  onChanged: (val) {
+                    setDialogState(() => _soundEnabled = val);
+                    setState(() => _soundEnabled = val);
+                  },
+                ),
+                SwitchListTile(
+                  title: const Text('Vibración Háptica', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  value: _vibrationEnabled,
+                  activeColor: const Color(0xFF818CF8),
+                  onChanged: (val) {
+                    setDialogState(() => _vibrationEnabled = val);
+                    setState(() => _vibrationEnabled = val);
+                  },
+                ),
+                const Divider(color: Colors.white12),
+                ListTile(
+                  leading: const Icon(Icons.menu_book_rounded, color: Color(0xFFFDE047)),
+                  title: const Text('Reglas de CaidaGO', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white54, size: 14),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _openLearnRulesDialog();
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Listo', style: TextStyle(color: Color(0xFF818CF8), fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -226,7 +416,6 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Título con estilo de placa dorada
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     decoration: BoxDecoration(
@@ -250,7 +439,6 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Contenedor interior oscuro armonioso
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -260,7 +448,6 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                     ),
                     child: Column(
                       children: [
-                        // Fila de Entrada: Ticket 1
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -298,7 +485,6 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                         ),
                         const Divider(height: 24, color: Colors.white12),
 
-                        // Switch: Matando cantos
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -322,8 +508,6 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                           ],
                         ),
 
-                        // Solo en modo Vs Bot se muestra el selector de cantidad de jugadores
-                        // En 2 vs 2 no aparece ya que está predeterminado en parejas (4 Jug.)
                         if (isVsBot) ...[
                           const SizedBox(height: 10),
                           Row(
@@ -378,7 +562,6 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                   ),
                   const SizedBox(height: 18),
 
-                  // Botón Empezar / Recargar
                   GestureDetector(
                     onTap: () {
                       Navigator.of(ctx).pop();
@@ -454,30 +637,26 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = LobbyThemeOption.getById(_session.selectedThemeId);
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
+            colors: theme.backgroundGradient,
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0F172A), // Midnight slate
-              Color(0xFF1E1B4B), // Deep royal indigo
-              Color(0xFF0F172A),
-            ],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-              // 1. Barra Superior con Perfil, Monedas y Tickets
+              // 1. Barra Superior idéntica al boceto (Ajustes ⚙️ | Tickets 🎫 | Monedas 🪙)
               _buildTopBar(),
 
-              // 2. Contenido Central (Lobby Principal o Sub-menú Un Jugador)
+              // 2. Contenido dinámico del lobby
               Expanded(
-                child: _currentView == 'un_jugador'
-                    ? _buildUnJugadorView()
-                    : _buildMainLobbyView(),
+                child: _currentView == 'main' ? _buildMainSketchLobbyView() : _buildUnJugadorView(),
               ),
             ],
           ),
@@ -486,380 +665,328 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
     );
   }
 
+  // --- BARRA SUPERIOR ---
   Widget _buildTopBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withValues(alpha: 0.95),
-        border: Border(
-          bottom: BorderSide(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
-            width: 1,
-          ),
-        ),
+        color: const Color(0xFF0F172A).withValues(alpha: 0.65),
+        border: const Border(bottom: BorderSide(color: Colors.white12, width: 1)),
       ),
       child: Row(
         children: [
-          // Avatar con lápiz, nivel y nombre
-          GestureDetector(
-            onTap: _openProfileDialog,
-            child: Row(
-              children: [
-                Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    AvatarView(
-                      avatarId: _session.avatarIndex,
-                      size: 40,
-                      showBorder: true,
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF59E0B),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.edit, size: 10, color: Color(0xFF78350F)),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _session.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFF59E0B), width: 0.8),
-                      ),
-                      child: Text(
-                        'Nv. ${_session.level}',
-                        style: const TextStyle(
-                          color: Color(0xFFFDE047),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 9,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          // Engranaje de Ajustes
+          IconButton(
+            icon: const Icon(Icons.settings_rounded, color: Colors.white, size: 26),
+            onPressed: _openSettingsDialog,
           ),
           const Spacer(),
 
-          // Píldora interactiva de Monedas (Tocar para ver Mesas VIP)
-          GestureDetector(
-            onTap: () => _openVipModal(),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.monetization_on_rounded, color: Color(0xFFFBBF24), size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    _session.coins.toString().replaceAllMapped(
-                      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-                      (Match m) => '${m[1]},',
-                    ),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Píldora interactiva de Tickets (Tocar para Tienda de Recargas)
+          // Contador de Tickets: "10 +"
           GestureDetector(
             onTap: _openBuyTicketsModal,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                    blurRadius: 4,
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF38BDF8), width: 1.2),
               ),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.confirmation_number_rounded, color: Color(0xFFFBBF24), size: 16),
-                  const SizedBox(width: 4),
+                  const Icon(Icons.confirmation_number_rounded, color: Color(0xFF38BDF8), size: 18),
+                  const SizedBox(width: 6),
                   Text(
-                    '${_session.tickets}/10',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
+                    '${_session.tickets}',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
                   Container(
-                    padding: const EdgeInsets.all(1.5),
+                    padding: const EdgeInsets.all(2),
                     decoration: const BoxDecoration(
-                      color: Color(0xFFF59E0B),
+                      color: Color(0xFF38BDF8),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.add, size: 9, color: Color(0xFF78350F)),
+                    child: const Icon(Icons.add, size: 10, color: Color(0xFF0F172A)),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 10),
 
-          // Engranaje de Ajustes / Guía
-          IconButton(
-            icon: const Icon(Icons.settings_rounded, color: Colors.white70),
-            onPressed: _openLearnRulesDialog,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+          // Contador de Monedas: "0 +" / "1000 +"
+          GestureDetector(
+            onTap: _openBuyTicketsModal,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFFDE047), width: 1.2),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.monetization_on_rounded, color: Color(0xFFFDE047), size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${_session.coins}',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFDE047),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.add, size: 10, color: Color(0xFF0F172A)),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMainLobbyView() {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 320),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Panel central de Opciones de Juego estilo arcade
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.85),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.5),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Plaqueta de encabezado estilo arcade
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 2)),
-                        ],
-                      ),
-                      child: const Text(
-                        'MODOS DE JUEGO',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 14,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
+  // --- VISTA PRINCIPAL SEGÚN EL BOCETO ---
+  Widget _buildMainSketchLobbyView() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Column(
+        children: [
+          // 1. Fila Superior (Logo del Juego | Estadística / Desafíos | Perfil + Marco + Nivel)
+          _buildSubHeaderRow(),
+          const Spacer(),
 
-                    // 0. Modo Entrenamiento / Tutorial Guiado (FASE 3: Novatos & Recompensa +1000 Monedas)
-                    _buildActionCard(
-                      title: _session.hasCompletedTutorial ? 'Repasar Tutorial' : 'Tutorial de Novatos',
-                      subtitle: _session.hasCompletedTutorial
-                          ? 'Entrenamiento interactivo de 8 etapas'
-                          : 'Aprende Caída, Cantos y gana 1,000 🪙',
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF059669), Color(0xFF047857)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      borderColor: const Color(0xFF34D399),
-                      textColor: Colors.white,
-                      badge: _session.hasCompletedTutorial ? 'COMPLETADO' : '🪙 +1,000',
-                      badgeColor: _session.hasCompletedTutorial ? const Color(0xFF059669) : const Color(0xFFF59E0B),
-                      icon: Icons.school_rounded,
-                      iconColor: const Color(0xFFFDE047),
-                      onTap: _openTutorial,
-                    ),
-                    const SizedBox(height: 12),
+          // 2. Zona Central (Abanico de los 4 Ases de la Baraja | Botones JUGAR y TUTORIAL)
+          _buildCenterActionArea(),
+          const Spacer(),
 
-                    // 1. Un Jugador (Hero Button principal activo)
-                    _buildActionCard(
-                      title: 'Un Jugador',
-                      subtitle: '1 Ticket • Vs Bot o Parejas',
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      borderColor: const Color(0xFFFDE68A),
-                      textColor: Colors.white,
-                      badge: '1 🎫',
-                      badgeColor: const Color(0xFF059669),
-                      icon: Icons.smart_toy_rounded,
-                      iconColor: Colors.white,
-                      onTap: () {
-                        setState(() => _currentView = 'un_jugador');
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 2. Partidas VIP (🌟 FASE 2: Mesas de Apuestas con Monedas y Pozos)
-                    _buildActionCard(
-                      title: 'Partidas VIP',
-                      subtitle: 'Apuesta en Monedas • Pozos y Premios',
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      borderColor: const Color(0xFFFDE68A),
-                      textColor: Colors.white,
-                      badge: 'APUESTA VIP',
-                      badgeColor: const Color(0xFFF59E0B),
-                      icon: Icons.workspace_premium_rounded,
-                      iconColor: const Color(0xFFFDE047),
-                      onTap: () => _openVipModal(),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 3. Tienda de Tickets (🎫 FASE 2: Recarga por Video o Monedas)
-                    _buildActionCard(
-                      title: 'Tienda de Tickets',
-                      subtitle: 'Recarga gratis con Video o Monedas',
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      borderColor: const Color(0xFF7DD3FC),
-                      textColor: Colors.white,
-                      badge: 'RECARGAS',
-                      badgeColor: const Color(0xFF0284C7),
-                      icon: Icons.confirmation_number_rounded,
-                      iconColor: Colors.white,
-                      onTap: _openBuyTicketsModal,
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 4. Multijugador (BLOQUEADO: Para jugar Online o en Red)
-                    _buildActionCard(
-                      title: 'Multijugador',
-                      subtitle: 'Online / Red local',
-                      bgColor: const Color(0xFF1E293B),
-                      borderColor: const Color(0xFF334155),
-                      textColor: const Color(0xFFCBD5E1),
-                      icon: Icons.public_rounded,
-                      iconColor: const Color(0xFF64748B),
-                      isLocked: true,
-                      onTap: () {
-                        _showComingSoonToast('Modo Multijugador (Online / Red local) próximamente.');
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 3. Aprende (Tutorial interactivo de reglas)
-                    _buildActionCard(
-                      title: 'Aprende',
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFEA580C), Color(0xFFC2410C)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      borderColor: const Color(0xFFFDBA74),
-                      textColor: Colors.white,
-                      icon: Icons.menu_book_rounded,
-                      iconColor: Colors.white,
-                      onTap: _openLearnRulesDialog,
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 4. Personalizar (Bloqueado)
-                    _buildActionCard(
-                      title: 'Personalizar',
-                      bgColor: const Color(0xFF1E293B),
-                      borderColor: const Color(0xFF334155),
-                      textColor: const Color(0xFF94A3B8),
-                      icon: Icons.style_rounded,
-                      iconColor: const Color(0xFF64748B),
-                      isLocked: true,
-                      onTap: () {
-                        _showComingSoonToast('Próximamente: Barajas y tapetes personalizados.');
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 5. Amigos (Bloqueado)
-                    _buildActionCard(
-                      title: 'Amigos',
-                      bgColor: const Color(0xFF1E293B),
-                      borderColor: const Color(0xFF334155),
-                      textColor: const Color(0xFF94A3B8),
-                      icon: Icons.people_alt_rounded,
-                      iconColor: const Color(0xFF64748B),
-                      isLocked: true,
-                      onTap: () {
-                        _showComingSoonToast('Próximamente: Lista y salas de amigos.');
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          // 3. Fila Inferior (4 Ranuras de Cofres de Recompensa)
+          ChestSlotsView(
+            session: _session,
+            onChestClaimed: (coins) {
+              setState(() {});
+            },
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubHeaderRow() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white12, width: 1),
+      ),
+      child: Row(
+        children: [
+          // GAME LOGO Box
+          Container(
+            width: 78,
+            height: 70,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF59E0B), Color(0xFFB45309)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+              boxShadow: const [
+                BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2)),
+              ],
+            ),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.style_rounded, color: Colors.white, size: 24),
+                SizedBox(height: 2),
+                Text(
+                  'CAIDAGO',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 10.5,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Columna Central: Botones "Estadística" y "Desafíos"
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildSmallActionBtn('Estadística', Icons.leaderboard_rounded, const Color(0xFF38BDF8), _openStatisticsDialog),
+                const SizedBox(height: 6),
+                _buildSmallActionBtn('Desafíos', Icons.emoji_events_rounded, const Color(0xFFFDE047), _openChallengesDialog),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Tarjeta de Perfil del Usuario (Avatar + Marco + Insignia de Nivel)
+          GestureDetector(
+            onTap: () => _openProfileAndLevelModal(),
+            child: UserFrameView(
+              avatarIndex: _session.avatarIndex,
+              frameId: _session.selectedFrameId,
+              level: _session.level,
+              size: 58,
+              showLevelBadge: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmallActionBtn(String title, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 31,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.6), width: 1.2),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 14),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
+  Widget _buildCenterActionArea() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Izquierda: Abanico de los 4 Ases de la Baraja Española tradicional
+        const FourAcesDisplayView(cardWidth: 68),
+        const SizedBox(width: 14),
+
+        // Derecha: Botones grandes de JUGAR y TUTORIAL
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Botón JOGAR / JUGAR
+              GestureDetector(
+                onTap: () {
+                  setState(() => _currentView = 'un_jugador');
+                },
+                child: Container(
+                  width: double.infinity,
+                  height: 62,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFFDE68A), width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFD97706).withValues(alpha: 0.5),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'JUGAR',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Botón TUTORIAL
+              GestureDetector(
+                onTap: _openTutorial,
+                child: Container(
+                  width: double.infinity,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF059669), Color(0xFF047857)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFF6EE7B7), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF047857).withValues(alpha: 0.4),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.school_rounded, color: Color(0xFFFDE047), size: 20),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'TUTORIAL',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- SUB-VISTA DE SELECCIÓN DE MODOS DE JUEGO ---
   Widget _buildUnJugadorView() {
     return Column(
       children: [
-        // Cabecera con botón de regreso
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
@@ -867,7 +994,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
               GestureDetector(
                 onTap: () => setState(() => _currentView = 'main'),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: const Color(0xFF0F172A).withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(14),
@@ -879,11 +1006,11 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                       Icon(Icons.arrow_back_ios_rounded, color: Color(0xFFFBBF24), size: 16),
                       SizedBox(width: 6),
                       Text(
-                        'Un Jugador',
+                        'Volver al Menú',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,
-                          fontSize: 16,
+                          fontSize: 14,
                         ),
                       ),
                     ],
@@ -895,11 +1022,9 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
         ),
         const Spacer(),
 
-        // Tarjetas de Selección "Vs Bot" y "2 vs 2" con paleta armoniosa
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Opción 1: Vs Bot (Mano a Mano o varios jugadores individuales)
             GestureDetector(
               onTap: () => _showGamePreferencesDialog(
                 players: _selectedTeams ? 2 : _selectedTotalPlayers.clamp(2, 4),
@@ -949,7 +1074,6 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
             ),
             const SizedBox(width: 20),
 
-            // Opción 2: 2 vs 2 (Parejas fijas de 4 jugadores)
             GestureDetector(
               onTap: () => _showGamePreferencesDialog(
                 players: 4,
@@ -1001,7 +1125,6 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
         ),
         const SizedBox(height: 20),
 
-        // Opción 3: Mesas VIP (Apuestas con Monedas)
         GestureDetector(
           onTap: () => _openVipModal(),
           child: Container(
@@ -1066,107 +1189,6 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
         ),
         const Spacer(),
       ],
-    );
-  }
-
-  Widget _buildActionCard({
-    required String title,
-    String? subtitle,
-    Color? bgColor,
-    Gradient? gradient,
-    Color? borderColor,
-    required Color textColor,
-    required IconData icon,
-    required Color iconColor,
-    String? badge,
-    Color? badgeColor,
-    bool isLocked = false,
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        constraints: BoxConstraints(minHeight: subtitle != null ? 56 : 52),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: bgColor,
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: borderColor ?? Colors.transparent,
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            if (badge != null)
-              Container(
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: badgeColor ?? Colors.red,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  badge,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-            Icon(icon, color: iconColor, size: 24),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: textColor,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 15,
-                    ),
-                  ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (isLocked)
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.black26,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.lock_rounded, color: Color(0xFF94A3B8), size: 16),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -184,7 +184,7 @@ class _TutorialScreenState extends State<TutorialScreen> with TickerProviderStat
 
     return Scaffold(
       appBar: GameTableHeader(
-        title: 'Tutorial: La Caída',
+        title: 'Tutorial: CaidaGO',
         onBack: () => Navigator.of(context).pop(),
         trophies: _engine.userScore,
         playerLevel: session.level,

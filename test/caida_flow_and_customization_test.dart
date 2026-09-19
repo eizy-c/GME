@@ -22,7 +22,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('CAÍDA'), findsWidgets);
+      expect(find.text('CAIDAGO'), findsWidgets);
       expect(find.text('Tradicional'), findsOneWidget);
       expect(find.text('TOCAR PARA ENTRAR'), findsOneWidget);
     });
@@ -61,7 +61,7 @@ void main() {
       expect(find.text('Opciones del perfil'), findsNothing);
     });
 
-    testWidgets('CaidaLobbyScreen renderiza barra superior, monedas, tickets y modos', (tester) async {
+    testWidgets('CaidaLobbyScreen renderiza barra superior, estadistica, desafios, 4 ases, jugar y tutorial', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: CaidaLobbyScreen(),
@@ -69,16 +69,14 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Eizy'), findsOneWidget);
-      expect(find.text('6,000'), findsOneWidget);
-      expect(find.text('10/10'), findsOneWidget);
-      expect(find.text('Un Jugador'), findsOneWidget);
-      expect(find.text('Multijugador'), findsOneWidget);
-      expect(find.text('Aprende'), findsOneWidget);
-      expect(find.text('Personalizar'), findsOneWidget);
+      expect(find.text('CAIDAGO'), findsOneWidget);
+      expect(find.text('Estadística'), findsOneWidget);
+      expect(find.text('Desafíos'), findsOneWidget);
+      expect(find.text('JUGAR'), findsOneWidget);
+      expect(find.text('TUTORIAL'), findsOneWidget);
     });
 
-    testWidgets('2 vs 2 oculta selector de jugadores y Vs Bot lo muestra en preferencias', (tester) async {
+    testWidgets('Tocar JUGAR abre seleccion de modos (Vs Bot, 2 vs 2 y Mesas VIP)', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: CaidaLobbyScreen(),
@@ -86,12 +84,13 @@ void main() {
       );
       await tester.pump();
 
-      // Tocar "Un Jugador" para entrar al sub-menú
-      await tester.tap(find.text('Un Jugador'));
+      // Tocar "JUGAR" para entrar al sub-menú de modos
+      await tester.tap(find.text('JUGAR'));
       await tester.pumpAndSettle();
 
       expect(find.text('Vs Bot'), findsOneWidget);
       expect(find.text('2 vs 2'), findsOneWidget);
+      expect(find.text('MESAS VIP • APUESTAS'), findsOneWidget);
 
       // Probar 2 vs 2: NO debe mostrar el selector de jugadores "Modo de juego"
       await tester.tap(find.text('2 vs 2'));

@@ -50,13 +50,14 @@ void main() {
     test('load() crea una nueva sesión por defecto y la persiste si no existe estado previo', () async {
       final session = await PlayerSession.load();
       expect(session.id, isNotEmpty);
-      expect(session.name, equals('Jugador'));
+      expect(session.name, equals('Eizy'));
       expect(session.coins, equals(0));
-      expect(session.tickets, equals(3));
+      expect(session.tickets, equals(10));
       expect(session.maxTickets, equals(10));
-      expect(session.level, equals(1));
+      expect(session.level, equals(0));
       expect(session.hasCompletedTutorial, isFalse);
       expect(session.isFirstTime, isTrue);
+      expect(session.chests.length, equals(4));
 
       // Verificar que se guardó en SharedPreferences
       final prefs = await SharedPreferences.getInstance();
@@ -297,6 +298,40 @@ void main() {
       expect(session.coins, equals(3000));
       expect(session.xp, equals(600));
       expect(session.level, greaterThan(1), reason: '600 XP debe subir al jugador de nivel');
+    });
+  });
+
+  group('PlayerSession - Sistema de Cofres de Recompensas (4 Slots, 2 min, Tickets)', () {
+    test('addChestOnWin agrega cofre en primer slot vacío e inicia desbloqueo', () {
+      final session = PlayerSession.createDefault(tickets: 10, coins: 0);
+      expect(session.chests.every((c) => c.isEmpty), isTrue);
+
+      final added = session.addChestOnWin();
+      expect(added, isTrue);
+      expect(session.chests[0].isEmpty, isFalse);
+      expect(session.chests[0].durationSeconds, equals(120)); // 2 min
+
+      // Si ya hay un cofre abriéndose, no permite añadir otro
+      final addedAgain = session.addChestOnWin();
+      expect(addedAgain, isFalse);
+    });
+
+    test('unlockChestInstant descuenta 2 tickets y deja el cofre listo para abrir', () {
+      final session = PlayerSession.createDefault(tickets: 10, coins: 0);
+      session.addChestOnWin();
+      expect(session.tickets, equals(10));
+
+      final success = session.unlockChestInstant(0);
+      expect(success, isTrue);
+      expect(session.tickets, equals(8)); // 10 - 2 tickets
+
+      // Ahora el cofre está listo para reclamar
+      final coins = session.claimChestReward(0);
+      expect(coins, isNotNull);
+      expect(coins!, greaterThanOrEqualTo(50));
+      expect(coins, lessThanOrEqualTo(2500));
+      expect(session.coins, equals(coins));
+      expect(session.chests[0].isEmpty, isTrue);
     });
   });
 }

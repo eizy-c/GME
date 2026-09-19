@@ -55,7 +55,7 @@ class GameRulesData {
     ),
     'la_caida': GameRules(
       id: 'la_caida',
-      title: 'La Caída Tradicional',
+      title: 'CaidaGO',
       subtitle: 'Juego tradicional de naipes con cantos y capturas',
       playersCount: '2 a 4 Jugadores',
       objective:

@@ -51,7 +51,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: CaidaScreen(initialPlayers: 2, autoStart: true),
+          home: CaidaScreen(initialPlayers: 2, autoStart: true, animateDealing: false),
         ),
       );
       await tester.pump();
@@ -96,7 +96,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: CaidaScreen(initialPlayers: 2, autoStart: true),
+          home: CaidaScreen(initialPlayers: 2, autoStart: true, animateDealing: false),
         ),
       );
       await tester.pump();
@@ -147,7 +147,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: CaidaScreen(initialPlayers: 2, autoStart: true),
+          home: CaidaScreen(initialPlayers: 2, autoStart: true, animateDealing: false),
         ),
       );
       await tester.pump();
@@ -170,7 +170,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: CaidaScreen(initialPlayers: 2, autoStart: true),
+          home: CaidaScreen(initialPlayers: 2, autoStart: true, animateDealing: false),
         ),
       );
       await tester.pump();

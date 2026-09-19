@@ -124,7 +124,7 @@ class _TutorialCompletionDialogState extends State<TutorialCompletionDialog>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
-                  '¡GRADUADO DE LA CAÍDA!',
+                  '¡GRADUADO DE CAIDAGO!',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
@@ -150,7 +150,7 @@ class _TutorialCompletionDialogState extends State<TutorialCompletionDialog>
 
               // Mensaje
               const Text(
-                'Has dominado con maestría todas las mecánicas, arrastres, caídas y cantos tradicionales de La Caída.',
+                'Has dominado con maestría todas las mecánicas, arrastres, caídas y cantos tradicionales de CaidaGO.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white70,

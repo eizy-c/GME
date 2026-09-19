@@ -168,8 +168,25 @@ class GameMatchController extends ChangeNotifier {
 
       if (hits == 0) opponentPoints += 1;
 
-      dealerPlayer.addScore(dealerPoints);
-      _players[_manoIndex].addScore(opponentPoints);
+      if (dealerPoints > 0) {
+        if (_isTeams) {
+          for (final p in _players.where((pl) => pl.teamId == dealerPlayer.teamId)) {
+            p.addScore(dealerPoints);
+          }
+        } else {
+          dealerPlayer.addScore(dealerPoints);
+        }
+      }
+      if (opponentPoints > 0) {
+        if (_isTeams) {
+          final oppTeamId = _players[_manoIndex].teamId;
+          for (final p in _players.where((pl) => pl.teamId == oppTeamId)) {
+            p.addScore(opponentPoints);
+          }
+        } else {
+          _players[_manoIndex].addScore(opponentPoints);
+        }
+      }
 
       _tableState = _tableState.copyWith(activeCards: () => tableCards);
       _statusBanner = dealerPoints > 0
@@ -215,7 +232,13 @@ class GameMatchController extends ChangeNotifier {
       });
 
       final winnerPlayer = _players.firstWhere((p) => p.id == winningEntry.key);
-      winnerPlayer.addScore(winningEntry.value.points);
+      if (_isTeams) {
+        for (final p in _players.where((pl) => pl.teamId == winnerPlayer.teamId)) {
+          p.addScore(winningEntry.value.points);
+        }
+      } else {
+        winnerPlayer.addScore(winningEntry.value.points);
+      }
       _statusBanner = '${winnerPlayer.name} canta ${winningEntry.value.name} (+${winningEntry.value.points} pts)';
 
       // Trivilín (+24) gana la partida de inmediato
@@ -264,9 +287,23 @@ class GameMatchController extends ChangeNotifier {
 
     _tableState = moveResult.newTableState;
     if (moveResult.hasCapture) {
-      player.addCapturedCards(moveResult.capturedCards);
+      if (_isTeams) {
+        for (final p in _players.where((pl) => pl.teamId == player.teamId)) {
+          p.addCapturedCards(moveResult.capturedCards);
+        }
+      } else {
+        player.addCapturedCards(moveResult.capturedCards);
+      }
     }
-    player.addScore(moveResult.totalPoints);
+    if (moveResult.totalPoints > 0) {
+      if (_isTeams) {
+        for (final p in _players.where((pl) => pl.teamId == player.teamId)) {
+          p.addScore(moveResult.totalPoints);
+        }
+      } else {
+        player.addScore(moveResult.totalPoints);
+      }
+    }
 
     if (moveResult.summary.isNotEmpty) {
       _statusBanner = '${player.name}: ${moveResult.summary}';
@@ -314,7 +351,13 @@ class GameMatchController extends ChangeNotifier {
     // Adjudicar sobrante en mesa al último capturador
     if (_tableState.lastCapturingPlayerId != null && _tableState.activeCards.isNotEmpty) {
       final lastCapturer = _players.firstWhere((p) => p.id == _tableState.lastCapturingPlayerId);
-      lastCapturer.addCapturedCards(_tableState.activeCards);
+      if (_isTeams) {
+        for (final p in _players.where((pl) => pl.teamId == lastCapturer.teamId)) {
+          p.addCapturedCards(_tableState.activeCards);
+        }
+      } else {
+        lastCapturer.addCapturedCards(_tableState.activeCards);
+      }
     }
 
     final totalPlayers = _players.length;
@@ -324,7 +367,9 @@ class GameMatchController extends ChangeNotifier {
       // Parejas: umbral 20
       final teamCards = <int, int>{0: 0, 1: 0};
       for (final p in _players) {
-        teamCards[p.teamId] = (teamCards[p.teamId] ?? 0) + p.capturedCount;
+        teamCards[p.teamId] = (teamCards[p.teamId] ?? 0) > p.capturedCount
+            ? (teamCards[p.teamId] ?? 0)
+            : p.capturedCount;
       }
       for (final entry in teamCards.entries) {
         if (entry.value > 20) {

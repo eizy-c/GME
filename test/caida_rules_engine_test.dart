@@ -438,6 +438,36 @@ void main() {
       // p2: 10 - 10 = 0 pts
       expect(res.volumeBonusPoints['p2'], equals(0));
     });
+
+    test('Juego en Parejas (Equipos): Cartas y puntos son exactamente idénticos para ambos compañeros', () {
+      final players = [
+        const CaidaPlayerState(id: 'user', name: 'Tú', teamId: 1, initialScore: 12, initialCardsWon: 22),
+        const CaidaPlayerState(id: 'p1', name: 'Rival 1', teamId: 2, initialScore: 8, initialCardsWon: 16),
+        const CaidaPlayerState(id: 'p2', name: 'Compañero', teamId: 1, initialScore: 12, initialCardsWon: 22),
+        const CaidaPlayerState(id: 'p3', name: 'Rival 2', teamId: 2, initialScore: 8, initialCardsWon: 16),
+      ];
+
+      final remaining = [
+        const SpanishCard(number: 2, suit: CardSuit.oros),
+        const SpanishCard(number: 3, suit: CardSuit.copas),
+      ];
+
+      final res = CaidaRulesEngine.resolveHandEnd(
+        players: players,
+        remainingTable: remaining,
+        lastCapturingPlayerId: 'user',
+        isTeams: true,
+      );
+
+      // Equipo 1: 22 + 2 sobrantes = 24 cartas
+      // Bono volumen: 24 - 20 = +4 puntos
+      expect(res.totalCardsWon['user'], equals(24));
+      expect(res.totalCardsWon['p2'], equals(24), reason: 'El compañero debe tener las mismas cartas ganadas');
+      expect(res.volumeBonusPoints['user'], equals(4));
+      expect(res.volumeBonusPoints['p2'], equals(4));
+      expect(res.updatedScores['user'], equals(16));
+      expect(res.updatedScores['p2'], equals(16), reason: 'El compañero debe tener los mismos puntos totales');
+    });
   });
 
   group('CaidaRulesEngine - 5. Conservación de 40 Cartas y Blindaje de Unicidad en Mesa', () {

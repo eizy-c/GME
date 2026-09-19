@@ -14,8 +14,10 @@ import '../../../core/services/audio_service.dart';
 import '../../../core/services/user_profile_service.dart';
 import '../domain/caida_models.dart';
 import '../domain/caida_rules_engine.dart';
+import '../domain/models/spatial_card_state.dart';
 import '../economy/player_session.dart';
 import '../economy/vip_tier.dart';
+import 'widgets/card_flight_overlay.dart';
 import 'widgets/deck_stack_view.dart';
 import 'widgets/table_canto_dialog.dart';
 import 'caida_lobby_screen.dart';
@@ -131,6 +133,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   final List<_PlacedTableCard> _placedTableCards = [];
   int _tableCardZCounter = 0;
   bool _isProcessingPlay = false;
+  List<CardFlightTrajectory> _activeTrajectories = [];
 
   // Configuración de la partida
   bool _hasGameStarted = false;
@@ -222,10 +225,16 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         _playerCount,
         _isTeams,
         initialUserName,
-        animate: !widget.autoStart && widget.animateDealing,
+        animate: widget.animateDealing,
         startWithManoSelection: widget.chooseMano,
       );
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    SpanishCardView.precacheAllCards(context);
   }
 
   @override
@@ -280,7 +289,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       _startManoSelection();
     } else {
       _manoIndex = 0;
-      final shouldAnimate = animate ?? (widget.animateDealing && !widget.autoStart);
+      final shouldAnimate = animate ?? widget.animateDealing;
       _startDeal(isFirstRound: true, animate: shouldAnimate);
     }
   }
@@ -434,6 +443,41 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     }
   }
 
+  void _addPoints(_PlayerState player, int points) {
+    if (points <= 0) return;
+    if (_isTeams) {
+      for (final p in _players) {
+        if (p.teamId == player.teamId) {
+          p.score += points;
+        }
+      }
+    } else {
+      player.score += points;
+    }
+  }
+
+  void _addCardsWon(_PlayerState player, int count) {
+    if (count <= 0) return;
+    if (_isTeams) {
+      for (final p in _players) {
+        if (p.teamId == player.teamId) {
+          p.cardsWon += count;
+        }
+      }
+    } else {
+      player.cardsWon += count;
+    }
+  }
+
+  bool _checkGameOver() {
+    if (_isGameOver) return true;
+    if (_players.any((p) => p.score >= 24)) {
+      _finishGame();
+      return true;
+    }
+    return false;
+  }
+
   void _startDeal({required bool isFirstRound, required bool animate}) {
     _clearAllCallouts();
     _timerController.stop();
@@ -461,13 +505,15 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       _syncPlacedCards();
 
       if (dealResult.dealerPoints > 0) {
-        dealer.score += dealResult.dealerPoints;
+        _addPoints(dealer, dealResult.dealerPoints);
         _triggerCallout(dealer, 'Canto de Mesa (+${dealResult.dealerPoints} pts)');
       }
       if (dealResult.opponentPoints > 0) {
-        opponent.score += dealResult.opponentPoints;
+        _addPoints(opponent, dealResult.opponentPoints);
         _triggerCallout(opponent, '+${dealResult.opponentPoints} pt (Mesa)');
       }
+
+      if (_checkGameOver()) return;
     }
 
     for (final p in _players) {
@@ -553,12 +599,26 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
           _triggerCallout(p, 'Volumen (+$vol pts)');
         }
       }
-      _tableCards.clear();
 
-      if (_players.any((p) => p.score >= 24)) {
-        _finishGame();
-        return;
+      if (_isTeams) {
+        // Asegurar que los puntos y cartas recogidas sean exactamente iguales para ambos miembros del equipo
+        for (int team = 1; team <= 2; team++) {
+          final teamPlayers = _players.where((pl) => pl.teamId == team).toList();
+          if (teamPlayers.isNotEmpty) {
+            final maxScore = teamPlayers.map((pl) => pl.score).reduce(math.max);
+            final maxCards = teamPlayers.map((pl) => pl.cardsWon).reduce(math.max);
+            for (final pl in teamPlayers) {
+              pl.score = maxScore;
+              pl.cardsWon = maxCards;
+            }
+          }
+        }
       }
+
+      _tableCards.clear();
+      _placedTableCards.clear();
+
+      if (_checkGameOver()) return;
 
       // Iniciar nuevo manojo con mazo completo de 40 cartas barajado
       // La Mano rota en sentido de las manecillas del reloj
@@ -577,7 +637,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         p.cardsWon = 0;
       }
 
-      _startDeal(isFirstRound: true, animate: widget.animateDealing && !widget.autoStart);
+      _startDeal(isFirstRound: true, animate: widget.animateDealing);
       return;
     }
 
@@ -586,7 +646,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _roundNumber++;
     _lastPlayedCard = null;
     _lastPlayedPlayerIndex = null;
-    _startDeal(isFirstRound: false, animate: widget.animateDealing && !widget.autoStart);
+    _startDeal(isFirstRound: false, animate: widget.animateDealing);
   }
 
   bool _allHandsEmpty() => _players.every((p) => p.hand.isEmpty);
@@ -597,10 +657,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       _resolveAndAwardCantos();
       setState(() {});
 
-      if (_players.any((p) => p.score >= 24)) {
-        _finishGame();
-        return;
-      }
+      if (_checkGameOver()) return;
 
       await Future.delayed(const Duration(milliseconds: 1800));
       if (!mounted || _isGameOver) return;
@@ -651,7 +708,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     for (final p in _players) {
       final canto = resolved[p.id];
       if (canto != null) {
-        p.score += canto.points;
+        _addPoints(p, canto.points);
         final detail = canto is RondaCanto
             ? 'Ronda de ${canto.pairNumber}'
             : canto.name.replaceAll('¡', '').replaceAll('!', '');
@@ -666,6 +723,8 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       }
       p.pendingCanto = null;
     }
+
+    _checkGameOver();
   }
 
   void _triggerCallout(_PlayerState player, String text) {
@@ -713,18 +772,13 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     }
   }
 
-  void _playCard(_PlayerState player, SpanishCard card) {
+  void _playCard(_PlayerState player, SpanishCard card) async {
     if (_isProcessingPlay || _isGameOver || _isDealing || _isChoosingMano) return;
     if (!player.hand.contains(card)) return;
 
     _isProcessingPlay = true;
     _botTimer?.cancel();
     _timerController.stop();
-
-    setState(() {
-      player.hand.remove(card);
-      _selectedCard = null;
-    });
 
     final previousCard = (_lastPlayedPlayerIndex != null && _lastPlayedPlayerIndex != _currentTurnIndex)
         ? _lastPlayedCard
@@ -737,46 +791,175 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       isDeckEmpty: _deck.isEmpty,
     );
 
-    setState(() {
-      _tableCards.clear();
-      _tableCards.addAll(eval.newTableCards);
-      _syncPlacedCards();
-    });
+    final playerIdx = _players.indexOf(player);
+    final isUser = playerIdx == 0;
+    final handIndex = player.hand.indexOf(card);
 
+    final startAnchor = isUser
+        ? SpatialCardAnchor.userHandSlotAnchor(
+            cardIndex: handIndex.clamp(0, 2),
+            totalCardsInHand: player.hand.length,
+          )
+        : SpatialCardAnchor.playerStationAnchor(
+            playerIndex: playerIdx,
+            totalPlayers: _players.length,
+          );
+
+    SpatialCardAnchor targetAnchor;
     if (eval.didCapture) {
-      player.cardsWon += eval.capturedCards.length;
-      _lastCapturingPlayerIndex = _currentTurnIndex;
+      final matchedPlaced = _placedTableCards.where((p) => p.card.number == card.number).firstOrNull;
+      if (matchedPlaced != null) {
+        targetAnchor = SpatialCardAnchor(
+          card: card,
+          offset: matchedPlaced.offset,
+          rotation: matchedPlaced.rotation,
+          scale: 1.0,
+        );
+      } else {
+        targetAnchor = const SpatialCardAnchor(offset: Offset(0, 0));
+      }
+    } else {
+      final occupiedZones = _placedTableCards.map((p) => p.zoneIndex).toSet();
+      int chosenZone = 0;
+      for (int z = 0; z < _tableLandingZones.length; z++) {
+        if (!occupiedZones.contains(z)) {
+          chosenZone = z;
+          break;
+        }
+      }
+      targetAnchor = SpatialCardAnchor(
+        card: card,
+        offset: _tableLandingZones[chosenZone],
+        rotation: _tableLandingRotations[chosenZone],
+        scale: 1.0,
+      );
     }
 
-    if (eval.totalPoints > 0) {
-      player.score += eval.totalPoints;
-      _triggerCallout(player, eval.breakdownMessage);
-    } else if (eval.didCapture && eval.capturedCards.length > 2) {
-      _triggerCallout(player, eval.breakdownMessage);
-    }
-
-    // Efectos de sonido para Caída y Mesa Limpia
-    if (eval.isCaida && eval.isLimpia) {
-      AudioService().playCaida();
-      Future.delayed(const Duration(milliseconds: 900), () {
-        AudioService().playMesaLimpia();
+    if (widget.animateDealing) {
+      // 1. Quitar de la mano y lanzar el vuelo hacia la mesa / carta objetivo
+      setState(() {
+        player.hand.remove(card);
+        _selectedCard = null;
+        _activeTrajectories = [
+          CardFlightTrajectory(
+            id: 'play_${card.shortCode}_${DateTime.now().millisecondsSinceEpoch}',
+            card: card,
+            startAnchor: startAnchor,
+            targetAnchor: targetAnchor,
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            isCaidaImpact: eval.isCaida,
+          ),
+        ];
       });
-    } else if (eval.isCaida) {
-      AudioService().playCaida();
-    } else if (eval.isLimpia) {
-      AudioService().playMesaLimpia();
+
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted || _isGameOver) return;
+
+      if (eval.didCapture) {
+        // Sonidos de Caída / Limpia al impactar
+        if (eval.isCaida) AudioService().playCaida();
+        if (eval.isLimpia) {
+          Future.delayed(const Duration(milliseconds: 400), () {
+            AudioService().playMesaLimpia();
+          });
+        }
+
+        // 2. Vuelo de recogida: todas las cartas capturadas vuelan hacia el avatar del jugador
+        final returnAnchor = SpatialCardAnchor.playerStationAnchor(
+          playerIndex: playerIdx,
+          totalPlayers: _players.length,
+        );
+
+        final returnFlights = <CardFlightTrajectory>[];
+        for (final capCard in eval.capturedCards) {
+          final capPlaced = _placedTableCards.where((p) => p.card == capCard).firstOrNull;
+          final capOrigin = capPlaced != null
+              ? SpatialCardAnchor(card: capCard, offset: capPlaced.offset, rotation: capPlaced.rotation)
+              : targetAnchor;
+
+          returnFlights.add(
+            CardFlightTrajectory(
+              id: 'collect_${capCard.shortCode}_${DateTime.now().millisecondsSinceEpoch}',
+              card: capCard,
+              startAnchor: capOrigin,
+              targetAnchor: returnAnchor,
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeInOutQuad,
+            ),
+          );
+        }
+
+        setState(() {
+          _activeTrajectories = returnFlights;
+          _tableCards.clear();
+          _tableCards.addAll(eval.newTableCards);
+          _syncPlacedCards();
+        });
+
+        await Future.delayed(const Duration(milliseconds: 340));
+        if (!mounted || _isGameOver) return;
+
+        setState(() {
+          _activeTrajectories.clear();
+        });
+
+        _addCardsWon(player, eval.capturedCards.length);
+        _lastCapturingPlayerIndex = _currentTurnIndex;
+
+        if (eval.totalPoints > 0) {
+          _addPoints(player, eval.totalPoints);
+          _triggerCallout(player, eval.breakdownMessage);
+        } else if (eval.capturedCards.length > 2) {
+          _triggerCallout(player, eval.breakdownMessage);
+        }
+      } else {
+        // No hubo captura: la carta se asienta sobre la mesa
+        setState(() {
+          _activeTrajectories.clear();
+          _tableCards.clear();
+          _tableCards.addAll(eval.newTableCards);
+          _syncPlacedCards();
+        });
+      }
+    } else {
+      // Modo instantáneo para pruebas y autoStart
+      setState(() {
+        player.hand.remove(card);
+        _selectedCard = null;
+        _tableCards.clear();
+        _tableCards.addAll(eval.newTableCards);
+        _syncPlacedCards();
+      });
+
+      if (eval.didCapture) {
+        _addCardsWon(player, eval.capturedCards.length);
+        _lastCapturingPlayerIndex = _currentTurnIndex;
+      }
+
+      if (eval.totalPoints > 0) {
+        _addPoints(player, eval.totalPoints);
+        _triggerCallout(player, eval.breakdownMessage);
+      } else if (eval.didCapture && eval.capturedCards.length > 2) {
+        _triggerCallout(player, eval.breakdownMessage);
+      }
+
+      if (eval.isCaida && eval.isLimpia) {
+        AudioService().playCaida();
+        AudioService().playMesaLimpia();
+      } else if (eval.isCaida) {
+        AudioService().playCaida();
+      } else if (eval.isLimpia) {
+        AudioService().playMesaLimpia();
+      }
     }
 
     _lastPlayedCard = card;
     _lastPlayedPlayerIndex = _currentTurnIndex;
-
     _isProcessingPlay = false;
 
-    // Comprobar si alguien llegó a 24 puntos
-    if (_players.any((p) => p.score >= 24)) {
-      _finishGame();
-      return;
-    }
+    // Comprobar si algún jugador o equipo alcanzó los 24 puntos
+    if (_checkGameOver()) return;
 
     // Avanzar turno
     _nextTurn();
@@ -857,12 +1040,14 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       if (userWon) {
         vipCoinsWon = widget.vipWinnerReward ?? widget.vipTier!.calculateNetPrizePerWinner(isTeams: widget.initialTeams);
         PlayerSession.shared.rewardCoins(vipCoinsWon, xpGain: xpGained);
+        PlayerSession.shared.addChestOnWin();
       } else {
         PlayerSession.shared.addXp(xpGained);
       }
     } else {
       if (userWon) {
         PlayerSession.shared.rewardCoins(150, xpGain: xpGained);
+        PlayerSession.shared.addChestOnWin();
       } else {
         PlayerSession.shared.addXp(xpGained);
       }
@@ -975,18 +1160,23 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.tune_rounded, color: Color(0xFF10B981)),
-                title: const Text('Configurar / Volver al Menú', style: TextStyle(color: Colors.white)),
+                leading: const Icon(Icons.exit_to_app_rounded, color: Color(0xFFEF4444)),
+                title: const Text('Salir al Menú Principal de CaidaGO', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(ctx);
-                  setState(() {
-                    _hasGameStarted = false;
-                  });
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CaidaLobbyScreen()),
+                    );
+                  }
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.help_outline_rounded, color: Color(0xFFFBBF24)),
-                title: const Text('Reglas de La Caída', style: TextStyle(color: Colors.white)),
+                title: const Text('Reglas de CaidaGO', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(ctx);
                   GameRulesDialog.show(context, 'la_caida');
@@ -1005,12 +1195,15 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
     return Scaffold(
       appBar: GameTableHeader(
-        title: 'La Caída Tradicional',
+        title: 'CaidaGO',
         onBack: () {
-          if (_hasGameStarted) {
-            setState(() => _hasGameStarted = false);
-          } else {
+          if (Navigator.canPop(context)) {
             Navigator.pop(context);
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const CaidaLobbyScreen()),
+            );
           }
         },
         onOpenRules: () => GameRulesDialog.show(context, 'la_caida'),
@@ -1083,7 +1276,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'LA CAÍDA TRADICIONAL',
+                          'CAIDAGO',
                           style: TextStyle(
                             color: Color(0xFFFDE047),
                             fontSize: 12,
@@ -1554,6 +1747,18 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                   ],
                 ),
               ),
+            ),
+
+            // 8. Capa superior de naipes en vuelo y efectos de impacto
+            CardFlightOverlay(
+              activeTrajectories: _activeTrajectories,
+              onAllCompleted: () {
+                if (mounted) {
+                  setState(() {
+                    _activeTrajectories.clear();
+                  });
+                }
+              },
             ),
           ],
         );
