@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../economy/chest_slot_model.dart';
 import '../../economy/player_session.dart';
+import '../../../../core/presentation/widgets/app_3d_button.dart';
 
 /// Widget interactivo para la barra de 4 slots de cofres de recompensa en la parte inferior del lobby.
 class ChestSlotsView extends StatefulWidget {
@@ -67,14 +68,13 @@ class _ChestSlotsViewState extends State<ChestSlotsView> {
           style: TextStyle(color: Colors.white70, fontSize: 14),
         ),
         actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF59E0B),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
+          App3dButton(
+            label: 'Entendido',
+            variant: App3dButtonVariant.gold,
+            depth: 3.5,
+            borderRadius: 10,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Entendido', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -152,18 +152,12 @@ class _ChestSlotsViewState extends State<ChestSlotsView> {
                 style: TextStyle(color: Color(0xFF93C5FD), fontSize: 12, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF22C55E),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('¡EXCELENTE!', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                ),
+              App3dButton(
+                label: '¡EXCELENTE!',
+                variant: App3dButtonVariant.emerald,
+                depth: 4.0,
+                expand: true,
+                onPressed: () => Navigator.of(context).pop(),
               ),
             ],
           ),
@@ -210,14 +204,13 @@ class _ChestSlotsViewState extends State<ChestSlotsView> {
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Esperar', style: TextStyle(color: Colors.white54)),
           ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF38BDF8),
-              foregroundColor: const Color(0xFF0F172A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            icon: const Icon(Icons.confirmation_number_rounded, size: 16),
-            label: const Text('Abrir ya (2 Tickets)', style: TextStyle(fontWeight: FontWeight.bold)),
+          App3dButton.icon(
+            icon: Icons.confirmation_number_rounded,
+            label: 'Abrir ya (2 Tickets)',
+            variant: App3dButtonVariant.cyan,
+            depth: 3.5,
+            borderRadius: 10,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             onPressed: () {
               Navigator.of(context).pop();
               final success = widget.session.unlockChestInstant(chest.slotIndex);

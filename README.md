@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.29+-02569B?logo=flutter&logoColor=white" alt="Flutter" />
   <img src="https://img.shields.io/badge/Dart-3.7+-0175C2?logo=dart&logoColor=white" alt="Dart" />
   <img src="https://img.shields.io/badge/Plataformas-Android%20%7C%20Windows%20%7C%20Web%20%7C%20macOS%20%7C%20Linux-4CAF50" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-117%20Passed-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-129%20Passed-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/Linter-0%20Issues-brightgreen" alt="Linter" />
   <img src="https://img.shields.io/badge/Licencia-Libre%20%2F%20Cultural-blue" alt="License" />
 </p>
@@ -42,6 +42,28 @@
 ---
 
 ## 🌟 Novedades y Actualizaciones Recientes
+
+* 🔘 **Sistema de Botones 3D Táctiles Animados (`App3dButton`) y Nueva Paleta de 4 Colores**:
+  * Replicación de física e interactividad inspirada en `.btn-177`:
+    * Cara superior interactiva con bordes redondeados y contraste nítido.
+    * Base extruida tridimensional inferior con bisel oscurecido para dar volumen táctil.
+    * Sombra difusa dinámica con compresión al presionar.
+    * Animación física de descenso en el eje Y (`translateY: +depth`) con curva elástica suave y respuesta háptica (`HapticFeedback`).
+  * **Nueva Paleta Oficial de Diseño**:
+    * 🩵 **Turquesa / Cyan** (`#8BDCD7`): Acciones principales, botones destacados y confirmaciones (`AppPalette.cyan`).
+    * 🫒 **Verde Salvia / Oliva** (`#999966`): Acciones secundarias y tutorial (`AppPalette.olive`).
+    * ⬛ **Gris Carbón / Pizarra Oscura** (`#232323`): Fondos profundos, base de volumen 3D y contraste (`AppPalette.darkSlate`).
+    * 📜 **Pergamino / Arena Claro** (`#D5D4BC`): Superficies claras y acentos de texto (`AppPalette.sand`).
+  * Integración en todos los flujos clave: Lobby (`JUGAR`, `TUTORIAL`), Modal de Fin de Partida (`REVANCHA`, `LOBBY`), Modal de Perfil (`GUARDAR CAMBIOS`), Tienda de Tickets, Diálogo de Desafíos, Diálogos de Cofres, Reglas del Juego y Confirmación de Abandono de Mesa.
+
+* 🤖 **Personalización Completa de Bots (IA) y Nuevo Nombre de Jugador Inicial**:
+  * **Nombre Inicial Neutral**: Los nuevos jugadores comienzan identificados como *"Jugador"* (reemplazando el anterior *"Eizy"*), con selector directo de nombre en el modal de perfil.
+  * **Menú de Personalización de Bots (`BotCustomizationModal`)**:
+    * Configuración de nombres personalizados para **Bot 1 (Oeste / 1v1)**, **Bot 2 (Norte / Frente / Compañero 2v2)** y **Bot 3 (Este / Derecha)**.
+    * **Generador Aleatorio Criollo (🎲)** con nombres populares venezolanos (*El Catire, Cheo, Beto, El Guaro, Nacho, Toño, Pancho, Chicho, El Chivo, El Morocho, Tito, Gabo, El Compadre, Rafa, Carlos, Wilmer, Yorman*).
+    * Chips de selección rápida de apodos y botón para restaurar valores por defecto (*Alejandro, Carl, Jhonny*).
+    * Persistencia reactiva en disco local a través de `PlayerSession`.
+    * Accesible desde Ajustes del Lobby, Menú de Partida en Curso y Configuración Previa a la Mesa.
 
 * 💡 **Buzón Oficial de Sugerencias y Feedback (`FeedbackService`)**:
   * Botón destacado en la barra superior del Lobby (`💡 Sugerencias`) con degradado índigo y resplandor dorado.
@@ -99,7 +121,8 @@ Al abrir la aplicación, el usuario es recibido directamente por:
 1. **Pantalla de Bienvenida (`CaidaSplashScreen`)**:
    - Fondo geométrico dinámico con patrón en zigzag (chevrons púrpuras y azul rey).
    - Logotipo principal **CAIDAGO** con relieve 3D, sombras profundas y rótulo "Tradicional".
-   - Abanico decorativo de cartas y botón pulsante *"TOCAR PARA ENTRAR"*.
+   - Abanico decorativo de cartas.
+   - **Barra de Carga Dinámica (0% al 100%)**: Con indicador de porcentaje en tiempo real y textos de precarga de recursos, transitando automáticamente al modal de personalización (si es nuevo usuario) o directamente al Lobby.
 2. **Lobby Principal (`CaidaLobbyScreen`)**:
    - Barra superior con saldo de monedas, tickets y contador de regeneración (1 ticket cada 20 min).
    - Acceso al modal de perfil de usuario y marcos de avatar.
@@ -274,7 +297,7 @@ El proyecto cuenta con un blindaje completo de pruebas unitarias, de integració
 # Ejecutar suite de pruebas completa
 flutter test
 ```
-*Resultado*: **117 tests pasando exitosamente (100% pass rate)**.
+*Resultado*: **129 tests pasando exitosamente (100% pass rate)**.
 
 ```bash
 # Análisis estático de código

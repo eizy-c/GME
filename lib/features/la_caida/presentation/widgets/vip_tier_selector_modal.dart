@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../economy/player_session.dart';
 import '../../economy/vip_tier.dart';
+import '../../../../core/presentation/widgets/app_3d_button.dart';
 
 /// Modal interactivo para seleccionar y apostar en salas / mesas VIP de La Caída.
 /// Incluye toggle entre 1v1 y Parejas (4P) con actualización en vivo de pozos y premios netos,
@@ -555,38 +556,22 @@ class _VipTierSelectorModalState extends State<VipTierSelectorModal> {
       isEnabled = true;
     }
 
-    return ElevatedButton(
+    return App3dButton.icon(
       onPressed: isEnabled ? () => _onEnterTier(tier) : null,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: buttonColor,
-        foregroundColor: Colors.white,
-        disabledBackgroundColor: buttonColor,
-        disabledForegroundColor: Colors.white38,
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-        elevation: isEnabled ? 3 : 0,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (buttonIcon != null) ...[
-            Icon(buttonIcon, size: isEnabled ? 15 : 13, color: isEnabled ? Colors.white : Colors.white54),
-            const SizedBox(width: 5),
-          ],
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: isEnabled ? 11.5 : 10,
-              fontWeight: FontWeight.w900,
-              color: isEnabled ? Colors.white : Colors.white54,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
+      icon: buttonIcon,
+      iconSize: isEnabled ? 15 : 13,
+      label: label,
+      variant: App3dButtonVariant.custom,
+      backgroundColor: buttonColor,
+      depth: isEnabled ? 3.5 : 0.0,
+      borderRadius: 12,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      expand: true,
+      textStyle: TextStyle(
+        fontSize: isEnabled ? 11.5 : 10,
+        fontWeight: FontWeight.w900,
+        color: isEnabled ? Colors.white : Colors.white54,
+        letterSpacing: 0.5,
       ),
     );
   }

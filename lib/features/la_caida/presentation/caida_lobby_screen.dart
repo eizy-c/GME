@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/presentation/widgets/app_3d_button.dart';
 import '../../../core/presentation/widgets/spanish_card_view.dart';
 import '../../../core/rules/game_rules_data.dart';
 import '../../../core/services/feedback_service.dart';
@@ -7,6 +8,7 @@ import '../domain/models/caida_match_config.dart';
 import '../economy/daily_challenge.dart';
 import '../economy/player_session.dart';
 import 'caida_screen.dart';
+import 'widgets/bot_customization_modal.dart';
 import 'widgets/buy_tickets_modal.dart';
 import 'widgets/chest_slots_view.dart';
 import 'widgets/four_aces_display_view.dart';
@@ -89,6 +91,16 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
     ProfileAndLevelModal.show(context, session: _session, initialTabIndex: initialTabIndex);
   }
 
+  void _openBotCustomization() {
+    BotCustomizationModal.show(
+      context,
+      session: _session,
+      onSaved: (names) {
+        setState(() {});
+      },
+    );
+  }
+
   void _openVipModal({bool initialIsTeams = false}) {
     VipTierSelectorModal.show(
       context,
@@ -99,7 +111,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
           tier: tier,
           isTeams: isTeams,
           userName: _session.name,
-          botNames: const ['Alejandro', 'Carl', 'Jhonny'],
+          botNames: _session.botNames,
           isMatandoCantos: _isMatandoCantos,
         );
         Navigator.of(context).push(
@@ -161,14 +173,13 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
               .toList(),
         ),
         actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF59E0B),
-              foregroundColor: const Color(0xFF0F172A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
+          App3dButton(
+            label: 'Aceptar',
+            variant: App3dButtonVariant.gold,
+            depth: 3.5,
+            borderRadius: 10,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Aceptar', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -255,6 +266,16 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                   },
                 ),
                 const Divider(color: Colors.white12),
+                ListTile(
+                  leading: const Icon(Icons.smart_toy_rounded, color: Color(0xFF60A5FA)),
+                  title: const Text('Personalizar Bots (IA)', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                  subtitle: Text('Rivales: ${_session.botNames.join(", ")}', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white54, size: 14),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _openBotCustomization();
+                  },
+                ),
                 ListTile(
                   leading: const Icon(Icons.feedback_rounded, color: Color(0xFFF59E0B)),
                   title: const Text('Buzón de Sugerencias', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
@@ -556,14 +577,56 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Rivales Bots (IA)',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  _openBotCustomization();
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF334155),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: const Color(0xFF60A5FA), width: 1),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.smart_toy_rounded, color: Color(0xFF60A5FA), size: 14),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _session.botNames.isNotEmpty ? _session.botNames[0] : 'Editar',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ],
                     ),
                   ),
                   const SizedBox(height: 18),
 
-                  GestureDetector(
-                    onTap: () {
+                  App3dButton(
+                    onPressed: () {
                       Navigator.of(ctx).pop();
                       if (_session.tickets < 1) {
                         _openBuyTicketsModal();
@@ -571,39 +634,17 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
                         _startMatch();
                       }
                     },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: _session.tickets >= 1
-                              ? [const Color(0xFFFBBF24), const Color(0xFFD97706)]
-                              : [const Color(0xFFEF4444), const Color(0xFFDC2626)],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: _session.tickets >= 1 ? const Color(0xFFFDE68A) : const Color(0xFFFCA5A5),
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (_session.tickets >= 1 ? const Color(0xFFD97706) : const Color(0xFFDC2626))
-                                .withValues(alpha: 0.5),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          _session.tickets >= 1 ? '¡Empezar!' : '¡SIN TICKETS! - RECARGAR',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
+                    expand: true,
+                    height: 48,
+                    depth: 5,
+                    borderRadius: 16,
+                    variant: _session.tickets >= 1 ? App3dButtonVariant.gold : App3dButtonVariant.crimson,
+                    label: _session.tickets >= 1 ? '¡Empezar!' : '¡SIN TICKETS! - RECARGAR',
+                    textStyle: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 17,
+                      letterSpacing: 0.8,
                     ),
                   ),
                 ],
@@ -625,7 +666,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
       players: _selectedTotalPlayers,
       isTeams: _selectedTeams,
       userName: _session.name,
-      botNames: const ['Alejandro', 'Carl', 'Jhonny'],
+      botNames: _session.botNames,
       isMatandoCantos: _isMatandoCantos,
     );
     Navigator.of(context).push(
@@ -937,82 +978,41 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Botón JOGAR / JUGAR
-              GestureDetector(
-                onTap: () {
+              App3dButton(
+                onPressed: () {
                   setState(() => _currentView = LobbyViewMode.unJugador);
                 },
-                child: Container(
-                  width: double.infinity,
-                  height: 62,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFFDE68A), width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFD97706).withValues(alpha: 0.5),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'JUGAR',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2,
-                    ),
-                  ),
+                expand: true,
+                height: 58,
+                depth: 6,
+                borderRadius: 20,
+                variant: App3dButtonVariant.gold,
+                label: 'JUGAR',
+                textStyle: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 23,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2,
                 ),
               ),
               const SizedBox(height: 14),
 
               // Botón TUTORIAL
-              GestureDetector(
-                onTap: _openTutorial,
-                child: Container(
-                  width: double.infinity,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF059669), Color(0xFF047857)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFF6EE7B7), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF047857).withValues(alpha: 0.4),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.school_rounded, color: Color(0xFFFDE047), size: 20),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'TUTORIAL',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ],
-                  ),
+              App3dButton.icon(
+                onPressed: _openTutorial,
+                expand: true,
+                height: 50,
+                depth: 5,
+                borderRadius: 18,
+                variant: App3dButtonVariant.olive,
+                icon: Icons.school_rounded,
+                iconSize: 20,
+                label: 'TUTORIAL',
+                textStyle: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
                 ),
               ),
             ],

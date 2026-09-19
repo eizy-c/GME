@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../economy/player_session.dart';
 import '../../economy/ticket_shop_offer.dart';
+import '../../../../core/presentation/widgets/app_3d_button.dart';
 
 /// Modal de Tienda de Tickets para partidas normales / casuales de La Caída.
 /// Ofrece recarga gratuita mediante video y compra individual o en paquetes con monedas blandas.
@@ -517,37 +518,23 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
 
           const SizedBox(width: 8),
 
-          // Botón de acción interactivo
-          ElevatedButton(
+          // Botón de acción interactivo 3D táctil
+          App3dButton(
             onPressed: isEnabled ? onTap : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isEnabled
-                  ? (isHighlighted ? const Color(0xFF9333EA) : const Color(0xFF2563EB))
-                  : Colors.white10,
-              foregroundColor: Colors.white,
-              disabledForegroundColor: Colors.white38,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: isEnabled ? 2 : 0,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isEnabled && isPriceCoin) ...[
-                  const Icon(Icons.monetization_on_rounded, size: 12, color: Color(0xFFFDE047)),
-                  const SizedBox(width: 3),
-                ],
-                Text(
-                  isEnabled ? priceLabel : (disabledLabel ?? 'NO DISP.'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    color: isEnabled ? Colors.white : Colors.white38,
-                  ),
-                ),
-              ],
+            label: isEnabled ? priceLabel : (disabledLabel ?? 'NO DISP.'),
+            icon: (isEnabled && isPriceCoin) ? Icons.monetization_on_rounded : null,
+            iconColor: const Color(0xFFFDE047),
+            iconSize: 13,
+            variant: isHighlighted ? App3dButtonVariant.gold : App3dButtonVariant.cyan,
+            depth: 3.5,
+            borderRadius: 10,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            textStyle: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: isEnabled
+                  ? (isHighlighted ? const Color(0xFF1E1B4B) : const Color(0xFF0F172A))
+                  : const Color(0xFF7E7E7E),
             ),
           ),
         ],

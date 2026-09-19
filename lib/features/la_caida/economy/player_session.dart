@@ -14,6 +14,8 @@ class PlayerSession extends ChangeNotifier {
   static const int ticketRegenIntervalMinutes = 20;
   static const int ticketStandardCostCoins = 400;
 
+  static const List<String> defaultBotNames = ['Alejandro', 'Carl', 'Jhonny'];
+
   String _id;
   String _name;
   int _avatarIndex;
@@ -28,6 +30,7 @@ class PlayerSession extends ChangeNotifier {
   bool _hasCompletedTutorial;
   bool _isFirstTime;
   List<ChestSlotModel> _chests;
+  List<String> _botNames;
 
   PlayerSession({
     required this._id,
@@ -44,15 +47,19 @@ class PlayerSession extends ChangeNotifier {
     this._hasCompletedTutorial = false,
     this._isFirstTime = true,
     List<ChestSlotModel>? chests,
+    List<String>? botNames,
   })  : _tickets = tickets.clamp(0, _maxTickets),
         _lastTicketRegen = (lastTicketRegen ?? DateTime.now()).toUtc(),
-        _chests = chests ?? List.generate(4, (i) => ChestSlotModel.empty(i));
+        _chests = chests ?? List.generate(4, (i) => ChestSlotModel.empty(i)),
+        _botNames = botNames != null && botNames.length >= 3
+            ? List<String>.from(botNames)
+            : List<String>.from(defaultBotNames);
 
   static PlayerSession? _shared;
 
   /// Instancia compartida en memoria para acceso unificado en toda la UI.
   static PlayerSession get shared =>
-      _shared ??= PlayerSession.createDefault(name: 'Eizy', avatarIndex: 2, coins: 0, tickets: defaultMaxTickets);
+      _shared ??= PlayerSession.createDefault(name: 'Jugador', avatarIndex: 2, coins: 0, tickets: defaultMaxTickets);
 
   /// Permite establecer o restablecer la instancia compartida (útil para pruebas).
   static void setShared(PlayerSession session) => _shared = session;
@@ -68,10 +75,11 @@ class PlayerSession extends ChangeNotifier {
     int? tickets,
     bool hasCompletedTutorial = false,
     bool isFirstTime = true,
+    List<String>? botNames,
   }) {
     return PlayerSession(
       id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-      name: name ?? 'Eizy',
+      name: name ?? 'Jugador',
       avatarIndex: avatarIndex ?? 2,
       selectedFrameId: selectedFrameId ?? 'wood',
       selectedThemeId: selectedThemeId ?? 'royal_blue',
@@ -84,6 +92,7 @@ class PlayerSession extends ChangeNotifier {
       hasCompletedTutorial: hasCompletedTutorial,
       isFirstTime: isFirstTime,
       chests: List.generate(4, (i) => ChestSlotModel.empty(i)),
+      botNames: botNames,
     );
   }
 
@@ -102,6 +111,7 @@ class PlayerSession extends ChangeNotifier {
   bool get hasCompletedTutorial => _hasCompletedTutorial;
   bool get isFirstTime => _isFirstTime;
   List<ChestSlotModel> get chests => List.unmodifiable(_chests);
+  List<String> get botNames => List.unmodifiable(_botNames);
 
   // Setters de personalización
   void updateCustomization({
@@ -121,6 +131,37 @@ class PlayerSession extends ChangeNotifier {
 
   void updateProfile({String? name, int? avatarIndex}) {
     updateCustomization(name: name, avatarIndex: avatarIndex);
+  }
+
+  /// Actualiza los nombres de los 3 bots IA.
+  void updateBotNames(List<String> names) {
+    final sanitized = <String>[];
+    for (int i = 0; i < 3; i++) {
+      if (i < names.length && names[i].trim().isNotEmpty) {
+        sanitized.add(names[i].trim());
+      } else {
+        sanitized.add(defaultBotNames[i]);
+      }
+    }
+    _botNames = sanitized;
+    notifyListeners();
+    save();
+  }
+
+  /// Actualiza el nombre de un bot en específico por su índice (0: Oeste, 1: Norte, 2: Este).
+  void updateSingleBotName(int index, String name) {
+    if (index < 0 || index >= 3) return;
+    final validName = name.trim().isNotEmpty ? name.trim() : defaultBotNames[index];
+    _botNames[index] = validName;
+    notifyListeners();
+    save();
+  }
+
+  /// Restablece los nombres de los bots a sus valores por defecto ('Alejandro', 'Carl', 'Jhonny').
+  void resetBotNames() {
+    _botNames = List<String>.from(defaultBotNames);
+    notifyListeners();
+    save();
   }
 
   void markNotFirstTime() {
@@ -418,6 +459,7 @@ class PlayerSession extends ChangeNotifier {
       'hasCompletedTutorial': _hasCompletedTutorial,
       'isFirstTime': _isFirstTime,
       'chests': _chests.map((c) => c.toJson()).toList(),
+      'botNames': _botNames,
     };
   }
 
@@ -440,9 +482,14 @@ class PlayerSession extends ChangeNotifier {
       });
     }
 
+    List<String>? parsedBotNames;
+    if (json['botNames'] is List) {
+      parsedBotNames = (json['botNames'] as List).map((e) => e.toString()).toList();
+    }
+
     return PlayerSession(
       id: json['id'] as String? ?? 'user_${DateTime.now().millisecondsSinceEpoch}',
-      name: json['name'] as String? ?? 'Eizy',
+      name: json['name'] as String? ?? 'Jugador',
       avatarIndex: json['avatarIndex'] as int? ?? 2,
       selectedFrameId: json['selectedFrameId'] as String? ?? 'wood',
       selectedThemeId: json['selectedThemeId'] as String? ?? 'royal_blue',
@@ -455,6 +502,7 @@ class PlayerSession extends ChangeNotifier {
       hasCompletedTutorial: json['hasCompletedTutorial'] as bool? ?? false,
       isFirstTime: json['isFirstTime'] as bool? ?? false,
       chests: parsedChests,
+      botNames: parsedBotNames,
     );
   }
 

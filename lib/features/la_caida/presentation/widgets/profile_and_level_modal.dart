@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/presentation/widgets/app_3d_button.dart';
 import '../../economy/player_session.dart';
 import '../../economy/user_progress.dart';
 import 'avatar_view.dart';
@@ -116,7 +117,7 @@ class _ProfileAndLevelModalState extends State<ProfileAndLevelModal> with Single
   }
 
   void _saveCustomization() {
-    final finalName = _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : 'Eizy';
+    final finalName = _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : 'Jugador';
     widget.session.updateCustomization(
       name: finalName,
       avatarIndex: _tempAvatarIndex,
@@ -189,20 +190,19 @@ class _ProfileAndLevelModalState extends State<ProfileAndLevelModal> with Single
               // 4. Botón inferior de Guardar / Listo
               Padding(
                 padding: const EdgeInsets.all(12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF59E0B),
-                      foregroundColor: const Color(0xFF0F172A),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    onPressed: _saveCustomization,
-                    child: const Text(
-                      'GUARDAR CAMBIOS',
-                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 0.8),
-                    ),
+                child: App3dButton(
+                  onPressed: _saveCustomization,
+                  expand: true,
+                  height: 46,
+                  depth: 5,
+                  borderRadius: 14,
+                  variant: App3dButtonVariant.cyan,
+                  label: 'GUARDAR CAMBIOS',
+                  textStyle: const TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    letterSpacing: 0.8,
                   ),
                 ),
               ),
@@ -230,7 +230,7 @@ class _ProfileAndLevelModalState extends State<ProfileAndLevelModal> with Single
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _nameController.text.isNotEmpty ? _nameController.text : 'Eizy',
+                  _nameController.text.isNotEmpty ? _nameController.text : 'Jugador',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 17,

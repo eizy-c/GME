@@ -27,7 +27,7 @@ class UserProfileData {
       };
 
   factory UserProfileData.fromJson(Map<String, dynamic> json) => UserProfileData(
-        name: json['name'] as String? ?? 'Eizy',
+        name: json['name'] as String? ?? 'Jugador',
         avatarId: json['avatarId'] as int? ?? 2,
         coins: json['coins'] as int? ?? 0,
         tickets: json['tickets'] as int? ?? 3,
@@ -60,7 +60,7 @@ class UserProfileService extends ChangeNotifier {
   UserProfileService._internal();
 
   UserProfileData _profile = const UserProfileData(
-    name: 'Eizy',
+    name: 'Jugador',
     avatarId: 2, // Avatar inicial de chico con lentes
     coins: 0,
     tickets: 3,
@@ -140,7 +140,7 @@ class UserProfileService extends ChangeNotifier {
 
   void resetToDefault() {
     _profile = const UserProfileData(
-      name: 'Eizy',
+      name: 'Jugador',
       avatarId: 2,
       coins: 6000,
       tickets: 10,

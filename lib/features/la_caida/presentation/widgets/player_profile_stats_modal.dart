@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../economy/player_session.dart';
 import '../../economy/player_stats_model.dart';
 import '../../economy/user_progress.dart';
-import 'profile_options_dialog.dart';
+import 'profile_and_level_modal.dart';
 import 'user_frame_view.dart';
 
 /// Modal oficial "Perfil del Jugador" que unifica la vista de estadísticas de juego
@@ -57,7 +57,7 @@ class _PlayerProfileStatsModalState extends State<PlayerProfileStatsModal> {
   }
 
   void _openProfileEditor() async {
-    await ProfileOptionsDialog.show(context);
+    await ProfileAndLevelModal.show(context, session: _session);
     if (mounted) setState(() {});
   }
 
@@ -382,43 +382,14 @@ class _PlayerProfileStatsModalState extends State<PlayerProfileStatsModal> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Avatar con Marco y Etiqueta de Nivel en la esquina
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            UserFrameView(
-              frameId: _session.selectedFrameId,
-              avatarIndex: _session.avatarIndex,
-              level: level,
-              size: 64,
-            ),
-            // Insignia de Nivel en esquina superior derecha
-            Positioned(
-              top: -3,
-              right: -3,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                  ),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.white, width: 1),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black38, blurRadius: 3),
-                  ],
-                ),
-                child: Text(
-                  '$level',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ),
-          ],
+        // Avatar con Marco y Etiqueta de Nivel única integrada
+        UserFrameView(
+          frameId: _session.selectedFrameId,
+          avatarIndex: _session.avatarIndex,
+          level: level,
+          size: 64,
+          showLevelBadge: true,
+          onTap: _openProfileEditor,
         ),
 
         const SizedBox(width: 14),

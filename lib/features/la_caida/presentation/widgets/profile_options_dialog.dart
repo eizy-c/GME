@@ -43,7 +43,7 @@ class _ProfileOptionsDialogState extends State<ProfileOptionsDialog> {
   void _saveAndClose() {
     final finalName = _nameController.text.trim().isNotEmpty
         ? _nameController.text.trim()
-        : 'Eizy';
+        : 'Jugador';
     _profileService.updateProfile(
       name: finalName,
       avatarId: _selectedAvatarId,

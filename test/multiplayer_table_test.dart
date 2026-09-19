@@ -6,6 +6,7 @@ import 'package:gme/core/presentation/widgets/match_setup_dialog.dart';
 import 'package:gme/core/presentation/widgets/speech_bubble.dart';
 import 'package:gme/core/presentation/widgets/table_player_badge.dart';
 import 'package:gme/core/presentation/widgets/wood_table_background.dart';
+import 'package:gme/features/la_caida/economy/player_session.dart';
 import 'package:gme/features/la_caida/presentation/caida_screen.dart';
 
 void main() {
@@ -40,8 +41,8 @@ void main() {
       );
 
       expect(find.text('La Caída'), findsOneWidget);
-      expect(find.text('7.5k'), findsOneWidget);
-      expect(find.text('60ms'), findsOneWidget);
+      expect(find.text('7.5k'), findsWidgets);
+      expect(find.text('60ms'), findsWidgets);
     });
 
     testWidgets('GameTableHeader oculta ping en modo bot (showPing: false)', (tester) async {
@@ -180,14 +181,19 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Tú'), findsOneWidget);
-      expect(find.text('Player 1'), findsOneWidget);
+      expect(find.text(PlayerSession.shared.name), findsOneWidget);
+      expect(find.text(PlayerSession.shared.botNames[0]), findsOneWidget);
     });
 
     testWidgets('La Caída carga con 3 jugadores como en Captura 1', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: CaidaScreen(initialPlayers: 3, autoStart: true),
+        MaterialApp(
+          home: CaidaScreen(
+            initialPlayers: 3,
+            autoStart: true,
+            userName: 'Tú',
+            botNames: const ['Player 1', 'Player 2'],
+          ),
         ),
       );
       await tester.pump();

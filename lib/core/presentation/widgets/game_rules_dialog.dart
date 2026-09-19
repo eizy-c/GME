@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../rules/game_rules_data.dart';
+import 'app_3d_button.dart';
 
 /// Diálogo modal estilizado con las reglas, preparación y estrategias de un juego.
 /// Se presenta centrado en pantalla, con límites adaptativos y botón de cierre claro.
@@ -232,23 +233,15 @@ class GameRulesDialog extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       color: const Color(0xFF131F33),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          icon: const Icon(Icons.check_circle_rounded, size: 18),
-          label: const Text(
-            '¡Entendido, vamos a jugar!',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF0284C7),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            elevation: 2,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
+      child: App3dButton.icon(
+        icon: Icons.check_circle_rounded,
+        iconSize: 18,
+        label: '¡Entendido, vamos a jugar!',
+        variant: App3dButtonVariant.cyan,
+        depth: 4.5,
+        expand: true,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        onPressed: () => Navigator.pop(context),
       ),
     );
   }

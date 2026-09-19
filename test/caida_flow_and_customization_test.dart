@@ -14,7 +14,7 @@ void main() {
   });
 
   group('Flujo de Entrada y Personalizacion de La Caida', () {
-    testWidgets('CaidaSplashScreen renderiza portada de bienvenida y boton de entrada', (tester) async {
+    testWidgets('CaidaSplashScreen muestra barra de carga del 0 al 100% y avanza automáticamente', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: CaidaSplashScreen(),
@@ -24,7 +24,15 @@ void main() {
 
       expect(find.text('CAIDAGO'), findsWidgets);
       expect(find.text('Tradicional'), findsOneWidget);
-      expect(find.text('TOCAR PARA ENTRAR'), findsOneWidget);
+      expect(find.text('0%'), findsOneWidget);
+      expect(find.text('Cargando baraja española...'), findsOneWidget);
+
+      // Avanzar animación hasta completar el 100%
+      await tester.pump(const Duration(milliseconds: 2000));
+      await tester.pumpAndSettle();
+
+      // Al ser usuario nuevo por defecto, se abre el modal de personalización de perfil
+      expect(find.text('Opciones del perfil'), findsOneWidget);
     });
 
     testWidgets('ProfileOptionsDialog permite editar nombre y seleccionar avatar de Estilo A y B', (tester) async {
@@ -46,7 +54,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Opciones del perfil'), findsOneWidget);
-      expect(find.text('Eizy'), findsOneWidget);
+      expect(find.text('Jugador'), findsOneWidget);
       expect(find.text('Estilo A'), findsOneWidget);
       expect(find.text('Estilo B'), findsOneWidget);
 
@@ -129,7 +137,7 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 900));
 
       expect(find.text('¡ELIGE UNA CARTA!'), findsOneWidget);
 

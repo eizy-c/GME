@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/presentation/widgets/app_3d_button.dart';
 import '../../economy/player_session.dart';
 import '../../economy/user_progress.dart';
 
@@ -70,7 +71,7 @@ class CaidaGameOverModal extends StatefulWidget {
       barrierLabel: 'CaidaGameOverModal',
       barrierColor: Colors.black.withValues(alpha: 0.75),
       transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (_, __, ___) => CaidaGameOverModal(
+      pageBuilder: (context, anim, secondaryAnim) => CaidaGameOverModal(
         summary: summary,
         onRematch: onRematch,
         onBackToMenu: onBackToMenu,
@@ -704,46 +705,28 @@ class _CaidaGameOverModalState extends State<CaidaGameOverModal>
       children: [
         // Botón Lobby
         Expanded(
-          child: ElevatedButton.icon(
+          child: App3dButton.icon(
             onPressed: widget.onBackToMenu,
-            icon: const Icon(Icons.home_rounded, size: 18),
-            label: const Text(
-              'LOBBY',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF334155),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: Colors.white24, width: 1.2),
-              ),
-              elevation: 2,
-            ),
+            icon: Icons.home_rounded,
+            label: 'LOBBY',
+            variant: App3dButtonVariant.dark,
+            depth: 4,
+            borderRadius: 14,
+            textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5, color: Colors.white),
           ),
         ),
         const SizedBox(width: 12),
 
         // Botón Revancha
         Expanded(
-          child: ElevatedButton.icon(
+          child: App3dButton.icon(
             onPressed: widget.onRematch,
-            icon: const Icon(Icons.replay_rounded, size: 18),
-            label: const Text(
-              'REVANCHA',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF59E0B),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: Color(0xFFFDE047), width: 1.5),
-              ),
-              elevation: 4,
-            ),
+            icon: Icons.replay_rounded,
+            label: 'REVANCHA',
+            variant: App3dButtonVariant.cyan,
+            depth: 5,
+            borderRadius: 14,
+            textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5, color: Color(0xFF0F172A)),
           ),
         ),
       ],

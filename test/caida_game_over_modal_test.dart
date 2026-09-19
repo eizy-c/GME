@@ -11,7 +11,6 @@ void main() {
   group('CaidaGameOverModal Tests', () {
     testWidgets('Modal de Victoria renderiza banner, marcador, cofre obtenido, XP y botones', (tester) async {
       bool rematchPressed = false;
-      bool lobbyPressed = false;
 
       const summary = CaidaMatchSummary(
         userWon: true,
@@ -41,7 +40,7 @@ void main() {
                   context,
                   summary: summary,
                   onRematch: () => rematchPressed = true,
-                  onBackToMenu: () => lobbyPressed = true,
+                  onBackToMenu: () {},
                 ),
                 child: const Text('OPEN MODAL'),
               ),

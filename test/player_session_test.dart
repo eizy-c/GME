@@ -50,7 +50,7 @@ void main() {
     test('load() crea una nueva sesión por defecto y la persiste si no existe estado previo', () async {
       final session = await PlayerSession.load();
       expect(session.id, isNotEmpty);
-      expect(session.name, equals('Eizy'));
+      expect(session.name, equals('Jugador'));
       expect(session.coins, equals(0));
       expect(session.tickets, equals(10));
       expect(session.maxTickets, equals(10));
@@ -58,6 +58,7 @@ void main() {
       expect(session.hasCompletedTutorial, isFalse);
       expect(session.isFirstTime, isTrue);
       expect(session.chests.length, equals(4));
+      expect(session.botNames, equals(['Alejandro', 'Carl', 'Jhonny']));
 
       // Verificar que se guardó en SharedPreferences
       final prefs = await SharedPreferences.getInstance();
@@ -332,6 +333,35 @@ void main() {
       expect(coins, lessThanOrEqualTo(2500));
       expect(session.coins, equals(coins));
       expect(session.chests[0].isEmpty, isTrue);
+    });
+  });
+
+  group('PlayerSession - Personalización de Nombres de Bots', () {
+    test('updateBotNames actualiza la lista de bots y la persiste', () async {
+      final session = await PlayerSession.load();
+      expect(session.botNames, equals(['Alejandro', 'Carl', 'Jhonny']));
+
+      session.updateBotNames(['El Chamo', 'La Catira', 'Don José']);
+      expect(session.botNames, equals(['El Chamo', 'La Catira', 'Don José']));
+
+      await session.save();
+      final reloaded = await PlayerSession.load();
+      expect(reloaded.botNames, equals(['El Chamo', 'La Catira', 'Don José']));
+    });
+
+    test('updateSingleBotName actualiza un bot individual', () async {
+      final session = await PlayerSession.load();
+      session.updateSingleBotName(1, 'El Gocho');
+      expect(session.botNames[1], equals('El Gocho'));
+    });
+
+    test('resetBotNames restablece a los nombres originales', () async {
+      final session = await PlayerSession.load();
+      session.updateBotNames(['X', 'Y', 'Z']);
+      expect(session.botNames, equals(['X', 'Y', 'Z']));
+
+      session.resetBotNames();
+      expect(session.botNames, equals(['Alejandro', 'Carl', 'Jhonny']));
     });
   });
 }

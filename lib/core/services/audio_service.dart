@@ -108,6 +108,22 @@ class AudioService {
   Future<void> playVigia() => playCanto('vigia');
   Future<void> playRegistro() => playCanto('registro');
 
+  Future<void> playCardSlide() async {
+    if (_isMuted) return;
+    try {
+      HapticFeedback.lightImpact();
+      DebugLogger.instance.logAudio('SFX: Desplazamiento/Barajado de carta');
+    } catch (_) {}
+  }
+
+  Future<void> playCardFlip() async {
+    if (_isMuted) return;
+    try {
+      HapticFeedback.mediumImpact();
+      DebugLogger.instance.logAudio('SFX: Giro 3D de carta');
+    } catch (_) {}
+  }
+
   void dispose() {
     _player.dispose();
   }

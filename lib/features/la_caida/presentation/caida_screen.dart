@@ -9,6 +9,7 @@ import '../../../core/presentation/widgets/game_table_header.dart';
 import '../../../core/presentation/widgets/spanish_card_view.dart';
 import '../../../core/presentation/widgets/table_player_badge.dart';
 import '../../../core/presentation/widgets/wood_table_background.dart';
+import '../../../core/presentation/widgets/app_3d_button.dart';
 import '../../../core/services/audio_service.dart';
 import '../../../core/services/debug_logger.dart';
 import '../../../core/services/feedback_service.dart';
@@ -25,6 +26,7 @@ import '../economy/chest_slot_model.dart';
 import '../economy/player_session.dart';
 import '../economy/player_stats_model.dart';
 import '../economy/vip_tier.dart';
+import 'widgets/bot_customization_modal.dart';
 import 'widgets/caida_game_over_modal.dart';
 import 'widgets/card_flight_overlay.dart';
 import 'widgets/deck_stack_view.dart';
@@ -39,6 +41,7 @@ class _PlayerState {
   final Color color;
   final int teamId;
   final int avatarId;
+  final String? frameId;
   final int? level;
   List<SpanishCard> hand = [];
   int score = 0;
@@ -72,6 +75,7 @@ class _PlayerState {
     required this.color,
     this.teamId = 0,
     this.avatarId = 2,
+    this.frameId,
     this.level,
   });
 }
@@ -181,6 +185,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
   // Sorteo interactivo de Mano ("¡ELIGE UNA CARTA!") encapsulado en Domain Object
   ManoDrawSession _manoSession = ManoDrawSession();
+  bool _isShufflingDeck = false;
   bool get _isChoosingMano => _manoSession.isActive;
   set _isChoosingMano(bool val) => _manoSession.isActive = val;
   List<ManoCardCandidate> get _manoCandidates => _manoSession.candidates;
@@ -213,11 +218,11 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   bool get _effectiveTeams => widget.config?.initialTeams ?? widget.initialTeams;
   bool get _effectiveChooseMano => widget.config?.chooseMano ?? widget.chooseMano;
   String? get _effectiveUserName => widget.config?.userName ?? widget.userName;
-  List<String>? get _effectiveBotNames => widget.config?.botNames ?? widget.botNames;
+  List<String>? get _effectiveBotNames =>
+      widget.config?.botNames ?? widget.botNames ?? PlayerSession.shared.botNames;
   VipTierOffer? get _vipTier => widget.config?.vipTier ?? widget.vipTier;
   int? get _vipPrizePool => widget.config?.vipPrizePool ?? widget.vipPrizePool;
   int? get _vipWinnerReward => widget.config?.vipWinnerReward ?? widget.vipWinnerReward;
-  bool get _effectiveIsMatandoCantos => widget.config?.isMatandoCantos ?? widget.isMatandoCantos;
 
   @override
   void initState() {
@@ -339,12 +344,25 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     _manoSession = ManoDrawSession.startNew(
       initialAnnouncement: 'Sorteo de Mano: Toca una carta para ver quién sale',
     );
-    _pointEventBanner = '¡BIENVENIDOS A LA MESA DE CAÍDA!';
+    _pointEventBanner = null;
     DebugLogger.instance.logGame('Iniciando sorteo interactivo de Mano');
 
-    setState(() {});
-
     if (animate) {
+      // 1. Animación visual y auditiva de barajado antes del sorteo de Mano
+      setState(() {
+        _isShufflingDeck = true;
+        _manoAnnouncement = 'Barajando mazo...';
+      });
+      AudioService().playCardSlide();
+
+      await _safeDelay(const Duration(milliseconds: 650));
+      if (!mounted) return;
+
+      setState(() {
+        _isShufflingDeck = false;
+        _manoAnnouncement = '¡ELIGE UNA CARTA!';
+      });
+
       final spreadFlights = <CardFlightTrajectory>[];
       for (final cand in _manoCandidates) {
         spreadFlights.add(CardFlightTrajectory(
@@ -371,13 +389,16 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       setState(() {
         _activeTrajectories.clear();
       });
+    } else {
+      setState(() {});
     }
   }
 
   void _onCandidateCardTapped(ManoCardCandidate userChoice) async {
-    if (userChoice.chosenByPlayerIndex != null || !_isChoosingMano) return;
+    if (userChoice.chosenByPlayerIndex != null || !_isChoosingMano || _isShufflingDeck) return;
 
-    // 1. Revelar la carta del usuario de inmediato
+    // 1. Revelar la carta del usuario de inmediato con efecto flick y sonido
+    AudioService().playCardSlide();
     setState(() {
       _manoSession.pickCard(userChoice, 0);
       _manoAnnouncement = 'Tú sacas: ${userChoice.card.displayName}';
@@ -399,6 +420,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         if (!mounted || !_isChoosingMano) return;
 
         final botPick = unchosen.removeLast();
+        AudioService().playCardSlide();
         setState(() {
           _manoSession.pickCard(botPick, i);
           _manoAnnouncement = '${_players[i].name} sacó: ${botPick.card.displayName}';
@@ -478,18 +500,22 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   }) {
     _players = [];
     final profileService = UserProfileService();
+    final session = PlayerSession.shared;
     final effectiveUserName = (widget.userName != null && widget.userName!.isNotEmpty)
         ? widget.userName!
-        : (userName.isNotEmpty ? userName : profileService.name);
+        : (session.name.trim().isNotEmpty
+            ? session.name.trim()
+            : (userName.isNotEmpty ? userName : profileService.name));
 
-    // 1. Asiento 0: Jugador local (abajo en pantalla)
+    // 1. Asiento 0: Jugador local (abajo en pantalla con avatar y marco personalizado)
     _players.add(_PlayerState(
       id: 'user',
       name: effectiveUserName,
       isBot: false,
       color: const Color(0xFF38BDF8),
       teamId: teams ? 1 : 0,
-      avatarId: profileService.avatarId,
+      avatarId: session.avatarIndex,
+      frameId: session.selectedFrameId,
       level: _userLevel,
     ));
 
@@ -1397,6 +1423,94 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
     });
   }
 
+  Future<void> _confirmAbandonMatch() async {
+    if (!_hasGameStarted || _isGameOver) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CaidaLobbyScreen()),
+        );
+      }
+      return;
+    }
+
+    final shouldLeave = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black87,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1B4B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFFF59E0B), width: 1.5),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B), size: 26),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '¿Abandonar partida?',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Si abandonas ahora, saldrás de la mesa sin registrar victoria ni derrota en tus estadísticas.\n\nEl ticket ya consumido no será reembolsado.',
+          style: TextStyle(
+            color: Color(0xFFCBD5E1),
+            fontSize: 13.5,
+            height: 1.45,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text(
+              'Continuar jugando',
+              style: TextStyle(
+                color: Color(0xFF94A3B8),
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          App3dButton(
+            label: 'Abandonar',
+            variant: App3dButtonVariant.crimson,
+            depth: 3.5,
+            borderRadius: 10,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            textStyle: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 13,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLeave == true && mounted) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CaidaLobbyScreen()),
+        );
+      }
+    }
+  }
+
   void _openMatchSettings() {
     showModalBottomSheet(
       context: context,
@@ -1430,6 +1544,27 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
               ),
               const SizedBox(height: 16),
               ListTile(
+                leading: Icon(
+                  AudioService().isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                  color: AudioService().isMuted ? const Color(0xFFEF4444) : const Color(0xFF38BDF8),
+                ),
+                title: Text(
+                  AudioService().isMuted ? 'Efectos de sonido (Silenciado)' : 'Efectos de sonido (Activado)',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                trailing: Switch(
+                  value: !AudioService().isMuted,
+                  activeThumbColor: const Color(0xFF38BDF8),
+                  onChanged: (val) {
+                    setState(() {
+                      AudioService().toggleMute();
+                    });
+                    Navigator.pop(ctx);
+                    _openMatchSettings();
+                  },
+                ),
+              ),
+              ListTile(
                 leading: const Icon(Icons.record_voice_over_rounded, color: Color(0xFF38BDF8)),
                 title: Text('Canto de Mesa: ${_cantoDirection == DealDirection.ascending ? "Ascendente (1..4)" : "Descendente (4..1)"}', style: const TextStyle(color: Colors.white)),
                 subtitle: const Text('Cambiar dirección del conteo inicial del repartidor', style: TextStyle(color: Colors.white54, fontSize: 11)),
@@ -1451,17 +1586,26 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
               ),
               ListTile(
                 leading: const Icon(Icons.exit_to_app_rounded, color: Color(0xFFEF4444)),
-                title: const Text('Salir al Menú Principal de CaidaGO', style: TextStyle(color: Colors.white)),
+                title: const Text('Abandonar partida', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+                subtitle: const Text('Salir sin registrar victoria ni derrota en estadísticas', style: TextStyle(color: Colors.white54, fontSize: 11)),
                 onTap: () {
                   Navigator.pop(ctx);
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  } else {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const CaidaLobbyScreen()),
-                    );
-                  }
+                  _confirmAbandonMatch();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.smart_toy_rounded, color: Color(0xFF60A5FA)),
+                title: const Text('Personalizar Bots (IA)', style: TextStyle(color: Colors.white)),
+                subtitle: const Text('Configurar nombres de rivales y compañeros', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  BotCustomizationModal.show(
+                    context,
+                    session: PlayerSession.shared,
+                    onSaved: (_) {
+                      setState(() {});
+                    },
+                  );
                 },
               ),
               ListTile(
@@ -1528,38 +1672,30 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
   Widget build(BuildContext context) {
     final user = _players.isNotEmpty ? _players[0] : null;
 
-    return Scaffold(
-      appBar: GameTableHeader(
-        title: 'CaidaGO',
-        onBack: () {
-          if (Navigator.canPop(context)) {
-            Navigator.pop(context);
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const CaidaLobbyScreen()),
-            );
-          }
-        },
-        onOpenRules: () => GameRulesDialog.show(context, 'la_caida'),
-        onSettings: _openMatchSettings,
-        showTrophies: false,
-        playerLevel: null,
-        // Los ms SOLO se muestran en partidas por internet o red local
-        showPing: _isMultiplayerNetwork,
-        pingMs: 55,
-        isMuted: AudioService().isMuted,
-        onToggleMute: () {
-          setState(() {
-            AudioService().toggleMute();
-          });
-        },
-      ),
-      body: WoodTableBackground(
-        child: SafeArea(
-          child: !_hasGameStarted
-              ? _buildPreGameLobby()
-              : (user == null ? const SizedBox() : _buildGameTable(user)),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _confirmAbandonMatch();
+        }
+      },
+      child: Scaffold(
+        appBar: GameTableHeader(
+          title: 'CaidaGO',
+          onBack: _confirmAbandonMatch,
+          onSettings: _openMatchSettings,
+          showTrophies: false,
+          playerLevel: null,
+          // Los ms SOLO se muestran en partidas por internet o red local
+          showPing: _isMultiplayerNetwork,
+          pingMs: 55,
+        ),
+        body: WoodTableBackground(
+          child: SafeArea(
+            child: !_hasGameStarted
+                ? _buildPreGameLobby()
+                : (user == null ? const SizedBox() : _buildGameTable(user)),
+          ),
         ),
       ),
     );
@@ -1817,36 +1953,26 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
               const SizedBox(height: 22),
 
               // 5. Botón de inicio
-              ElevatedButton(
+              App3dButton.icon(
+                icon: Icons.play_arrow_rounded,
+                iconSize: 24,
+                label: '¡COMENZAR A JUGAR!',
+                variant: App3dButtonVariant.gold,
+                depth: 5.0,
+                expand: true,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.8,
+                  color: Color(0xFF1E1B4B),
+                ),
                 onPressed: () {
                   setState(() {
                     _hasGameStarted = true;
                   });
                   _initMatch(_playerCount, _isTeams, 'Tú');
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  elevation: 8,
-                  shadowColor: const Color(0xFF10B981).withValues(alpha: 0.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.play_arrow_rounded, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      '¡COMENZAR A JUGAR!',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
@@ -2302,24 +2428,92 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         cardsInHandCount: user.hand.length,
         avatarColor: user.color,
         avatarId: user.avatarId,
+        frameId: user.frameId,
         isMano: _manoIndex == 0,
       ),
     );
   }
 
   Widget _buildChoosingManoView() {
+    if (_isShufflingDeck) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1B4B).withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFFDE047), width: 1.4),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 3)),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.style_rounded, color: Color(0xFFFDE047), size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Barajando cartas...',
+                    style: TextStyle(
+                      color: Color(0xFFFDE047),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Animación visual de barajeo en el centro del tapete
+            SizedBox(
+              width: 90,
+              height: 120,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Transform.rotate(
+                    angle: -0.14,
+                    child: const SpanishCardView.back(width: 62),
+                  ),
+                  Transform.rotate(
+                    angle: 0.12,
+                    child: const SpanishCardView.back(width: 62),
+                  ),
+                  const SpanishCardView.back(width: 62),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Ordenar cartas candidatas para que las reveladas y la ganadora queden SIEMPRE arriba (Z-index más alto)
+    final sortedCandidates = List<ManoCardCandidate>.from(_manoCandidates)..sort((a, b) {
+      if (a.isWinner) return 1;
+      if (b.isWinner) return -1;
+      final aRevealed = a.chosenByPlayerIndex != null ? 1 : 0;
+      final bRevealed = b.chosenByPlayerIndex != null ? 1 : 0;
+      if (aRevealed != bRevealed) return aRevealed.compareTo(bRevealed);
+      return a.id.compareTo(b.id);
+    });
+
     return Center(
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Banner superior "¡ELIGE UNA CARTA!" limpio sobre la madera
+            // Indicador sutil e inobstructivo en el centro de la mesa (sin tapar el avatar norte)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6.5),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1B4B).withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(16),
+                color: const Color(0xFF1E1B4B).withValues(alpha: 0.88),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFFFDE047), width: 1.2),
                 boxShadow: const [
                   BoxShadow(
@@ -2329,143 +2523,37 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    '¡BIENVENIDOS A LA MESA DE CAÍDA!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    '¡ELIGE UNA CARTA!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFFFDE047),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  if (_manoAnnouncement != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      _manoAnnouncement!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ],
+              child: Text(
+                _manoAnnouncement ?? '¡ELIGE UNA CARTA!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFFFDE047),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.8,
+                ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
-            // Mesa con cartas esparcidas boca abajo de forma natural
+            // Mesa con cartas esparcidas boca abajo y efecto flick 3D
             SizedBox(
               width: 340,
               height: 330,
               child: Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.center,
-                children: _manoCandidates.map((cand) {
+                children: sortedCandidates.map((cand) {
                   final isChosen = cand.chosenByPlayerIndex != null;
                   final player = isChosen ? _players[cand.chosenByPlayerIndex!] : null;
 
                   return Positioned(
                     top: 125 + cand.topOffset,
                     left: 140 + cand.leftOffset,
-                    child: GestureDetector(
+                    child: _ManoCandidateFlickCard(
+                      candidate: cand,
+                      player: player,
                       onTap: () => _onCandidateCardTapped(cand),
-                      child: Transform.rotate(
-                        angle: cand.rotation,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            cand.isRevealed
-                                ? Container(
-                                    decoration: cand.isWinner
-                                        ? BoxDecoration(
-                                            borderRadius: BorderRadius.circular(8),
-                                            boxShadow: const [
-                                              BoxShadow(
-                                                color: Color(0xFFFDE047),
-                                                blurRadius: 16,
-                                                spreadRadius: 3,
-                                              ),
-                                            ],
-                                          )
-                                        : null,
-                                    child: SpanishCardView(
-                                      card: cand.card,
-                                      width: 52,
-                                      isSelected: cand.chosenByPlayerIndex == 0 || cand.isWinner,
-                                    ),
-                                  )
-                                : const SpanishCardView.back(
-                                    width: 52,
-                                  ),
-                            if (cand.isWinner)
-                              Container(
-                                margin: const EdgeInsets.only(top: 2),
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(colors: [Color(0xFFFDE047), Color(0xFFF59E0B)]),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.white, width: 1),
-                                  boxShadow: const [
-                                    BoxShadow(color: Colors.black45, blurRadius: 4),
-                                  ],
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.workspace_premium_rounded, color: Color(0xFF713F12), size: 10),
-                                    SizedBox(width: 2),
-                                    Text(
-                                      '¡MANO!',
-                                      style: TextStyle(
-                                        color: Color(0xFF713F12),
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else if (player != null)
-                              Container(
-                                margin: const EdgeInsets.only(top: 2),
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: player.color.withValues(alpha: 0.88),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.white70, width: 1),
-                                  boxShadow: const [
-                                    BoxShadow(color: Colors.black38, blurRadius: 3),
-                                  ],
-                                ),
-                                child: Text(
-                                  player.name,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
                     ),
                   );
                 }).toList(),
@@ -2655,6 +2743,147 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
               );
         }),
       ),
+    );
+  }
+}
+
+/// Widget visual para las cartas candidatas del sorteo de Mano con giro 3D flick,
+/// elevación visual sobre el tapete e identificación destacada del jugador/ganador.
+class _ManoCandidateFlickCard extends StatelessWidget {
+  final ManoCardCandidate candidate;
+  final _PlayerState? player;
+  final VoidCallback onTap;
+
+  const _ManoCandidateFlickCard({
+    required this.candidate,
+    this.player,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isRevealed = candidate.isRevealed;
+    final isWinner = candidate.isWinner;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: isRevealed ? 1.0 : 0.0),
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutBack,
+        builder: (context, flipVal, child) {
+          // Ángulo de rotación 3D sobre el eje Y (0 = dorso, pi = frente)
+          final angle = flipVal * math.pi;
+          final isFront = angle >= (math.pi / 2);
+          final elevationScale = 1.0 + (flipVal * (isWinner ? 0.22 : 0.12));
+
+          return Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.002) // Perspectiva 3D realista
+              ..rotateZ(candidate.rotation)
+              ..scaleByDouble(elevationScale, elevationScale, 1.0, 1.0)
+              ..rotateY(angle),
+            child: isFront
+                ? Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()..rotateY(math.pi), // Corregir imagen espejo
+                    child: _buildCardFront(context),
+                  )
+                : _buildCardBack(),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCardBack() {
+    return const SpanishCardView.back(width: 52);
+  }
+
+  Widget _buildCardFront(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              if (candidate.isWinner)
+                const BoxShadow(
+                  color: Color(0xFFFDE047),
+                  blurRadius: 18,
+                  spreadRadius: 3,
+                )
+              else
+                BoxShadow(
+                  color: (player?.color ?? Colors.black).withValues(alpha: 0.6),
+                  blurRadius: 10,
+                  spreadRadius: 1.5,
+                  offset: const Offset(0, 3),
+                ),
+            ],
+          ),
+          child: SpanishCardView(
+            card: candidate.card,
+            width: 52,
+            isSelected: candidate.chosenByPlayerIndex == 0 || candidate.isWinner,
+          ),
+        ),
+        if (candidate.isWinner)
+          Container(
+            margin: const EdgeInsets.only(top: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFDE047), Color(0xFFF59E0B)],
+              ),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white, width: 1.2),
+              boxShadow: const [
+                BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
+              ],
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.workspace_premium_rounded, color: Color(0xFF713F12), size: 11),
+                SizedBox(width: 2),
+                Text(
+                  '¡ES MANO!',
+                  style: TextStyle(
+                    color: Color(0xFF713F12),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else if (player != null)
+          Container(
+            margin: const EdgeInsets.only(top: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              color: player!.color.withValues(alpha: 0.95),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white, width: 1),
+              boxShadow: const [
+                BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 1)),
+              ],
+            ),
+            child: Text(
+              player!.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

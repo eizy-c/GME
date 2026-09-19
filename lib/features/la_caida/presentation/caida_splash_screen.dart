@@ -18,15 +18,29 @@ class CaidaSplashScreen extends StatefulWidget {
 
 class _CaidaSplashScreenState extends State<CaidaSplashScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
+  late AnimationController _loadingController;
+  late Animation<double> _loadingAnimation;
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
+    _loadingController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
+      duration: const Duration(milliseconds: 1800),
+    );
+
+    _loadingAnimation = CurvedAnimation(
+      parent: _loadingController,
+      curve: Curves.easeInOutCubic,
+    );
+
+    _loadingController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _onLoadingComplete();
+      }
+    });
+
+    _loadingController.forward();
   }
 
   @override
@@ -37,22 +51,28 @@ class _CaidaSplashScreenState extends State<CaidaSplashScreen>
 
   @override
   void dispose() {
-    _pulseController.dispose();
+    _loadingController.dispose();
     super.dispose();
   }
 
-  Future<void> _proceedToLobby() async {
+  Future<void> _onLoadingComplete() async {
     final profileService = UserProfileService();
     final session = PlayerSession.shared;
     final isFirst = profileService.isFirstTime && session.isFirstTime;
-    if (isFirst && mounted) {
+
+    DebugLogger.instance.log(
+      'Carga al 100% completada. Es usuario nuevo: $isFirst',
+      category: 'Navegación',
+    );
+
+    if (!mounted) return;
+
+    if (isFirst) {
       await ProfileOptionsDialog.show(context);
-    } else {
       profileService.markNotFirstTime();
       session.markNotFirstTime();
     }
 
-    DebugLogger.instance.log('Usuario interactuó con la bienvenida. Procediendo al Lobby.', category: 'Navegación');
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -66,175 +86,239 @@ class _CaidaSplashScreenState extends State<CaidaSplashScreen>
     }
   }
 
+  String _getLoadingStatusText(double progress) {
+    if (progress < 0.35) {
+      return 'Cargando baraja española...';
+    } else if (progress < 0.70) {
+      return 'Sincronizando perfil de juego...';
+    } else if (progress < 0.95) {
+      return 'Preparando la mesa de Caída...';
+    } else {
+      return '¡Mesa lista!';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _proceedToLobby,
-        child: Stack(
-          children: [
-            // 1. Fondo de Chevrons en zigzag Púrpura / Azul Rey
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _ChevronBackgroundPainter(),
-              ),
+      body: Stack(
+        children: [
+          // 1. Fondo de Chevrons en zigzag Púrpura / Azul Rey
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _ChevronBackgroundPainter(),
             ),
+          ),
 
-            // 2. Logotipo Central 3D con Sombras
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Título 3D abombado
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Sombra 3D profunda
-                      Transform.translate(
-                        offset: const Offset(4, 8),
-                        child: Text(
-                          'CAIDAGO',
-                          style: TextStyle(
-                            fontSize: 60,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 2.0,
-                            foreground: Paint()
-                              ..style = PaintingStyle.fill
-                              ..color = const Color(0xFF0369A1).withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ),
-                      // Texto frontal celeste brillante
-                      ShaderMask(
-                        shaderCallback: (bounds) => const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Color(0xFF38BDF8), Color(0xFF0284C7), Color(0xFF0369A1)],
-                        ).createShader(bounds),
-                        child: Text(
-                          'CAIDAGO',
-                          style: TextStyle(
-                            fontSize: 60,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 2.0,
-                            foreground: Paint()
-                              ..style = PaintingStyle.stroke
-                              ..strokeWidth = 6
-                              ..color = const Color(0xFF0284C7),
-                          ),
-                        ),
-                      ),
-                      const Text(
+          // 2. Logotipo Central 3D con Sombras
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Título 3D abombado
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Sombra 3D profunda
+                    Transform.translate(
+                      offset: const Offset(4, 8),
+                      child: Text(
                         'CAIDAGO',
                         style: TextStyle(
                           fontSize: 60,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 2.0,
-                          color: Color(0xFF38BDF8),
-                        ),
-                      ),
-
-                      // Rótulo manuscrito "Criolla / Tradicional"
-                      Positioned(
-                        bottom: -4,
-                        right: 12,
-                        child: Transform.rotate(
-                          angle: -math.pi / 16,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFA855F7),
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF9333EA).withValues(alpha: 0.6),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: const Text(
-                              'Tradicional',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 36),
-
-                  // Cartas en abanico decorativas
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildMiniCardDecor(-math.pi / 12, const Color(0xFFFDE047), Icons.workspace_premium_rounded),
-                      _buildMiniCardDecor(0, const Color(0xFF38BDF8), Icons.sports_esports_rounded),
-                      _buildMiniCardDecor(math.pi / 12, const Color(0xFFF43F5E), Icons.emoji_events_rounded),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // 3. Botón inferior pulsante "Tocar para entrar"
-            Positioned(
-              bottom: MediaQuery.of(context).padding.bottom + 48,
-              left: 0,
-              right: 0,
-              child: AnimatedBuilder(
-                animation: _pulseController,
-                builder: (context, child) {
-                  final scale = 1.0 + (_pulseController.value * 0.06);
-                  return Transform.scale(
-                    scale: scale,
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0284C7), Color(0xFF0D9488)],
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: const Color(0xFF7DD3FC), width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0284C7).withValues(alpha: 0.5),
-                              blurRadius: 16,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.play_arrow_rounded, color: Colors.white, size: 26),
-                            SizedBox(width: 8),
-                            Text(
-                              'TOCAR PARA ENTRAR',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 16,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ],
+                          foreground: Paint()
+                            ..style = PaintingStyle.fill
+                            ..color = const Color(0xFF0369A1).withValues(alpha: 0.8),
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
+                    // Texto frontal celeste brillante
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xFF38BDF8), Color(0xFF0284C7), Color(0xFF0369A1)],
+                      ).createShader(bounds),
+                      child: Text(
+                        'CAIDAGO',
+                        style: TextStyle(
+                          fontSize: 60,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 2.0,
+                          foreground: Paint()
+                            ..style = PaintingStyle.stroke
+                            ..strokeWidth = 6
+                            ..color = const Color(0xFF0284C7),
+                        ),
+                      ),
+                    ),
+                    const Text(
+                      'CAIDAGO',
+                      style: TextStyle(
+                        fontSize: 60,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2.0,
+                        color: Color(0xFF38BDF8),
+                      ),
+                    ),
+
+                    // Rótulo manuscrito "Criolla / Tradicional"
+                    Positioned(
+                      bottom: -4,
+                      right: 12,
+                      child: Transform.rotate(
+                        angle: -math.pi / 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFA855F7),
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF9333EA).withValues(alpha: 0.6),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: const Text(
+                            'Tradicional',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 36),
+
+                // Cartas en abanico decorativas
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildMiniCardDecor(-math.pi / 12, const Color(0xFFFDE047), Icons.workspace_premium_rounded),
+                    _buildMiniCardDecor(0, const Color(0xFF38BDF8), Icons.sports_esports_rounded),
+                    _buildMiniCardDecor(math.pi / 12, const Color(0xFFF43F5E), Icons.emoji_events_rounded),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+
+          // 3. Barra de Carga Dinámica Inferior (0% al 100%)
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 48,
+            left: 28,
+            right: 28,
+            child: AnimatedBuilder(
+              animation: _loadingAnimation,
+              builder: (context, _) {
+                final progress = _loadingAnimation.value.clamp(0.0, 1.0);
+                final percentInt = (progress * 100).toInt();
+
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 320),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Fila de estado y porcentaje
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  _getLoadingStatusText(progress),
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '$percentInt%',
+                                style: const TextStyle(
+                                  color: Color(0xFF8BDCD7),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Riel de la barra de progreso
+                        Container(
+                          height: 12,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E1B4B).withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: const Color(0xFF38BDF8).withValues(alpha: 0.5),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0284C7).withValues(alpha: 0.35),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final fillWidth = constraints.maxWidth * progress;
+                              return Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  width: fillWidth,
+                                  height: double.infinity,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF0284C7),
+                                        Color(0xFF38BDF8),
+                                        Color(0xFF8BDCD7),
+                                      ],
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF8BDCD7).withValues(alpha: 0.6),
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

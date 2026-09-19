@@ -58,7 +58,7 @@ class GameTableHeader extends StatelessWidget implements PreferredSizeWidget {
         bottom: false,
         child: Row(
           children: [
-            // Botón Atrás
+            // Botón Atrás a la izquierda
             IconButton(
               icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 24),
               tooltip: 'Salir al menú',
@@ -66,81 +66,128 @@ class GameTableHeader extends StatelessWidget implements PreferredSizeWidget {
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 8),
 
-            // Botón Menú de reglas estilo cajón redondeado
-            if (onOpenRules != null)
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4A2B99),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF6B42DC), width: 1),
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 20),
-                  tooltip: 'Reglas y Guía',
-                  onPressed: onOpenRules,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            // Título central
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
                 ),
               ),
-            if (onToggleMute != null) ...[
-              const SizedBox(width: 6),
+            ),
+
+            // Indicador de Latencia / Ping (solo en partidas online o red local)
+            if (showPing)
               Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
-                  color: isMuted ? Colors.red.withValues(alpha: 0.25) : const Color(0xFF4A2B99),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isMuted ? Colors.redAccent : const Color(0xFF6B42DC),
-                    width: 1,
-                  ),
+                  color: Colors.black.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: IconButton(
-                  icon: Icon(
-                    isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    color: isMuted ? Colors.red[200] : Colors.white,
-                    size: 20,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${pingMs}ms',
+                      style: const TextStyle(
+                        color: Color(0xFF4ADE80),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    const Icon(Icons.signal_cellular_alt_rounded, color: Color(0xFF4ADE80), size: 13),
+                  ],
+                ),
+              ),
+
+            // Indicador de Nivel del Jugador (si está presente)
+            if (playerLevel != null) ...[
+              Container(
+                margin: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0D9488), Color(0xFF0F766E)],
                   ),
-                  tooltip: isMuted ? 'Activar sonido' : 'Silenciar sonido',
-                  onPressed: onToggleMute,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF2DD4BF), width: 1.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0D9488).withValues(alpha: 0.4),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.stars_rounded, color: Color(0xFFFDE047), size: 14),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Nv. $playerLevel',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
-            const SizedBox(width: 10),
 
-            // Título breve o logo
-            // Título breve o logo con botón discreto de opciones
-            Expanded(
-              child: Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
-                  if (onSettings != null) ...[
-                    const SizedBox(width: 4),
-                    IconButton(
-                      icon: const Icon(Icons.settings_outlined, color: Colors.white70, size: 18),
-                      tooltip: 'Opciones de mesa',
-                      onPressed: onSettings,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            // Píldora de Trofeos / Puntos (solo si showTrophies es true)
+            if (showTrophies) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF261358),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF7C4DFF), width: 1.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF7C4DFF).withValues(alpha: 0.3),
+                      blurRadius: 4,
                     ),
                   ],
-                ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.emoji_events_rounded, color: Color(0xFFFBBF24), size: 16),
+                    const SizedBox(width: 5),
+                    Text(
+                      _formatNumber(trophies),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              const SizedBox(width: 4),
+            ],
+
+            // Botón Ajustes a la derecha
+            if (onSettings != null)
+              IconButton(
+                icon: const Icon(Icons.settings_rounded, color: Colors.white, size: 22),
+                tooltip: 'Ajustes',
+                onPressed: onSettings,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              ),
 
             // Indicador de Latencia / Ping (solo en partidas online o red local)
             if (showPing)

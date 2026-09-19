@@ -51,7 +51,13 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: CaidaScreen(initialPlayers: 2, autoStart: true, animateDealing: false),
+          home: CaidaScreen(
+            initialPlayers: 2,
+            autoStart: true,
+            animateDealing: false,
+            userName: 'Tú',
+            botNames: ['Player 1'],
+          ),
         ),
       );
       await tester.pump();

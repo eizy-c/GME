@@ -21,10 +21,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    // Comprobar título del juego en pantalla de bienvenida
+    // Comprobar título del juego en pantalla de bienvenida y barra de progreso
     expect(find.text('CAIDAGO'), findsWidgets);
     expect(find.text('Tradicional'), findsOneWidget);
-    expect(find.text('TOCAR PARA ENTRAR'), findsOneWidget);
+    expect(find.textContaining('%'), findsOneWidget);
+    expect(find.textContaining('Cargando'), findsOneWidget);
 
     // Verificar que el overlay de depuración está presente con su icono de bug
     expect(find.byType(DebugInspectorOverlay), findsOneWidget);

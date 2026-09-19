@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../features/la_caida/presentation/widgets/avatar_view.dart';
+import '../../../features/la_caida/presentation/widgets/user_frame_view.dart';
 import 'speech_bubble.dart';
 
 enum PlayerPositionOnTable { bottom, top, left, right }
@@ -25,6 +26,7 @@ class TablePlayerBadge extends StatelessWidget {
   final Color avatarColor;
   final bool isMano;
   final int? avatarId;
+  final String? frameId;
   final int? playerLevel;
   final VoidCallback? onTap;
 
@@ -43,6 +45,7 @@ class TablePlayerBadge extends StatelessWidget {
     this.avatarColor = const Color(0xFF6366F1),
     this.isMano = false,
     this.avatarId,
+    this.frameId,
     this.playerLevel,
     this.onTap,
   }) : assert(scoreOrCards != null || score != null, 'Debe especificarse score o scoreOrCards');
@@ -50,6 +53,7 @@ class TablePlayerBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const avatarSize = 56.0;
+    final frame = frameId != null ? UserFrameItem.getById(frameId!) : null;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -79,7 +83,7 @@ class TablePlayerBadge extends StatelessWidget {
                         ),
                       ),
 
-                    // 2. Cuadro del Avatar con squircle y borde suave
+                    // 2. Cuadro del Avatar con squircle, marco personalizado y borde suave
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 250),
                       width: avatarSize,
@@ -87,18 +91,36 @@ class TablePlayerBadge extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: const Color(0xFF1E1B4B),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isCurrentTurn
-                              ? const Color(0xFF22C55E)
-                              : const Color(0xFF818CF8).withValues(alpha: 0.5),
-                          width: isCurrentTurn ? 2.5 : 1.5,
-                        ),
+                        gradient: frame != null
+                            ? LinearGradient(
+                                colors: isCurrentTurn
+                                    ? const [Color(0xFF22C55E), Color(0xFF16A34A)]
+                                    : frame.borderGradient,
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              )
+                            : null,
+                        border: frame == null
+                            ? Border.all(
+                                color: isCurrentTurn
+                                    ? const Color(0xFF22C55E)
+                                    : const Color(0xFF818CF8).withValues(alpha: 0.5),
+                                width: isCurrentTurn ? 2.5 : 1.5,
+                              )
+                            : null,
                         boxShadow: [
                           if (isCurrentTurn)
                             BoxShadow(
-                              color: const Color(0xFF22C55E).withValues(alpha: 0.45),
+                              color: const Color(0xFF22C55E).withValues(alpha: 0.5),
                               blurRadius: 10,
                               spreadRadius: 1.5,
+                            )
+                          else if (frame != null)
+                            BoxShadow(
+                              color: frame.shadowColor.withValues(alpha: 0.5),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                              offset: const Offset(0, 2),
                             )
                           else
                             BoxShadow(
@@ -108,8 +130,9 @@ class TablePlayerBadge extends StatelessWidget {
                             ),
                         ],
                       ),
+                      padding: EdgeInsets.all(frame != null ? 2.5 : 0),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(frame != null ? 13.5 : 14),
                         child: avatarId != null
                             ? AvatarView(
                                 avatarId: avatarId!,
@@ -131,6 +154,20 @@ class TablePlayerBadge extends StatelessWidget {
                               ),
                       ),
                     ),
+
+                    // Corona/Joya superior del Marco si está desbloqueado
+                    if (frame?.crownIcon != null)
+                      Positioned(
+                        top: -8,
+                        child: Icon(
+                          frame!.crownIcon,
+                          size: 15,
+                          color: const Color(0xFFFDE047),
+                          shadows: const [
+                            Shadow(color: Colors.black87, blurRadius: 4, offset: Offset(0, 1)),
+                          ],
+                        ),
+                      ),
 
                     // 3. Insignia flotante de Mano Dorada en la esquina superior derecha (sin palabra MANO)
                     if (isMano)
