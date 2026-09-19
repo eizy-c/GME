@@ -17,19 +17,19 @@ void main() {
       final repo1 = SharedPrefsStatsRepository();
       await repo1.load();
 
-      final initialDomino = await repo1.getStats(GameType.domino);
-      expect(initialDomino.wins, 0);
+      final initialCaida = await repo1.getStats(GameType.laCaida);
+      expect(initialCaida.wins, 0);
 
       // Registrar victorias y guardar
-      await repo1.saveStats(initialDomino.recordWin().recordWin());
+      await repo1.saveStats(initialCaida.recordWin().recordWin());
 
       // Crear una nueva instancia (simulando reiniciar la aplicación)
       final repo2 = SharedPrefsStatsRepository();
       await repo2.load();
 
-      final loadedDomino = await repo2.getStats(GameType.domino);
-      expect(loadedDomino.wins, 2);
-      expect(loadedDomino.totalGames, 2);
+      final loadedCaida = await repo2.getStats(GameType.laCaida);
+      expect(loadedCaida.wins, 2);
+      expect(loadedCaida.totalGames, 2);
     });
 
     test('UserProfileService persiste isFirstTime, nombre, monedas y tickets', () async {

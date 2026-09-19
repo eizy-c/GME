@@ -1,6 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'debug_logger.dart';
 
 /// Servicio singleton para reproducción de efectos de sonido (SFX) y cantos tradicionales.
 /// Utiliza BytesSource cargado en memoria desde rootBundle para evitar descargas en navegadores web.
@@ -86,7 +87,13 @@ class AudioService {
 
         await _player.stop();
         await _player.play(BytesSource(bytes));
+        DebugLogger.instance.logAudio('SFX reproducido: $name');
       } catch (e) {
+        DebugLogger.instance.log(
+          'Error al reproducir audio ($assetPath): $e',
+          category: 'Audio',
+          level: LogLevel.warning,
+        );
         if (kDebugMode) {
           print('AudioService info (ignorable en pruebas): $e');
         }

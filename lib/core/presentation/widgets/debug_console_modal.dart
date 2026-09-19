@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/debug_logger.dart';
 import '../../../features/la_caida/economy/player_session.dart';
+import '../../../main.dart';
 
 /// Modal interactivo de consola de diagnóstico, visor de bugs y eventos del juego.
 class DebugConsoleModal extends StatefulWidget {
   const DebugConsoleModal({super.key});
 
   static Future<void> show(BuildContext context) {
+    final navContext = CaidaGoApp.navigatorKey.currentContext ?? context;
     return showModalBottomSheet(
-      context: context,
+      context: navContext,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const DebugConsoleModal(),
@@ -38,15 +40,11 @@ class _DebugConsoleModalState extends State<DebugConsoleModal> {
 
         return Container(
           height: media.size.height * 0.88,
-          decoration: const BoxDecoration(
-            color: Color(0xFF0F172A), // Slate 900
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border(
-              top: BorderSide(color: Color(0xFF38BDF8), width: 2),
-              left: BorderSide(color: Color(0xFF1E293B), width: 1),
-              right: BorderSide(color: Color(0xFF1E293B), width: 1),
-            ),
-            boxShadow: [
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A), // Slate 900
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: const Color(0xFF38BDF8), width: 1.5),
+            boxShadow: const [
               BoxShadow(
                 color: Colors.black87,
                 blurRadius: 30,
@@ -176,7 +174,7 @@ class _DebugConsoleModalState extends State<DebugConsoleModal> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _diagItem('👤 Jugador', session.name),
-          _diagItem('⭐ Nivel', '${session.userProgress.level} (XP: ${session.userProgress.experience})'),
+          _diagItem('⭐ Nivel', '${session.level} (XP: ${session.xp})'),
           _diagItem('🪙 Monedas', '${session.coins}'),
           _diagItem('🎫 Tickets', '${session.tickets}/10'),
           _diagItem('📱 Pantalla', '${media.size.width.toInt()}x${media.size.height.toInt()}'),
@@ -480,7 +478,7 @@ class _DebugConsoleModalState extends State<DebugConsoleModal> {
               try {
                 throw StateError('Simulación manual de error de prueba en CaidaGO');
               } catch (e, st) {
-                logger.logError(e, st, category: 'Simulación', message: '¡Error de prueba provocado manualmente!');
+                logger.logError(e, stackTrace: st, category: 'Simulación', message: '¡Error de prueba provocado manualmente!');
               }
             },
           ),

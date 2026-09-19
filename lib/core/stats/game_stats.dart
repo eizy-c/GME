@@ -1,13 +1,12 @@
-/// Identificadores de los juegos disponibles en el compendio.
+/// Identificadores de los modos o juegos disponibles.
 enum GameType {
-  domino('Dominó'),
   laCaida('La Caída');
 
   final String title;
   const GameType(this.title);
 }
 
-/// Registro inmutable de estadísticas de partidas para un juego.
+/// Registro inmutable de estadísticas de partidas.
 class GameStats {
   final GameType gameType;
   final int wins;
@@ -48,7 +47,7 @@ class GameStats {
         lastPlayed: DateTime.now(),
       );
 
-  /// Registra un empate o tranca.
+  /// Registra un empate.
   GameStats recordDraw() => GameStats(
         gameType: gameType,
         wins: wins,
@@ -66,8 +65,14 @@ class GameStats {
       };
 
   factory GameStats.fromJson(Map<String, dynamic> json) {
+    final typeStr = json['gameType'] as String? ?? 'laCaida';
+    final gameType = GameType.values.firstWhere(
+      (t) => t.name == typeStr,
+      orElse: () => GameType.laCaida,
+    );
+
     return GameStats(
-      gameType: GameType.values.byName(json['gameType'] as String),
+      gameType: gameType,
       wins: json['wins'] as int? ?? 0,
       losses: json['losses'] as int? ?? 0,
       draws: json['draws'] as int? ?? 0,

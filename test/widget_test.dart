@@ -2,36 +2,72 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gme/core/models/cards/card_suit.dart';
 import 'package:gme/core/models/cards/spanish_card.dart';
-import 'package:gme/core/presentation/widgets/domino_tile_view.dart';
+import 'package:gme/core/presentation/widgets/debug_console_modal.dart';
+import 'package:gme/core/presentation/widgets/debug_inspector_overlay.dart';
+import 'package:gme/core/presentation/widgets/game_rules_dialog.dart';
 import 'package:gme/core/presentation/widgets/spanish_card_view.dart';
+import 'package:gme/core/services/debug_logger.dart';
 import 'package:gme/core/stats/stats_repository.dart';
 import 'package:gme/main.dart';
 
 void main() {
-  testWidgets('Carga inicial del compendio con Dominó y La Caída', (WidgetTester tester) async {
-    final statsRepo = InMemoryStatsRepository();
-    await tester.pumpWidget(CompendioJuegosApp(statsRepository: statsRepo));
-
-    // Comprobar título del compendio y badge offline
-    expect(find.text('Compendio de Juegos'), findsOneWidget);
-    expect(find.text('100% OFFLINE'), findsOneWidget);
-    expect(find.text('Dominó (Doble 6)'), findsOneWidget);
-    expect(find.text('CaidaGO'), findsOneWidget);
+  setUp(() {
+    DebugLogger.initialize();
   });
 
-  testWidgets('Apertura del diálogo de reglas "¿Cómo jugar?"', (WidgetTester tester) async {
+  testWidgets('Carga inicial directa en CaidaSplashScreen y renderizado del botón de bugs', (WidgetTester tester) async {
     final statsRepo = InMemoryStatsRepository();
-    await tester.pumpWidget(CompendioJuegosApp(statsRepository: statsRepo));
+    await tester.pumpWidget(CaidaGoApp(statsRepository: statsRepo));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
 
-    // Debe haber botones de "¿Cómo jugar?" en las tarjetas de juego
-    final rulesButtons = find.text('¿Cómo jugar?');
-    expect(rulesButtons, findsWidgets);
+    // Comprobar título del juego en pantalla de bienvenida
+    expect(find.text('CAIDAGO'), findsWidgets);
+    expect(find.text('Tradicional'), findsOneWidget);
+    expect(find.text('TOCAR PARA ENTRAR'), findsOneWidget);
 
-    // Tocar el primer botón de "¿Cómo jugar?"
-    await tester.tap(rulesButtons.first);
+    // Verificar que el overlay de depuración está presente con su icono de bug
+    expect(find.byType(DebugInspectorOverlay), findsOneWidget);
+    expect(find.byIcon(Icons.bug_report_rounded), findsOneWidget);
+  });
+
+  testWidgets('Apertura de la consola de diagnóstico de bugs al tocar el botón flotante', (WidgetTester tester) async {
+    final statsRepo = InMemoryStatsRepository();
+    await tester.pumpWidget(CaidaGoApp(statsRepository: statsRepo));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // Tocar el botón flotante de bugs
+    await tester.tap(find.byIcon(Icons.bug_report_rounded).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Verificar que abre el modal de diagnóstico
+    expect(find.byType(DebugConsoleModal), findsOneWidget);
+    expect(find.text('CONSOLA DE BUGS Y REGISTROS'), findsOneWidget);
+    expect(find.text('Copiar Logs'), findsOneWidget);
+    expect(find.text('Simular Error'), findsOneWidget);
+  });
+
+  testWidgets('Apertura del diálogo de reglas de La Caída', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => GameRulesDialog.show(context, 'la_caida'),
+              child: const Text('Ver Reglas'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Ver Reglas'));
     await tester.pumpAndSettle();
 
-    // Comprobar que se abre la ventana modal con las secciones de reglas
+    // Comprobar que se abre la ventana modal con las secciones de reglas de La Caída
+    expect(find.text('CaidaGO'), findsOneWidget);
     expect(find.text('Objetivo del Juego'), findsOneWidget);
     expect(find.text('Preparación y Reparto'), findsOneWidget);
     expect(find.text('¡Entendido, vamos a jugar!'), findsOneWidget);
@@ -41,24 +77,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('¿Cómo se Juega? (Paso a Paso)'), findsOneWidget);
-  });
-
-  testWidgets('Navegación y carga interactiva de Dominó (Doble 6)', (WidgetTester tester) async {
-    final statsRepo = InMemoryStatsRepository();
-    await tester.pumpWidget(CompendioJuegosApp(statsRepository: statsRepo));
-
-    // Filtrar por Dominó (Mesa)
-    await tester.tap(find.text('Dominó (Mesa)'));
-    await tester.pumpAndSettle();
-
-    // Tocar tarjeta de Dominó
-    await tester.tap(find.text('Dominó (Doble 6)'));
-    await tester.pumpAndSettle();
-
-    // Verificar que cargó la pantalla de Dominó
-    expect(find.text('Dominó Tradicional (Doble 6)'), findsOneWidget);
-    expect(find.textContaining('Tú'), findsOneWidget);
-    expect(find.byType(DominoTileView), findsWidgets);
   });
 
   testWidgets('SpanishCardView renderiza figuras en tamaño compacto sin desbordamiento (overflow)', (WidgetTester tester) async {
@@ -75,7 +93,6 @@ void main() {
           body: SingleChildScrollView(
             child: Column(
               children: [
-                // Casos que antes producían overflow en el showcase
                 SpanishCardView(card: SpanishCard(number: 10, suit: CardSuit.oros), width: 72),
                 SpanishCardView(card: SpanishCard(number: 11, suit: CardSuit.oros), width: 72),
                 SpanishCardView(card: SpanishCard(number: 12, suit: CardSuit.oros), width: 72),
@@ -85,7 +102,6 @@ void main() {
                 SpanishCardView(card: SpanishCard(number: 10, suit: CardSuit.espadas), width: 72),
                 SpanishCardView(card: SpanishCard(number: 11, suit: CardSuit.espadas), width: 72),
                 SpanishCardView(card: SpanishCard(number: 12, suit: CardSuit.espadas), width: 72),
-                // Tamaño ultra-compacto como en Cinquillo
                 SpanishCardView(card: SpanishCard(number: 12, suit: CardSuit.oros), width: 46),
               ],
             ),

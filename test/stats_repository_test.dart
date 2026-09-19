@@ -5,7 +5,7 @@ import 'package:gme/core/stats/stats_repository.dart';
 void main() {
   group('StatsRepository & GameStats Tests', () {
     test('Calcula correctamente winRate y totales de partidas', () {
-      var stats = const GameStats(gameType: GameType.domino);
+      var stats = const GameStats(gameType: GameType.laCaida);
       expect(stats.totalGames, equals(0));
       expect(stats.winRate, equals(0.0));
 
@@ -41,15 +41,15 @@ void main() {
 
     test('InMemoryStatsRepository almacena, recupera y reinicia estadísticas', () async {
       final repo = InMemoryStatsRepository();
-      final initial = await repo.getStats(GameType.domino);
+      final initial = await repo.getStats(GameType.laCaida);
       expect(initial.wins, equals(0));
 
       await repo.saveStats(initial.recordWin());
-      final updated = await repo.getStats(GameType.domino);
+      final updated = await repo.getStats(GameType.laCaida);
       expect(updated.wins, equals(1));
 
-      await repo.resetStats(GameType.domino);
-      final reset = await repo.getStats(GameType.domino);
+      await repo.resetStats(GameType.laCaida);
+      final reset = await repo.getStats(GameType.laCaida);
       expect(reset.wins, equals(0));
     });
   });

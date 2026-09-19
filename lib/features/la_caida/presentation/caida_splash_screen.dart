@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../core/presentation/widgets/spanish_card_view.dart';
+import '../../../core/services/debug_logger.dart';
 import '../../../core/services/user_profile_service.dart';
 import '../economy/player_session.dart';
 import 'caida_lobby_screen.dart';
@@ -51,6 +52,7 @@ class _CaidaSplashScreenState extends State<CaidaSplashScreen>
       session.markNotFirstTime();
     }
 
+    DebugLogger.instance.log('Usuario interactuó con la bienvenida. Procediendo al Lobby.', category: 'Navegación');
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -76,17 +78,6 @@ class _CaidaSplashScreenState extends State<CaidaSplashScreen>
             Positioned.fill(
               child: CustomPaint(
                 painter: _ChevronBackgroundPainter(),
-              ),
-            ),
-
-            // Botón de regresar al Compendio en la esquina superior izquierda
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 10,
-              left: 16,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
-                tooltip: 'Volver al compendio',
               ),
             ),
 

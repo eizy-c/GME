@@ -77,11 +77,11 @@ class DebugLogger extends ChangeNotifier {
     FlutterError.onError = (FlutterErrorDetails details) {
       logger.logError(
         details.exceptionAsString(),
-        details.stack,
+        stackTrace: details.stack,
         category: 'FlutterError',
         extraData: {
           'library': details.library ?? 'desconocida',
-          'context': details.context?.toStringShort(),
+          'context': details.context?.toString() ?? '',
         },
       );
       if (originalOnError != null) {
@@ -91,7 +91,7 @@ class DebugLogger extends ChangeNotifier {
 
     // Capturar errores asíncronos en la zona raíz
     PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
-      logger.logError(error, stack, category: 'PlatformDispatcher');
+      logger.logError(error, stackTrace: stack, category: 'PlatformDispatcher');
       return true;
     };
 
@@ -146,12 +146,12 @@ class DebugLogger extends ChangeNotifier {
 
   /// Registra un error o excepción
   void logError(
-    dynamic error, [
+    dynamic error, {
     StackTrace? stackTrace,
-    {String category = 'Error',
+    String category = 'Error',
     String? message,
-    Map<String, dynamic>? extraData}
-  ]) {
+    Map<String, dynamic>? extraData,
+  }) {
     log(
       message ?? (error?.toString() ?? 'Error sin descripción'),
       category: category,

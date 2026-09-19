@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
+import '../../../core/services/debug_logger.dart';
 import '../domain/models/playing_card.dart';
 import '../domain/models/deck.dart';
 import '../domain/models/player.dart';
@@ -307,6 +308,22 @@ class GameMatchController extends ChangeNotifier {
 
     if (moveResult.summary.isNotEmpty) {
       _statusBanner = '${player.name}: ${moveResult.summary}';
+      DebugLogger.instance.logGame(
+        '${player.name} jugó $card: ${moveResult.summary} (+${moveResult.totalPoints} pts)',
+        extraData: {
+          'player': player.name,
+          'card': card.toString(),
+          'caida': moveResult.isCaida,
+          'limpia': moveResult.isLimpia,
+          'captured': moveResult.capturedCards.map((c) => c.toString()).toList(),
+          'score': player.score,
+        },
+      );
+    } else {
+      DebugLogger.instance.logGame(
+        '${player.name} colocó $card en la mesa',
+        extraData: {'player': player.name, 'card': card.toString()},
+      );
     }
     notifyListeners();
 

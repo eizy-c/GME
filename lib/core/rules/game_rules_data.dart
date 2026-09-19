@@ -1,4 +1,4 @@
-/// Modelo estructurado para explicar las reglas, dinámicas y consejos de cada juego.
+/// Modelo estructurado para explicar las reglas, dinámicas y consejos del juego.
 class GameRules {
   final String id;
   final String title;
@@ -23,36 +23,9 @@ class GameRules {
   });
 }
 
-/// Repositorio estático con las reglas oficiales y tradicionales de los juegos del compendio.
+/// Repositorio estático con las reglas oficiales y tradicionales de La Caída.
 class GameRulesData {
   static const Map<String, GameRules> allRules = {
-    'domino': GameRules(
-      id: 'domino',
-      title: 'Dominó Tradicional (Doble 6)',
-      subtitle: 'Estrategia de conexión y conteo de pintas',
-      playersCount: '2 a 4 Jugadores (Individual o por Parejas)',
-      objective:
-          'Quedarse sin fichas en la mano ("Dominar") o tener la menor cantidad de puntos acumulados si la partida se cierra ("Tranque").',
-      setup: [
-        'Se utiliza el conjunto completo de 28 fichas (desde el [0|0] hasta el [6|6]).',
-        'Se colocan las fichas bocarriba o se revuelven boca abajo en la mesa.',
-        'Cada jugador recibe 7 fichas. En partidas de 2 jugadores, las 14 fichas sobrantes forman el pozo (boneyard).',
-      ],
-      steps: [
-        'Abre la primera ronda el jugador que posea el [6|6] (Doble Seis / "La Cochina"). En rondas sucesivas, sale quien ganó la anterior.',
-        'En tu turno, debes colocar una ficha cuyos puntos coincidan con uno de los dos extremos abiertos de la cadena en la mesa.',
-        'Si no tienes ninguna ficha jugable: debes robar del pozo hasta encontrar una válida (o pasar si se juega sin pozo).',
-      ],
-      specialRules: [
-        'Dominó: Gana la mano el primer jugador que juegue todas sus fichas.',
-        'Tranque / Cierre: Ocurre cuando ningún jugador puede poner ficha. En este caso, cada jugador suma los puntos de sus fichas restantes; gana quien tenga menos puntos.',
-        'En caso de empate en el tranque, gana quien tenga la mano (jugó primero).',
-      ],
-      proTips: [
-        'Observa qué números castigan o pasan tus rivales para bloquearlos con esos extremos.',
-        'Deshazte temprano de las fichas pesadas (dobles altos como el [6|6] y [5|5]) para no quedar con muchos puntos en un tranque.',
-      ],
-    ),
     'la_caida': GameRules(
       id: 'la_caida',
       title: 'CaidaGO',
@@ -84,7 +57,7 @@ class GameRulesData {
     ),
   };
 
-  static GameRules getRules(String id) {
-    return allRules[id] ?? allRules['domino']!;
+  static GameRules getRules([String id = 'la_caida']) {
+    return allRules[id] ?? allRules['la_caida']!;
   }
 }

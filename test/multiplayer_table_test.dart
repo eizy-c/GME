@@ -6,7 +6,6 @@ import 'package:gme/core/presentation/widgets/match_setup_dialog.dart';
 import 'package:gme/core/presentation/widgets/speech_bubble.dart';
 import 'package:gme/core/presentation/widgets/table_player_badge.dart';
 import 'package:gme/core/presentation/widgets/wood_table_background.dart';
-import 'package:gme/features/domino/presentation/domino_screen.dart';
 import 'package:gme/features/la_caida/presentation/caida_screen.dart';
 
 void main() {
@@ -199,21 +198,6 @@ void main() {
       expect(find.text('Tú'), findsOneWidget);
       expect(find.text('Player 1'), findsOneWidget);
       expect(find.text('Player 2'), findsOneWidget);
-    });
-
-
-    testWidgets('Dominó carga con 4 jugadores en cruz', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: DominoScreen(initialPlayers: 4),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('Dominó Tradicional (Doble 6)'), findsOneWidget);
-      expect(find.text('4 Jug.'), findsOneWidget);
-      expect(find.text('Tú'), findsOneWidget);
     });
   });
 }
