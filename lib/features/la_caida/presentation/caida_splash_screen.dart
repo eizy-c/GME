@@ -174,9 +174,9 @@ class _CaidaSplashScreenState extends State<CaidaSplashScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildMiniCardDecor(-math.pi / 12, const Color(0xFFFDE047), '👑'),
-                      _buildMiniCardDecor(0, const Color(0xFF38BDF8), '⚔️'),
-                      _buildMiniCardDecor(math.pi / 12, const Color(0xFFF43F5E), '🏆'),
+                      _buildMiniCardDecor(-math.pi / 12, const Color(0xFFFDE047), Icons.workspace_premium_rounded),
+                      _buildMiniCardDecor(0, const Color(0xFF38BDF8), Icons.sports_esports_rounded),
+                      _buildMiniCardDecor(math.pi / 12, const Color(0xFFF43F5E), Icons.emoji_events_rounded),
                     ],
                   ),
                 ],
@@ -239,7 +239,7 @@ class _CaidaSplashScreenState extends State<CaidaSplashScreen>
     );
   }
 
-  Widget _buildMiniCardDecor(double angle, Color borderColor, String emoji) {
+  Widget _buildMiniCardDecor(double angle, Color borderColor, IconData icon) {
     return Transform.rotate(
       angle: angle,
       child: Container(
@@ -259,7 +259,7 @@ class _CaidaSplashScreenState extends State<CaidaSplashScreen>
           ],
         ),
         child: Center(
-          child: Text(emoji, style: const TextStyle(fontSize: 22)),
+          child: Icon(icon, color: borderColor, size: 24),
         ),
       ),
     );

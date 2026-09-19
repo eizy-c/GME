@@ -438,13 +438,24 @@ class _CaidaGameOverModalState extends State<CaidaGameOverModal>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Desbloqueando en ranura ${(summary.chestSlotIndex ?? 0) + 1} (2m o 2 🎫)',
+                        'Desbloqueando en ranura ${(summary.chestSlotIndex ?? 0) + 1} (2m o 2 Tickets)',
                         style: const TextStyle(color: Colors.white, fontSize: 11.5),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'Premio: 50 a 2,500 🪙 + XP',
-                        style: TextStyle(color: Color(0xFF34D399), fontSize: 10.5, fontWeight: FontWeight.bold),
+                      Row(
+                        children: [
+                          const Text(
+                            'Premio: 50 a 2,500',
+                            style: TextStyle(color: Color(0xFF34D399), fontSize: 10.5, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(width: 3),
+                          const Icon(Icons.monetization_on_rounded, color: Color(0xFFFBBF24), size: 12),
+                          const SizedBox(width: 3),
+                          const Text(
+                            '+ XP',
+                            style: TextStyle(color: Color(0xFF34D399), fontSize: 10.5, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -500,7 +511,7 @@ class _CaidaGameOverModalState extends State<CaidaGameOverModal>
                   const Icon(Icons.monetization_on_rounded, color: Color(0xFFF59E0B), size: 20),
                   const SizedBox(width: 6),
                   Text(
-                    '+${summary.coinsWon} 🪙',
+                    '+${summary.coinsWon}',
                     style: const TextStyle(
                       color: Color(0xFFFDE047),
                       fontSize: 16,

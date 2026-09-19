@@ -3,11 +3,11 @@ import 'package:flutter/foundation.dart';
 
 /// Niveles de severidad de log
 enum LogLevel {
-  info('INFO', 'ℹ️'),
-  game('JUEGO', '🃏'),
-  audio('AUDIO', '🔊'),
-  warning('ADVERTENCIA', '⚠️'),
-  error('ERROR', '❌');
+  info('INFO', '[INFO]'),
+  game('JUEGO', '[JUEGO]'),
+  audio('AUDIO', '[AUDIO]'),
+  warning('ADVERTENCIA', '[AVISO]'),
+  error('ERROR', '[ERROR]');
 
   final String label;
   final String icon;

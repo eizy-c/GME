@@ -174,23 +174,30 @@ class _DebugConsoleModalState extends State<DebugConsoleModal> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _diagItem('👤 Jugador', session.name),
-          _diagItem('⭐ Nivel', '${session.level} (XP: ${session.xp})'),
-          _diagItem('🪙 Monedas', '${session.coins}'),
-          _diagItem('🎫 Tickets', '${session.tickets}/10'),
-          _diagItem('📱 Pantalla', '${media.size.width.toInt()}x${media.size.height.toInt()}'),
+          _diagItem(Icons.person_rounded, 'Jugador', session.name),
+          _diagItem(Icons.star_rounded, 'Nivel', '${session.level} (XP: ${session.xp})'),
+          _diagItem(Icons.monetization_on_rounded, 'Monedas', '${session.coins}'),
+          _diagItem(Icons.confirmation_number_rounded, 'Tickets', '${session.tickets}/10'),
+          _diagItem(Icons.smartphone_rounded, 'Pantalla', '${media.size.width.toInt()}x${media.size.height.toInt()}'),
         ],
       ),
     );
   }
 
-  Widget _diagItem(String label, String value) {
+  Widget _diagItem(IconData icon, String label, String value) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white60, fontSize: 10),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11, color: Colors.white60),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white60, fontSize: 10),
+            ),
+          ],
         ),
         const SizedBox(height: 2),
         Text(
@@ -456,7 +463,13 @@ class _DebugConsoleModalState extends State<DebugConsoleModal> {
                 Clipboard.setData(ClipboardData(text: report));
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('📋 Reporte de logs copiado al portapapeles'),
+                    content: Row(
+                      children: [
+                        Icon(Icons.copy_rounded, color: Colors.white, size: 16),
+                        SizedBox(width: 8),
+                        Text('Reporte de logs copiado al portapapeles'),
+                      ],
+                    ),
                     duration: Duration(seconds: 2),
                     backgroundColor: Color(0xFF0284C7),
                   ),

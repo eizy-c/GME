@@ -84,10 +84,10 @@ class VipTierOffer {
   // --- CATÁLOGO PREDEFINIDO DE TIERS VIP ---
 
   /// Los 4 tiers VIP oficiales para La Caída:
-  /// 1. Taberna (Bronce) • Entrada 🪙 250 | Nivel mín: 1
-  /// 2. Club Privado (Plata) • Entrada 🪙 1,000 | Nivel mín: 2
-  /// 3. Gran Casino (Oro) • Entrada 🪙 5,000 | Nivel mín: 4
-  /// 4. High Roller (Diamante) • Entrada 🪙 20,000 | Nivel mín: 8
+  /// 1. Taberna (Bronce) • Entrada 250 Monedas | Nivel mín: 1
+  /// 2. Club Privado (Plata) • Entrada 1,000 Monedas | Nivel mín: 2
+  /// 3. Gran Casino (Oro) • Entrada 5,000 Monedas | Nivel mín: 4
+  /// 4. High Roller (Diamante) • Entrada 20,000 Monedas | Nivel mín: 8
   static const List<VipTierOffer> tiers = [
     VipTierOffer(
       type: VipTierType.taberna,

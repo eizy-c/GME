@@ -217,7 +217,7 @@ class _ChestSlotsViewState extends State<ChestSlotsView> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             icon: const Icon(Icons.confirmation_number_rounded, size: 16),
-            label: const Text('Abrir ya (2 🎫)', style: TextStyle(fontWeight: FontWeight.bold)),
+            label: const Text('Abrir ya (2 Tickets)', style: TextStyle(fontWeight: FontWeight.bold)),
             onPressed: () {
               Navigator.of(context).pop();
               final success = widget.session.unlockChestInstant(chest.slotIndex);

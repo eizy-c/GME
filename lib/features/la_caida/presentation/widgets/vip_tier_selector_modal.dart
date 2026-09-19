@@ -185,7 +185,7 @@ class _VipTierSelectorModalState extends State<VipTierSelectorModal> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text('🪙', style: TextStyle(fontSize: 12)),
+                              const Icon(Icons.monetization_on_rounded, size: 14, color: Color(0xFFFBBF24)),
                               const SizedBox(width: 4),
                               Text(
                                 '${session.coins}',
@@ -205,7 +205,7 @@ class _VipTierSelectorModalState extends State<VipTierSelectorModal> {
 
                 const SizedBox(height: 14),
 
-                // Pestañas Toggle: [ ⚔️ 1 vs 1 ] y [ 👥 Parejas (4P) ]
+                // Pestañas Toggle: [ 1 vs 1 ] y [ Parejas (4P) ]
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -397,13 +397,22 @@ class _VipTierSelectorModalState extends State<VipTierSelectorModal> {
                     width: 0.8,
                   ),
                 ),
-                child: Text(
-                  isUnlocked ? 'NIVEL ${tier.minPlayerLevel}+' : '🔒 NV. ${tier.minPlayerLevel}',
-                  style: TextStyle(
-                    color: isUnlocked ? tier.accentColor : Colors.white38,
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w900,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!isUnlocked) ...[
+                      const Icon(Icons.lock_rounded, size: 10, color: Colors.white38),
+                      const SizedBox(width: 3),
+                    ],
+                    Text(
+                      isUnlocked ? 'NIVEL ${tier.minPlayerLevel}+' : 'NV. ${tier.minPlayerLevel}',
+                      style: TextStyle(
+                        color: isUnlocked ? tier.accentColor : Colors.white38,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -444,17 +453,17 @@ class _VipTierSelectorModalState extends State<VipTierSelectorModal> {
             ),
             child: Column(
               children: [
-                _buildFinanceRow('Entrada:', '🪙 ${tier.entryFee}', isBold: false),
+                _buildFinanceRow('Entrada:', '${tier.entryFee}', isBold: false),
                 const SizedBox(height: 4),
                 _buildFinanceRow(
                   _isTeams ? 'Pozo (4P):' : 'Pozo (1v1):',
-                  '🪙 $totalPot',
+                  '$totalPot',
                   valueColor: const Color(0xFF38BDF8),
                 ),
                 const Divider(color: Colors.white12, height: 10),
                 _buildFinanceRow(
                   _isTeams ? 'Premio Ganador (c/u):' : 'Premio Ganador:',
-                  '🪙 $netPrize',
+                  '$netPrize',
                   valueColor: const Color(0xFFFDE047),
                   isHighlight: true,
                 ),
@@ -504,13 +513,20 @@ class _VipTierSelectorModalState extends State<VipTierSelectorModal> {
           ),
         ),
         const SizedBox(width: 4),
-        Text(
-          value,
-          style: TextStyle(
-            color: valueColor,
-            fontSize: isHighlight ? 12.5 : 11,
-            fontWeight: isBold ? FontWeight.w900 : FontWeight.bold,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.monetization_on_rounded, size: isHighlight ? 13 : 11, color: const Color(0xFFFBBF24)),
+            const SizedBox(width: 3),
+            Text(
+              value,
+              style: TextStyle(
+                color: valueColor,
+                fontSize: isHighlight ? 12.5 : 11,
+                fontWeight: isBold ? FontWeight.w900 : FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -518,19 +534,23 @@ class _VipTierSelectorModalState extends State<VipTierSelectorModal> {
 
   Widget _buildActionButton(VipTierOffer tier, bool isUnlocked, bool canAfford) {
     String label;
+    IconData? buttonIcon;
     Color buttonColor;
     bool isEnabled;
 
     if (!isUnlocked) {
-      label = '🔒 NIVEL ${tier.minPlayerLevel} REQUERIDO';
+      buttonIcon = Icons.lock_rounded;
+      label = 'NIVEL ${tier.minPlayerLevel} REQUERIDO';
       buttonColor = Colors.white10;
       isEnabled = false;
     } else if (!canAfford) {
-      label = '⚠️ SIN SALDO (🪙 ${tier.entryFee})';
+      buttonIcon = Icons.warning_amber_rounded;
+      label = 'SIN SALDO (${tier.entryFee})';
       buttonColor = const Color(0xFF7F1D1D);
       isEnabled = false;
     } else {
-      label = 'ENTRAR (🪙 ${tier.entryFee})';
+      buttonIcon = Icons.play_arrow_rounded;
+      label = 'ENTRAR (${tier.entryFee})';
       buttonColor = tier.primaryColor;
       isEnabled = true;
     }
@@ -548,15 +568,25 @@ class _VipTierSelectorModalState extends State<VipTierSelectorModal> {
         ),
         elevation: isEnabled ? 3 : 0,
       ),
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: isEnabled ? 11.5 : 10,
-          fontWeight: FontWeight.w900,
-          color: isEnabled ? Colors.white : Colors.white54,
-          letterSpacing: 0.5,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (buttonIcon != null) ...[
+            Icon(buttonIcon, size: isEnabled ? 15 : 13, color: isEnabled ? Colors.white : Colors.white54),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: isEnabled ? 11.5 : 10,
+              fontWeight: FontWeight.w900,
+              color: isEnabled ? Colors.white : Colors.white54,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }

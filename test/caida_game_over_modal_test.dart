@@ -67,7 +67,7 @@ void main() {
       expect(find.textContaining('Desbloqueando en ranura 1'), findsOneWidget);
 
       // Verificar monedas y XP
-      expect(find.text('+150 🪙'), findsOneWidget);
+      expect(find.text('+150'), findsOneWidget);
       expect(find.text('+720 XP'), findsOneWidget);
 
       // Verificar subida de nivel
@@ -132,7 +132,7 @@ void main() {
       expect(find.text('¡DERROTA!'), findsOneWidget);
       expect(find.text('Tú'), findsOneWidget);
       expect(find.text('Rival'), findsOneWidget);
-      expect(find.text('+0 🪙'), findsOneWidget);
+      expect(find.text('+0'), findsOneWidget);
       expect(find.text('+180 XP'), findsOneWidget);
 
       // Tocar botón Lobby

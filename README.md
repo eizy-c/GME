@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.29+-02569B?logo=flutter&logoColor=white" alt="Flutter" />
   <img src="https://img.shields.io/badge/Dart-3.7+-0175C2?logo=dart&logoColor=white" alt="Dart" />
   <img src="https://img.shields.io/badge/Plataformas-Android%20%7C%20Windows%20%7C%20Web%20%7C%20macOS%20%7C%20Linux-4CAF50" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-106%20Passed-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-114%20Passed-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/Linter-0%20Issues-brightgreen" alt="Linter" />
   <img src="https://img.shields.io/badge/Licencia-Libre%20%2F%20Cultural-blue" alt="License" />
 </p>
@@ -26,20 +26,32 @@
 3. [Reglas y Dinámicas de La Caída](#-reglas-y-dinámicas-de-la-caída)
    - [Jerarquía de Cantos Tradicionales](#-jerarquía-de-cantos-tradicionales)
    - [Mecánicas de Mesa, Caída y Limpia](#-mecánicas-de-mesa-caída-y-limpia)
-4. [Consola Flotante de Diagnóstico y Bugs (Debug Logger)](#-consola-flotante-de-diagnóstico-y-bugs)
-5. [Economía, Cofres (4 Slots) y Mesas VIP](#-economía-cofres-4-slots-y-mesas-vip)
-6. [Perfiles de Jugador, Marcos y Niveles](#-perfiles-de-jugador-marcos-y-niveles)
-7. [Tutorial Interactivo (Tour de Novatos)](#-tutorial-interactivo-tour-de-novatos)
-8. [Requisitos del Sistema](#-requisitos-del-sistema)
-9. [Instalación y Configuración](#-instalación-y-configuración)
-10. [Modos de Ejecución y Compilación](#-modos-de-ejecución-y-compilación)
-11. [Pruebas Automatizadas y Calidad](#-pruebas-automatizadas-y-calidad)
-12. [Arquitectura del Proyecto](#-arquitectura-del-proyecto)
-13. [Licencia](#-licencia)
+4. [Modal de Perfil del Jugador y Estadísticas Detalladas](#-modal-de-perfil-del-jugador-y-estadísticas-detalladas)
+5. [Consola Flotante de Diagnóstico y Bugs (Debug Logger)](#-consola-flotante-de-diagnóstico-y-bugs)
+6. [Economía, Cofres (4 Slots) y Mesas VIP](#-economía-cofres-4-slots-y-mesas-vip)
+7. [Perfiles de Jugador, Marcos y Niveles](#-perfiles-de-jugador-marcos-y-niveles)
+8. [Tutorial Interactivo (Tour de Novatos)](#-tutorial-interactivo-tour-de-novatos)
+9. [Requisitos del Sistema](#-requisitos-del-sistema)
+10. [Instalación y Configuración](#-instalación-y-configuración)
+11. [Modos de Ejecución y Compilación](#-modos-de-ejecución-y-compilación)
+12. [Pruebas Automatizadas y Calidad](#-pruebas-automatizadas-y-calidad)
+13. [Arquitectura del Proyecto](#-arquitectura-del-proyecto)
+14. [Licencia](#-licencia)
 
 ---
 
 ## 🌟 Novedades y Actualizaciones Recientes
+
+* 📊 **Modal Oficial de "Perfil del Jugador" y Estadísticas en Vivo (`PlayerProfileStatsModal`)**:
+  * Diseño fiel 1:1 con marco de madera noble, hoja de pergamino, banner 3D superior y botón circular rojo de cierre `[X]`.
+  * **Pestaña Perfil**:
+    * Identidad del jugador con Avatar, Marco VIP y nivel en esquina, bandera nacional 🇻🇪, nombre y botón de edición.
+    * Nivel actual, estrella dorada, barra de progreso de XP animada y píldora de rango (*"Título: Maestro del Trivilín"*).
+    * **Estadísticas Generales**: Ganancias totales en monedas, Partidas jugadas/ganadas, Efectividad de victoria, Racha actual/máxima, Mano a mano (1v1) y Partidas en equipo (2v2).
+    * **Jugadas y Mesa (Caída)**: Caídas cantadas (rival cazado), Caídas recibidas, Mesas limpias, Caídas con mesa limpia, Registros / Registrícos y Total de cartas acumuladas.
+    * **Cantos Tradicionales**: Rondas, Patrullas, Vigías y Trivilines cantados.
+  * **Pestaña Logros**: Catálogo de 8 logros temáticos de La Caída con medallas, barras de progreso dinámicas, recompensas de monedas y experiencia (XP), y sistema de reclamo interactivo.
+  * Persistencia reactiva en disco local mediante `PlayerStatsModel`.
 
 * 🎴 **Reparto Tradicional Secuencial de 1 en 1 en Sentido Horario**:
   * Distribución carta por carta (1 a 1) en orden de las manecillas del reloj iniciando estrictamente desde el jugador que es **Mano**, completando 3 vueltas hasta entregar 3 naipes a cada participante.

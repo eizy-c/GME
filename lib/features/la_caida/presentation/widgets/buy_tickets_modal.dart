@@ -57,7 +57,7 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
   void _claimAdTicket() {
     final success = widget.session.claimAdTicketReward();
     if (success) {
-      _showFeedback('¡+1 Ticket obtenido viendo el video! 🎫');
+      _showFeedback('¡+1 Ticket obtenido viendo el video!');
     } else {
       _showFeedback('Ya tienes el máximo de tickets disponibles (10/10).', isError: true);
     }
@@ -66,10 +66,10 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
   void _buySingleTicket() {
     final success = widget.session.buyTicketsWithCoins(1);
     if (success) {
-      _showFeedback('¡Compraste 1 Ticket por 🪙 400 monedas! 🎫');
+      _showFeedback('¡Compraste 1 Ticket por 400 monedas!');
     } else {
       if (widget.session.coins < 400) {
-        _showFeedback('Monedas insuficientes (necesitas 🪙 400).', isError: true);
+        _showFeedback('Monedas insuficientes (necesitas 400 monedas).', isError: true);
       } else {
         _showFeedback('Ya tienes el máximo de tickets disponibles.', isError: true);
       }
@@ -79,10 +79,10 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
   void _buyFivePack() {
     final success = widget.session.buyTicketsWithCoins(5, customCoinCost: 1800);
     if (success) {
-      _showFeedback('¡Paquete de 5 Tickets adquirido por 🪙 1,800 monedas! 🎟️');
+      _showFeedback('¡Paquete de 5 Tickets adquirido por 1,800 monedas!');
     } else {
       if (widget.session.coins < 1800) {
-        _showFeedback('Monedas insuficientes (necesitas 🪙 1,800).', isError: true);
+        _showFeedback('Monedas insuficientes (necesitas 1,800 monedas).', isError: true);
       } else {
         _showFeedback('Ya tienes el máximo de tickets disponibles.', isError: true);
       }
@@ -195,7 +195,7 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text('🪙', style: TextStyle(fontSize: 14)),
+                          const Icon(Icons.monetization_on_rounded, size: 14, color: Color(0xFFFBBF24)),
                           const SizedBox(width: 5),
                           Text(
                             '${session.coins}',
@@ -239,13 +239,20 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            '${session.tickets} / ${session.maxTickets} 🎫',
-                            style: const TextStyle(
-                              color: Color(0xFF38BDF8),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${session.tickets} / ${session.maxTickets}',
+                                style: const TextStyle(
+                                  color: Color(0xFF38BDF8),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.confirmation_num_rounded, color: Color(0xFF38BDF8), size: 16),
+                            ],
                           ),
                         ],
                       ),
@@ -268,15 +275,28 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Flexible(
-                            child: Text(
-                              isMaxTickets
-                                  ? '✨ ¡Energía al 100%!'
-                                  : '⏱️ 1 ticket cada 20 min',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 10,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isMaxTickets ? Icons.bolt_rounded : Icons.timer_outlined,
+                                  size: 13,
+                                  color: isMaxTickets ? const Color(0xFF10B981) : Colors.white54,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    isMaxTickets
+                                        ? '¡Energía al 100%!'
+                                        : '1 ticket cada 20 min',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           if (!isMaxTickets) ...[
@@ -342,7 +362,7 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
                   iconColor: const Color(0xFFF59E0B),
                   title: 'Pase Individual (1x)',
                   subtitle: '+1 Ticket para juego casual',
-                  priceLabel: '🪙 400',
+                  priceLabel: '400',
                   isPriceCoin: true,
                   isEnabled: !isMaxTickets && session.coins >= 400,
                   disabledLabel: session.coins < 400 ? 'SIN MONEDAS' : 'LLENO',
@@ -355,11 +375,11 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
                 _buildOptionCard(
                   icon: Icons.local_activity_rounded,
                   iconColor: const Color(0xFFFDE047),
-                  badgeText: '🔥 AHORRA 10%',
+                  badgeText: 'AHORRA 10%',
                   badgeColor: const Color(0xFFD97706),
                   title: 'Paquete Aventurero (5x)',
                   subtitle: '+5 Tickets (200 monedas de ahorro)',
-                  priceLabel: '🪙 1,800',
+                  priceLabel: '1,800',
                   oldPriceLabel: '2,000',
                   isPriceCoin: true,
                   isEnabled: !isMaxTickets && session.coins >= 1800,
@@ -454,13 +474,20 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
                           color: badgeColor ?? const Color(0xFFD97706),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
-                          badgeText,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w900,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 10),
+                            const SizedBox(width: 2),
+                            Text(
+                              badgeText,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -482,13 +509,20 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
                     ),
                     if (oldPriceLabel != null) ...[
                       const SizedBox(width: 4),
-                      Text(
-                        '🪙 $oldPriceLabel',
-                        style: const TextStyle(
-                          color: Colors.white38,
-                          fontSize: 9.5,
-                          decoration: TextDecoration.lineThrough,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.monetization_on_rounded, size: 10, color: Colors.white38),
+                          const SizedBox(width: 2),
+                          Text(
+                            oldPriceLabel,
+                            style: const TextStyle(
+                              color: Colors.white38,
+                              fontSize: 9.5,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ],
@@ -514,13 +548,22 @@ class _BuyTicketsModalState extends State<BuyTicketsModal> {
               ),
               elevation: isEnabled ? 2 : 0,
             ),
-            child: Text(
-              isEnabled ? priceLabel : (disabledLabel ?? 'NO DISP.'),
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                color: isEnabled ? Colors.white : Colors.white38,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isEnabled && isPriceCoin) ...[
+                  const Icon(Icons.monetization_on_rounded, size: 12, color: Color(0xFFFDE047)),
+                  const SizedBox(width: 3),
+                ],
+                Text(
+                  isEnabled ? priceLabel : (disabledLabel ?? 'NO DISP.'),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: isEnabled ? Colors.white : Colors.white38,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

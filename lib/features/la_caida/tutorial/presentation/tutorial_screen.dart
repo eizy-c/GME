@@ -548,13 +548,20 @@ class _TutorialScreenState extends State<TutorialScreen> with TickerProviderStat
                             BoxShadow(color: Colors.black45, blurRadius: 4),
                           ],
                         ),
-                        child: const Text(
-                          'TOCA AQUÍ 👆',
-                          style: TextStyle(
-                            color: Color(0xFF1E1B4B),
-                            fontWeight: FontWeight.w900,
-                            fontSize: 10,
-                          ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'TOCA AQUÍ',
+                              style: TextStyle(
+                                color: Color(0xFF1E1B4B),
+                                fontWeight: FontWeight.w900,
+                                fontSize: 10,
+                              ),
+                            ),
+                            SizedBox(width: 3),
+                            Icon(Icons.touch_app_rounded, size: 12, color: Color(0xFF1E1B4B)),
+                          ],
                         ),
                       ),
                     Container(
@@ -666,13 +673,17 @@ class _TutorialScreenState extends State<TutorialScreen> with TickerProviderStat
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    isLast ? '¡GRADUARME Y COBRAR RECOMPENSA! 🪙' : 'SIGUIENTE LECCIÓN',
+                    isLast ? '¡GRADUARME Y COBRAR RECOMPENSA!' : 'SIGUIENTE LECCIÓN',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.8,
                     ),
                   ),
+                  if (isLast) ...[
+                    const SizedBox(width: 8),
+                    const Icon(Icons.monetization_on_rounded, color: Color(0xFFFDE047), size: 18),
+                  ],
                   const SizedBox(width: 6),
                   const Icon(Icons.arrow_forward_rounded, size: 18),
                 ],

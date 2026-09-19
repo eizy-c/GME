@@ -230,9 +230,10 @@ class SpanishCardView extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                _getFigureGlyph(card.number),
-                style: TextStyle(fontSize: w * 0.32, height: 1.0),
+              Icon(
+                _getFigureIcon(card.number),
+                size: w * 0.34,
+                color: style.color,
               ),
               SizedBox(height: h * 0.012),
               _buildSuitIcon(card.suit, size: w * 0.18),
@@ -308,16 +309,16 @@ class SpanishCardView extends StatelessWidget {
     );
   }
 
-  String _getFigureGlyph(int number) {
+  IconData _getFigureIcon(int number) {
     switch (number) {
       case 10:
-        return '💂'; // Sota
+        return Icons.shield_rounded; // Sota
       case 11:
-        return '🏇'; // Caballo
+        return Icons.military_tech_rounded; // Caballo
       case 12:
-        return '👑'; // Rey
+        return Icons.workspace_premium_rounded; // Rey
       default:
-        return '👤';
+        return Icons.person_rounded;
     }
   }
 

@@ -18,6 +18,7 @@ import '../domain/caida_rules_engine.dart';
 import '../domain/models/spatial_card_state.dart';
 import '../economy/chest_slot_model.dart';
 import '../economy/player_session.dart';
+import '../economy/player_stats_model.dart';
 import '../economy/vip_tier.dart';
 import 'widgets/caida_game_over_modal.dart';
 import 'widgets/card_flight_overlay.dart';
@@ -453,7 +454,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
 
     setState(() {
       _manoIndex = winnerIndex;
-      _manoAnnouncement = '¡${winner.name} saca el ${winnerChoice.card.number} y es MANO! 👑';
+      _manoAnnouncement = '¡${winner.name} saca el ${winnerChoice.card.number} y es MANO!';
     });
 
     await _safeDelay(const Duration(milliseconds: 2200));
@@ -1332,6 +1333,17 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
       }
     }
 
+    // Registrar en estadísticas persistentes del jugador
+    PlayerStatsModel.shared.recordGameResult(
+      won: userWon,
+      isTeams: _isTeams,
+      coinsWon: vipCoinsWon,
+      cardsWon: _players[0].totalMatchCardsWon,
+      caidas: _matchUserCaidas,
+      limpias: _matchUserLimpias,
+      cantos: _matchUserCantos,
+    );
+
     final finalLevel = session.level;
     final didLevelUp = finalLevel > initialLevel;
 
@@ -1352,7 +1364,7 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
         String? customSubtitle;
         if (widget.vipTier != null) {
           customSubtitle = userWon
-              ? '👑 ¡VICTORIA VIP EN MESA ${widget.vipTier!.name.toUpperCase()}!\nPremio obtenido: +🪙 $vipCoinsWon monedas (+$xpGained XP)'
+              ? '¡VICTORIA VIP EN MESA ${widget.vipTier!.name.toUpperCase()}!\nPremio obtenido: +$vipCoinsWon monedas (+$xpGained XP)'
               : 'Mesa ${widget.vipTier!.name}: Ganó ${winner.name} con ${winner.score} pts (+$xpGained XP)';
         }
 
@@ -2019,13 +2031,15 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                       const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFDE047), size: 14),
                       const SizedBox(width: 5),
                       Text(
-                        'Mesa ${widget.vipTier!.name} • Pozo: 🪙 ${widget.vipPrizePool ?? widget.vipTier!.calculatePrizePool(isTeams: widget.initialTeams)}',
+                        'Mesa ${widget.vipTier!.name} • Pozo: ${widget.vipPrizePool ?? widget.vipTier!.calculatePrizePool(isTeams: widget.initialTeams)}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.monetization_on_rounded, color: Color(0xFFFBBF24), size: 12),
                     ],
                   ),
                 ),
@@ -2416,13 +2430,20 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                                     BoxShadow(color: Colors.black45, blurRadius: 4),
                                   ],
                                 ),
-                                child: const Text(
-                                  '¡MANO! 👑',
-                                  style: TextStyle(
-                                    color: Color(0xFF713F12),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w900,
-                                  ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.workspace_premium_rounded, color: Color(0xFF713F12), size: 10),
+                                    SizedBox(width: 2),
+                                    Text(
+                                      '¡MANO!',
+                                      style: TextStyle(
+                                        color: Color(0xFF713F12),
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               )
                             else if (player != null)
@@ -2642,20 +2663,29 @@ class _CaidaScreenState extends State<CaidaScreen> with TickerProviderStateMixin
                     if (_isDealing && _isFirstRoundDealing && spokenNum != null)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 2),
-                        child: Text(
-                          isHit ? '¡$spokenNum! ⭐' : '$spokenNum',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            color: isHit ? const Color(0xFFFDE047) : Colors.white,
-                            shadows: [
-                              Shadow(
-                                color: isHit ? const Color(0xFFCA8A04) : Colors.black87,
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isHit ? '¡$spokenNum!' : '$spokenNum',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                color: isHit ? const Color(0xFFFDE047) : Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    color: isHit ? const Color(0xFFCA8A04) : Colors.black87,
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
+                            ),
+                            if (isHit) ...[
+                              const SizedBox(width: 4),
+                              const Icon(Icons.star_rounded, color: Color(0xFFFDE047), size: 22),
                             ],
-                          ),
+                          ],
                         ),
                       ),
                     SpanishCardView(

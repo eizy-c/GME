@@ -8,7 +8,7 @@ enum PlayerPositionOnTable { bottom, top, left, right }
 /// Traduce el diseño técnico del boceto:
 /// - Barra de tiempo curva en la esquina superior izquierda.
 /// - Corona dorada flotante de "Mano" en la esquina superior derecha.
-/// - Cápsulas gemelas de Puntos (★) y Cartas recogidas (🎴) en el borde inferior del avatar.
+/// - Cápsulas gemelas de Puntos y Cartas recogidas en el borde inferior del avatar.
 /// - Placa horizontal redondeada con el nombre del jugador.
 /// - Mini-cartas boca abajo para rivales.
 class TablePlayerBadge extends StatelessWidget {
@@ -167,7 +167,7 @@ class TablePlayerBadge extends StatelessWidget {
                         ),
                       ),
 
-                    // 4. Cápsulas gemelas: Puntos (★) y Cartas recogidas (🎴) en el borde inferior
+                    // 4. Cápsulas gemelas: Puntos y Cartas recogidas en el borde inferior
                     Positioned(
                       bottom: -9,
                       child: Row(
@@ -312,7 +312,7 @@ class TablePlayerBadge extends StatelessWidget {
     }
   }
 
-  /// Cápsula izquierda: Puntos (★)
+  /// Cápsula izquierda: Puntos
   Widget _buildPointsPill() {
     final displayValue = score ?? scoreOrCards ?? 0;
     return Container(
@@ -350,7 +350,7 @@ class TablePlayerBadge extends StatelessWidget {
     );
   }
 
-  /// Cápsula derecha: Cartas recogidas (🎴)
+  /// Cápsula derecha: Cartas recogidas
   Widget _buildCardsWonPill() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),

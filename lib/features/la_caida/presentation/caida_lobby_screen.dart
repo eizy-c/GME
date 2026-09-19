@@ -9,6 +9,7 @@ import 'widgets/avatar_view.dart';
 import 'widgets/buy_tickets_modal.dart';
 import 'widgets/chest_slots_view.dart';
 import 'widgets/four_aces_display_view.dart';
+import 'widgets/player_profile_stats_modal.dart';
 import 'widgets/profile_and_level_modal.dart';
 import 'widgets/user_frame_view.dart';
 import 'widgets/vip_tier_selector_modal.dart';
@@ -129,49 +130,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
   }
 
   void _openStatisticsDialog() {
-    final progress = UserProgress(totalXp: _session.xp);
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF0F172A),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: const BorderSide(color: Color(0xFF38BDF8), width: 1.5),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.bar_chart_rounded, color: Color(0xFF38BDF8), size: 28),
-            SizedBox(width: 10),
-            Text(
-              'Estadísticas del Jugador',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildStatRow('Nivel Actual', '${progress.currentLevel} (${progress.rankTitle})', const Color(0xFFFDE047)),
-            _buildStatRow('Experiencia Total', '${_session.xp} XP', const Color(0xFF38BDF8)),
-            _buildStatRow('Saldo de Monedas', '${_session.coins} 🪙', const Color(0xFFFBBF24)),
-            _buildStatRow('Tickets Disponibles', '${_session.tickets} / ${_session.maxTickets} 🎫', const Color(0xFF4ADE80)),
-            _buildStatRow('Tutorial de Novatos', _session.hasCompletedTutorial ? 'Completado (100%)' : 'Pendiente', Colors.white70),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF38BDF8),
-              foregroundColor: const Color(0xFF0F172A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
+    PlayerProfileStatsModal.show(context, session: _session);
   }
 
   Widget _buildStatRow(String label, String value, Color valueColor) {
@@ -209,9 +168,9 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildChallengeItem('Gana 1 partida en CaidaGO', '0 / 1', '+250 🪙  +50 XP', false),
-            _buildChallengeItem('Realiza 2 Caídas en una partida', '0 / 2', '+150 🪙  +30 XP', false),
-            _buildChallengeItem('Juega en Parejas (2 vs 2)', '0 / 1', '+200 🪙  +40 XP', false),
+            _buildChallengeItem('Gana 1 partida en CaidaGO', '0 / 1', '+250 Monedas  +50 XP', false),
+            _buildChallengeItem('Realiza 2 Caídas en una partida', '0 / 2', '+150 Monedas  +30 XP', false),
+            _buildChallengeItem('Juega en Parejas (2 vs 2)', '0 / 1', '+200 Monedas  +40 XP', false),
           ],
         ),
         actions: [
@@ -689,7 +648,7 @@ class _CaidaLobbyScreenState extends State<CaidaLobbyScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // 1. Barra Superior idéntica al boceto (Ajustes ⚙️ | Tickets 🎫 | Monedas 🪙)
+              // 1. Barra Superior idéntica al boceto (Ajustes | Tickets | Monedas)
               _buildTopBar(),
 
               // 2. Contenido dinámico del lobby

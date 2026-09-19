@@ -121,7 +121,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verificar indicador de tickets y monedas en el encabezado
-      expect(find.text('4 / 10 🎫'), findsOneWidget);
+      expect(find.text('4 / 10'), findsOneWidget);
       expect(find.text('1000'), findsOneWidget);
       expect(find.text('TIENDA DE TICKETS'), findsOneWidget);
 
@@ -137,17 +137,17 @@ void main() {
       await tester.pump();
 
       expect(session.tickets, equals(5));
-      expect(find.text('5 / 10 🎫'), findsOneWidget);
+      expect(find.text('5 / 10'), findsOneWidget);
 
       // Opción 2: Comprar 1 Ticket por 400 monedas
-      final buySingleBtn = find.text('🪙 400');
+      final buySingleBtn = find.text('400');
       expect(buySingleBtn, findsOneWidget);
       await tester.tap(buySingleBtn);
       await tester.pump();
 
       expect(session.tickets, equals(6));
       expect(session.coins, equals(600));
-      expect(find.text('6 / 10 🎫'), findsOneWidget);
+      expect(find.text('6 / 10'), findsOneWidget);
       expect(find.text('600'), findsOneWidget);
 
       // Como ahora tiene 600 monedas, la opción 3 (1,800 monedas) debe estar deshabilitada
@@ -202,9 +202,9 @@ void main() {
       expect(find.text('Taberna'), findsOneWidget);
       expect(find.text('Club Privado'), findsOneWidget);
 
-      // En modo 1v1 inicial: Pozo de Taberna debe ser 🪙 500 y Premio 🪙 460
-      expect(find.text('🪙 500'), findsOneWidget);
-      expect(find.text('🪙 460'), findsOneWidget);
+      // En modo 1v1 inicial: Pozo de Taberna debe ser 500 y Premio 460
+      expect(find.text('500'), findsOneWidget);
+      expect(find.text('460'), findsOneWidget);
 
       // Cambiar a modalidad "En Parejas"
       final parejasTab = find.text('En Parejas');
@@ -212,8 +212,8 @@ void main() {
       await tester.tap(parejasTab);
       await tester.pumpAndSettle();
 
-      // Pozo de Taberna en parejas debe actualizarse en vivo a 🪙 1000 (y Club Privado tiene entrada de 1000)
-      expect(find.text('🪙 1000'), findsAtLeastNWidgets(1));
+      // Pozo de Taberna en parejas debe actualizarse en vivo a 1000 (y Club Privado tiene entrada de 1000)
+      expect(find.text('1000'), findsAtLeastNWidgets(1));
 
       // Desplazar horizontalmente el carrusel para revelar la última mesa (High Roller)
       await tester.drag(find.byType(ListView), const Offset(-500, 0));
@@ -221,14 +221,14 @@ void main() {
 
       expect(find.text('High Roller'), findsOneWidget);
       // High Roller (Nv 8): Bloqueada por nivel
-      expect(find.text('🔒 NIVEL 8 REQUERIDO'), findsOneWidget);
+      expect(find.text('NIVEL 8 REQUERIDO'), findsOneWidget);
 
       // Regresar al inicio del carrusel para entrar a Taberna
       await tester.drag(find.byType(ListView), const Offset(500, 0));
       await tester.pumpAndSettle();
 
-      // Taberna (Nv 1, entrada 250): Desbloqueada y saldo disponible -> ENTRAR (🪙 250)
-      final enterTabernaBtn = find.text('ENTRAR (🪙 250)');
+      // Taberna (Nv 1, entrada 250): Desbloqueada y saldo disponible -> ENTRAR (250)
+      final enterTabernaBtn = find.text('ENTRAR (250)');
       expect(enterTabernaBtn, findsOneWidget);
 
       // Al pulsar "ENTRAR" en Taberna:

@@ -5,6 +5,7 @@ import 'core/services/debug_logger.dart';
 import 'core/services/user_profile_service.dart';
 import 'core/stats/stats_repository.dart';
 import 'features/la_caida/economy/player_session.dart';
+import 'features/la_caida/economy/player_stats_model.dart';
 import 'features/la_caida/presentation/caida_splash_screen.dart';
 
 void main() async {
@@ -18,6 +19,7 @@ void main() async {
   await statsRepository.load();
   await UserProfileService().load();
   await PlayerSession.load();
+  await PlayerStatsModel.shared.load();
 
   runApp(CaidaGoApp(statsRepository: statsRepository));
 }
